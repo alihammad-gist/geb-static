@@ -359,7 +359,7 @@ checkPropTypes.resetWarningCache = function () {
 
 module.exports = checkPropTypes;
 },{"./lib/ReactPropTypesSecret":"node_modules/prop-types/lib/ReactPropTypesSecret.js"}],"node_modules/react/cjs/react.development.js":[function(require,module,exports) {
-/** @license React v16.10.2
+/** @license React v16.11.0
  * react.development.js
  *
  * Copyright (c) Facebook, Inc. and its affiliates.
@@ -378,7 +378,7 @@ if ("development" !== "production") {
     var checkPropTypes = require('prop-types/checkPropTypes'); // TODO: this is special because it gets imported during build.
 
 
-    var ReactVersion = '16.10.2'; // The Symbol used to tag the ReactElement-like types. If there is no native Symbol
+    var ReactVersion = '16.11.0'; // The Symbol used to tag the ReactElement-like types. If there is no native Symbol
     // nor polyfill, then a plain number is used for performance.
 
     var hasSymbol = typeof Symbol === 'function' && Symbol.for;
@@ -416,17 +416,9 @@ if ("development" !== "production") {
 
       return null;
     } // Do not require this module directly! Use normal `invariant` calls with
-    // template literal strings. The messages will be converted to ReactError during
-    // build, and in production they will be minified.
-    // Do not require this module directly! Use normal `invariant` calls with
-    // template literal strings. The messages will be converted to ReactError during
-    // build, and in production they will be minified.
+    // template literal strings. The messages will be replaced with error codes
+    // during build.
 
-
-    function ReactError(error) {
-      error.name = 'Invariant Violation';
-      return error;
-    }
     /**
      * Use invariant() to assert state which your program assumes to be true.
      *
@@ -675,13 +667,11 @@ if ("development" !== "production") {
      */
 
     Component.prototype.setState = function (partialState, callback) {
-      (function () {
-        if (!(typeof partialState === 'object' || typeof partialState === 'function' || partialState == null)) {
-          {
-            throw ReactError(Error("setState(...): takes an object of state variables to update or a function which returns an object of state variables."));
-          }
+      if (!(typeof partialState === 'object' || typeof partialState === 'function' || partialState == null)) {
+        {
+          throw Error("setState(...): takes an object of state variables to update or a function which returns an object of state variables.");
         }
-      })();
+      }
 
       this.updater.enqueueSetState(this, partialState, callback, 'setState');
     };
@@ -1060,8 +1050,8 @@ if ("development" !== "production") {
     }
     /**
      * Factory method to create a new React element. This no longer adheres to
-     * the class pattern, so do not use new to call it. Also, no instanceof check
-     * will work. Instead test $$typeof field against Symbol.for('react.element') to check
+     * the class pattern, so do not use new to call it. Also, instanceof check
+     * will not work. Instead test $$typeof field against Symbol.for('react.element') to check
      * if something is a React Element.
      *
      * @param {*} type
@@ -1300,13 +1290,11 @@ if ("development" !== "production") {
 
 
     function cloneElement(element, config, children) {
-      (function () {
-        if (!!(element === null || element === undefined)) {
-          {
-            throw ReactError(Error("React.cloneElement(...): The argument must be a React element, but you passed " + element + "."));
-          }
+      if (!!(element === null || element === undefined)) {
+        {
+          throw Error("React.cloneElement(...): The argument must be a React element, but you passed " + element + ".");
         }
-      })();
+      }
 
       var propName; // Original props are copied
 
@@ -1536,14 +1524,11 @@ if ("development" !== "production") {
             addendum = ' If you meant to render a collection of children, use an array ' + 'instead.' + ReactDebugCurrentFrame.getStackAddendum();
           }
           var childrenString = '' + children;
-
-          (function () {
+          {
             {
-              {
-                throw ReactError(Error("Objects are not valid as a React child (found: " + (childrenString === '[object Object]' ? 'object with keys {' + Object.keys(children).join(', ') + '}' : childrenString) + ")." + addendum));
-              }
+              throw Error("Objects are not valid as a React child (found: " + (childrenString === '[object Object]' ? 'object with keys {' + Object.keys(children).join(', ') + '}' : childrenString) + ")." + addendum);
             }
-          })();
+          }
         }
       }
 
@@ -1729,13 +1714,11 @@ if ("development" !== "production") {
 
 
     function onlyChild(children) {
-      (function () {
-        if (!isValidElement(children)) {
-          {
-            throw ReactError(Error("React.Children.only expected to receive a single React element child."));
-          }
+      if (!isValidElement(children)) {
+        {
+          throw Error("React.Children.only expected to receive a single React element child.");
         }
-      })();
+      }
 
       return children;
     }
@@ -1929,13 +1912,11 @@ if ("development" !== "production") {
     function resolveDispatcher() {
       var dispatcher = ReactCurrentDispatcher.current;
 
-      (function () {
-        if (!(dispatcher !== null)) {
-          {
-            throw ReactError(Error("Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:\n1. You might have mismatching versions of React and the renderer (such as React DOM)\n2. You might be breaking the Rules of Hooks\n3. You might have more than one copy of React in the same app\nSee https://fb.me/react-invalid-hook-call for tips about how to debug and fix this problem."));
-          }
+      if (!(dispatcher !== null)) {
+        {
+          throw Error("Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:\n1. You might have mismatching versions of React and the renderer (such as React DOM)\n2. You might be breaking the Rules of Hooks\n3. You might have more than one copy of React in the same app\nSee https://fb.me/react-invalid-hook-call for tips about how to debug and fix this problem.");
         }
-      })();
+      }
 
       return dispatcher;
     }
@@ -2017,6 +1998,16 @@ if ("development" !== "production") {
         }
       }
       return dispatcher.useResponder(responder, listenerProps || emptyObject$1);
+    }
+
+    function useTransition(config) {
+      var dispatcher = resolveDispatcher();
+      return dispatcher.useTransition(config);
+    }
+
+    function useDeferredValue(value, config) {
+      var dispatcher = resolveDispatcher();
+      return dispatcher.useDeferredValue(value, config);
     }
 
     function withSuspenseConfig(scope, config) {
@@ -2505,10 +2496,9 @@ if ("development" !== "production") {
       return eventResponder;
     }
 
-    function createScope(fn) {
+    function createScope() {
       var scopeComponent = {
-        $$typeof: REACT_SCOPE_TYPE,
-        fn: fn
+        $$typeof: REACT_SCOPE_TYPE
       };
       {
         Object.freeze(scopeComponent);
@@ -2524,8 +2514,7 @@ if ("development" !== "production") {
     // Warn about deprecated, async-unsafe lifecycles; relates to RFC #6:
     // Gather advanced timing metrics for Profiler subtrees.
     // Trace which interactions trigger each commit.
-    // Only used in www builds.
-    // TODO: true? Here it might just be false.
+    // SSR experiments
     // Only used in www builds.
     // Only used in www builds.
     // Disable javascript: URL strings in href for XSS protection.
@@ -2533,10 +2522,9 @@ if ("development" !== "production") {
     // with their related DOM properties
     // These APIs will no longer be "unstable" in the upcoming 16.7 release,
     // Control this behavior with a flag to support 16.6 minor releases in the meanwhile.
-    // See https://github.com/react-native-community/discussions-and-proposals/issues/72 for more information
-    // This is a flag so we can fix warnings in RN core before turning it on
-    // Experimental React Flare event system and event components support.
 
+
+    var exposeConcurrentModeAPIs = false; // Experimental React Flare event system and event components support.
 
     var enableFlareAPI = false; // Experimental Host Component support.
 
@@ -2548,9 +2536,6 @@ if ("development" !== "production") {
     // Till then, we warn about the missing mock, but still fallback to a sync mode compatible version
     // For tests, we flush suspense fallbacks in an act scope;
     // *except* in some of our own tests, where we test incremental loading states.
-    // Changes priority of some events like mousemove to user-blocking priority,
-    // but without making them discrete. The flag exists in case it causes
-    // starvation problems.
     // Add a callback property to suspense to notify which promises are currently
     // in the update queue. This allows reporting and tracing of what is causing
     // the user to see a loading state.
@@ -2589,15 +2574,20 @@ if ("development" !== "production") {
       Profiler: REACT_PROFILER_TYPE,
       StrictMode: REACT_STRICT_MODE_TYPE,
       Suspense: REACT_SUSPENSE_TYPE,
-      unstable_SuspenseList: REACT_SUSPENSE_LIST_TYPE,
       createElement: createElementWithValidation,
       cloneElement: cloneElementWithValidation,
       createFactory: createFactoryWithValidation,
       isValidElement: isValidElement,
       version: ReactVersion,
-      unstable_withSuspenseConfig: withSuspenseConfig,
       __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED: ReactSharedInternals
     };
+
+    if (exposeConcurrentModeAPIs) {
+      React.useTransition = useTransition;
+      React.useDeferredValue = useDeferredValue;
+      React.SuspenseList = REACT_SUSPENSE_LIST_TYPE;
+      React.unstable_withSuspenseConfig = withSuspenseConfig;
+    }
 
     if (enableFlareAPI) {
       React.unstable_useResponder = useResponder;
@@ -38286,7 +38276,7 @@ exports.default = function (_a) {
   }, item.date.toLocaleDateString("en-US", dateOptions))), React.createElement("div", {
     className: 'column news-outline-description'
   }, React.createElement("h3", {
-    className: "subtitle is-4"
+    className: "title is-4"
   }, React.createElement("a", {
     href: "#"
   }, item.title)), React.createElement("p", {
@@ -38820,7 +38810,7 @@ if ("development" !== 'production') {
     }
   };
 }
-},{}],"../../../../.nvm/versions/node/v10.5.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js":[function(require,module,exports) {
+},{}],"../../../../.nvm/versions/node/v12.12.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js":[function(require,module,exports) {
 
 // shim for using process in browser
 var process = module.exports = {}; // cached from whatever global is present so that test runners that stub it
@@ -39208,7 +39198,7 @@ var getFrameData = function () {
 exports.getFrameData = getFrameData;
 var _default = sync;
 exports.default = _default;
-},{"hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","process":"../../../../.nvm/versions/node/v10.5.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js"}],"node_modules/style-value-types/dist/style-value-types.es.js":[function(require,module,exports) {
+},{"hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","process":"../../../../.nvm/versions/node/v12.12.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js"}],"node_modules/style-value-types/dist/style-value-types.es.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -42894,7 +42884,7 @@ var styler = function () {
 };
 
 exports.styler = styler;
-},{"tslib":"node_modules/tslib/tslib.es6.js","@popmotion/popcorn":"node_modules/@popmotion/popcorn/dist/popcorn.es.js","framesync":"node_modules/framesync/dist/framesync.es.js","style-value-types":"node_modules/style-value-types/dist/style-value-types.es.js","@popmotion/easing":"node_modules/@popmotion/easing/dist/easing.es.js","hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","process":"../../../../.nvm/versions/node/v10.5.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js"}],"node_modules/@emotion/memoize/dist/memoize.browser.esm.js":[function(require,module,exports) {
+},{"tslib":"node_modules/tslib/tslib.es6.js","@popmotion/popcorn":"node_modules/@popmotion/popcorn/dist/popcorn.es.js","framesync":"node_modules/framesync/dist/framesync.es.js","style-value-types":"node_modules/style-value-types/dist/style-value-types.es.js","@popmotion/easing":"node_modules/@popmotion/easing/dist/easing.es.js","hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","process":"../../../../.nvm/versions/node/v12.12.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js"}],"node_modules/@emotion/memoize/dist/memoize.browser.esm.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -48583,7 +48573,7 @@ var news_outline_1 = __importDefault(require("./components/news-outline"));
 
 var hero_1 = __importDefault(require("./components/hero"));
 
-var NavbarOpaqueBreakPointY = 200;
+var NavbarOpaqueBreakPointY = 100;
 var Navbar = document.getElementById('main_navbar');
 window.addEventListener('DOMContentLoaded', function (event) {
   if (window.scrollY === 0) {
@@ -48603,7 +48593,7 @@ window.addEventListener('DOMContentLoaded', function (event) {
   console.log("inserting hero into the dom");
   ReactDOM.render(React.createElement(hero_1.default, null), document.getElementById("hero_app"));
 });
-},{"./lib/scroll":"scripts/lib/scroll.ts","react":"node_modules/react/index.js","react-dom":"node_modules/react-dom/index.js","./components/news-outline":"scripts/components/news-outline/index.tsx","./components/hero":"scripts/components/hero/index.tsx"}],"../../../../.nvm/versions/node/v10.5.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"./lib/scroll":"scripts/lib/scroll.ts","react":"node_modules/react/index.js","react-dom":"node_modules/react-dom/index.js","./components/news-outline":"scripts/components/news-outline/index.tsx","./components/hero":"scripts/components/hero/index.tsx"}],"../../../../.nvm/versions/node/v12.12.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -48631,7 +48621,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "41605" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36357" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
@@ -48807,5 +48797,5 @@ function hmrAcceptRun(bundle, id) {
     return true;
   }
 }
-},{}]},{},["../../../../.nvm/versions/node/v10.5.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js","scripts/index.tsx"], null)
+},{}]},{},["../../../../.nvm/versions/node/v12.12.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js","scripts/index.tsx"], null)
 //# sourceMappingURL=/scripts.9da17dbf.js.map
