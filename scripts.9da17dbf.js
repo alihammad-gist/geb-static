@@ -48486,7 +48486,7 @@ Object.defineProperty(exports, "__esModule", {
 var Gef = 20;
 var Undp = 40;
 var Mocc = 60;
-var PixelPerPercentage = 30;
+var PixelPerPercentage = 20;
 var LogoSize = 12;
 var PercentageBreakpoint = 100 - LogoSize;
 
@@ -48650,7 +48650,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "44817" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "39563" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
