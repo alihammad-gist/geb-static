@@ -7478,6 +7478,9 @@ p.content {
 
 .section-heading {
   color: #008542 !important;
+  font-weight: normal !important;
+  border-left: 0.5rem solid #008542;
+  padding-left: 1rem;
 }
 .section-heading.margin-top {
   margin-top: 3rem;
@@ -7528,11 +7531,11 @@ ul.logo .logo-image {
 .hero .tagline {
   margin: 0 auto;
   text-align: center;
-  width: 50%;
+  width: 60%;
   margin-top: 1rem;
   line-height: 2rem;
   text-transform: uppercase;
-  letter-spacing: 0.2rem;
+  letter-spacing: 0.1rem;
 }
 .hero .tagline > span {
   background: #5b92e5;
@@ -7544,10 +7547,12 @@ ul.logo .logo-image {
 }
 
 .hero-homepage {
-  background-image: url(/barley.f9b7e2f2.jpg);
-  background-size: cover;
+  background-image: url(/undp-logo-30.d146f0e5.svg), url(/gef.2b1eb80f.png), url(/state-emblem-pk.f03983e3.svg), url(/barley.f9b7e2f2.jpg);
+  background-size: auto 12%, auto 12%, auto 12%, cover;
   background-clip: border-box;
   background-repeat: no-repeat;
+  background-position: top 20% right 6%, top 40% right 5%, top 60% right 5%, top 0% left 0%;
+  padding-bottom: 200px;
 }
 
 .navbar-transparent {
@@ -7563,6 +7568,7 @@ ul.logo .logo-image {
 }
 .navbar * {
   font-size: 1.2rem;
+  font-weight: bold;
 }
 .navbar .logo {
   transition-property: all;
@@ -7597,6 +7603,10 @@ ul.logo .logo-image {
 }
 .goal-outline .desc .content:last-child {
   padding-bottom: 2rem;
+}
+.goal-outline .desc.pull-up {
+  margin-top: -150px;
+  box-shadow: 10px 10px 7px -8px #333333;
 }
 .goal-outline .desc::before {
   content: "";

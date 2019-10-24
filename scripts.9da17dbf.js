@@ -48477,7 +48477,34 @@ Object.defineProperty(exports, "useScrollPosition", {
 });
 
 var _useScrollPosition = require("./useScrollPosition");
-},{"./useScrollPosition":"node_modules/@n8tb1t/use-scroll-position/lib/useScrollPosition.js"}],"scripts/components/hero/index.tsx":[function(require,module,exports) {
+},{"./useScrollPosition":"node_modules/@n8tb1t/use-scroll-position/lib/useScrollPosition.js"}],"scripts/components/hero/logos-scroll.tsx":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+var Gef = 20;
+var Undp = 40;
+var Mocc = 60;
+var PixelPerPercentage = 30;
+var LogoSize = 12;
+var PercentageBreakpoint = 100 - LogoSize;
+
+function backgroundPos(y) {
+  var nGef = y / PixelPerPercentage + Gef;
+  var nUndp = y / PixelPerPercentage + Undp;
+  var nMocc = y / PixelPerPercentage + Mocc;
+  var updateable = nGef < PercentageBreakpoint && nUndp < PercentageBreakpoint && nMocc < PercentageBreakpoint;
+  return {
+    cover: y / 2,
+    gef: nGef,
+    undp: nUndp,
+    mocc: nMocc
+  };
+}
+
+exports.backgroundPos = backgroundPos;
+},{}],"scripts/components/hero/index.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48500,8 +48527,10 @@ var framer_motion_1 = require("framer-motion");
 
 var use_scroll_position_1 = require("@n8tb1t/use-scroll-position");
 
+var logos_scroll_1 = require("./logos-scroll");
+
 exports.default = function () {
-  var _a = React.useState(0),
+  var _a = React.useState(logos_scroll_1.backgroundPos(0)),
       y = _a[0],
       setY = _a[1];
 
@@ -48511,14 +48540,14 @@ exports.default = function () {
 
     if (prevPos.y !== currPos.y) {
       if (-currPos.y < 500) {
-        setY(-currPos.y);
+        setY(logos_scroll_1.backgroundPos(-currPos.y));
       }
     }
   });
   return React.createElement(framer_motion_1.motion.div, {
     className: "hero hero-homepage is-primary is-fullheight",
     style: {
-      backgroundPositionY: y / 2
+      backgroundPositionY: y.gef + "%, " + y.undp + "%, " + y.mocc + "%, " + y.cover + "px"
     }
   }, React.createElement(Content, null));
 };
@@ -48536,11 +48565,11 @@ var Content = function Content() {
     className: "logo-image title"
   }, "GEB"), React.createElement("li", {
     className: "logo-description"
-  }, React.createElement("p", null, "Generating"), React.createElement("p", null, "Global"), React.createElement("p", null, "Environmental"), React.createElement("p", null, "Benefits")))), React.createElement("p", {
+  }, React.createElement("p", null, "Generating Global Environmental Benefits")))), React.createElement("p", {
     className: "subtitle tagline"
   }, React.createElement("span", null, React.createElement("span", null, "Integrating Biodiversity, Climate change and Desertification consideration in Economic decision making in Pakistan")))));
 };
-},{"react":"node_modules/react/index.js","framer-motion":"node_modules/framer-motion/dist/framer-motion.es.js","@n8tb1t/use-scroll-position":"node_modules/@n8tb1t/use-scroll-position/lib/index.js"}],"scripts/index.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","framer-motion":"node_modules/framer-motion/dist/framer-motion.es.js","@n8tb1t/use-scroll-position":"node_modules/@n8tb1t/use-scroll-position/lib/index.js","./logos-scroll":"scripts/components/hero/logos-scroll.tsx"}],"scripts/index.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48621,7 +48650,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36357" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "44817" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
