@@ -189,7 +189,7 @@ var reloadCSS = require('_css_loader');
 
 module.hot.dispose(reloadCSS);
 module.hot.accept(reloadCSS);
-},{"./../images/undp-logo-30.svg":[["undp-logo-30.d146f0e5.svg","images/undp-logo-30.svg"],"images/undp-logo-30.svg"],"./../images/gef.png":[["gef.2b1eb80f.png","images/gef.png"],"images/gef.png"],"./../images/state-emblem-pk.svg":[["state-emblem-pk.f03983e3.svg","images/state-emblem-pk.svg"],"images/state-emblem-pk.svg"],"./../images/barley.jpg":[["barley.f9b7e2f2.jpg","images/barley.jpg"],"images/barley.jpg"],"_css_loader":"../../../../.nvm/versions/node/v12.12.0/lib/node_modules/parcel-bundler/src/builtins/css-loader.js"}],"../../../../.nvm/versions/node/v12.12.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"./../images/barley.jpg":[["barley.f9b7e2f2.jpg","images/barley.jpg"],"images/barley.jpg"],"./../images/footer_lodyas.png":[["footer_lodyas.d1433b70.png","images/footer_lodyas.png"],"images/footer_lodyas.png"],"_css_loader":"../../../../.nvm/versions/node/v12.12.0/lib/node_modules/parcel-bundler/src/builtins/css-loader.js"}],"../../../../.nvm/versions/node/v12.12.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -217,7 +217,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "39563" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "41329" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

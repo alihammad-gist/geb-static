@@ -48483,27 +48483,34 @@ var _useScrollPosition = require("./useScrollPosition");
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-var Gef = 20;
-var Undp = 40;
-var Mocc = 60;
-var PixelPerPercentage = 20;
+var LogosPos = 50;
+var PixelPerPercentage = 50;
 var LogoSize = 12;
 var PercentageBreakpoint = 100 - LogoSize;
 
 function backgroundPos(y) {
-  var nGef = y / PixelPerPercentage + Gef;
-  var nUndp = y / PixelPerPercentage + Undp;
-  var nMocc = y / PixelPerPercentage + Mocc;
-  var updateable = nGef < PercentageBreakpoint && nUndp < PercentageBreakpoint && nMocc < PercentageBreakpoint;
+  var nLogosPos = y / PixelPerPercentage + LogosPos;
+
+  if (nLogosPos > PercentageBreakpoint) {
+    return {
+      cover: y / 2,
+      associatedLogos: PercentageBreakpoint
+    };
+  }
+
   return {
     cover: y / 2,
-    gef: nGef,
-    undp: nUndp,
-    mocc: nMocc
+    associatedLogos: nLogosPos
   };
 }
 
 exports.backgroundPos = backgroundPos;
+},{}],"images/state-emblem-pk.svg":[function(require,module,exports) {
+module.exports = "/state-emblem-pk.f03983e3.svg";
+},{}],"images/undp-logo-30.svg":[function(require,module,exports) {
+module.exports = "/undp-logo-30.d146f0e5.svg";
+},{}],"images/gef.png":[function(require,module,exports) {
+module.exports = "/gef.2b1eb80f.png";
 },{}],"scripts/components/hero/index.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48517,6 +48524,12 @@ var __importStar = this && this.__importStar || function (mod) {
   return result;
 };
 
+var __importDefault = this && this.__importDefault || function (mod) {
+  return mod && mod.__esModule ? mod : {
+    "default": mod
+  };
+};
+
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
@@ -48528,6 +48541,12 @@ var framer_motion_1 = require("framer-motion");
 var use_scroll_position_1 = require("@n8tb1t/use-scroll-position");
 
 var logos_scroll_1 = require("./logos-scroll");
+
+var state_emblem_pk_svg_1 = __importDefault(require("./../../../images/state-emblem-pk.svg"));
+
+var undp_logo_30_svg_1 = __importDefault(require("../../../images/undp-logo-30.svg"));
+
+var gef_png_1 = __importDefault(require("../../../images/gef.png"));
 
 exports.default = function () {
   var _a = React.useState(logos_scroll_1.backgroundPos(0)),
@@ -48547,9 +48566,11 @@ exports.default = function () {
   return React.createElement(framer_motion_1.motion.div, {
     className: "hero hero-homepage is-primary is-fullheight",
     style: {
-      backgroundPositionY: y.gef + "%, " + y.undp + "%, " + y.mocc + "%, " + y.cover + "px"
+      backgroundPositionY: y.cover + "px"
     }
-  }, React.createElement(Content, null));
+  }, React.createElement(AssociatedLogos, {
+    top: y.associatedLogos + "%"
+  }), React.createElement(Content, null));
 };
 
 var Content = function Content() {
@@ -48569,7 +48590,29 @@ var Content = function Content() {
     className: "subtitle tagline"
   }, React.createElement("span", null, React.createElement("span", null, "Integrating Biodiversity, Climate change and Desertification consideration in Economic decision making in Pakistan")))));
 };
-},{"react":"node_modules/react/index.js","framer-motion":"node_modules/framer-motion/dist/framer-motion.es.js","@n8tb1t/use-scroll-position":"node_modules/@n8tb1t/use-scroll-position/lib/index.js","./logos-scroll":"scripts/components/hero/logos-scroll.tsx"}],"scripts/index.tsx":[function(require,module,exports) {
+
+var AssociatedLogos = function AssociatedLogos(_a) {
+  var top = _a.top;
+  return React.createElement(framer_motion_1.motion.div, {
+    className: "associated-logos",
+    style: {
+      top: top
+    }
+  }, React.createElement("figure", {
+    className: "figure"
+  }, React.createElement("img", {
+    src: state_emblem_pk_svg_1.default
+  })), React.createElement("figure", {
+    className: "figure"
+  }, React.createElement("img", {
+    src: undp_logo_30_svg_1.default
+  })), React.createElement("figure", {
+    className: "figure"
+  }, React.createElement("img", {
+    src: gef_png_1.default
+  })));
+};
+},{"react":"node_modules/react/index.js","framer-motion":"node_modules/framer-motion/dist/framer-motion.es.js","@n8tb1t/use-scroll-position":"node_modules/@n8tb1t/use-scroll-position/lib/index.js","./logos-scroll":"scripts/components/hero/logos-scroll.tsx","./../../../images/state-emblem-pk.svg":"images/state-emblem-pk.svg","../../../images/undp-logo-30.svg":"images/undp-logo-30.svg","../../../images/gef.png":"images/gef.png"}],"scripts/index.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48650,7 +48693,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "39563" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "41329" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
