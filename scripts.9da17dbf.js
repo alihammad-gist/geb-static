@@ -117,12 +117,47 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   }
 
   return newRequire;
-})({"scripts/lib/scroll.ts":[function(require,module,exports) {
+})({"scripts/feature-detect/passive-event-listeners.ts":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+
+function default_1() {
+  var supportsPassiveOption = false;
+
+  try {
+    var opts = Object.defineProperty({}, 'passive', {
+      get: function get() {
+        supportsPassiveOption = true;
+      }
+    });
+
+    var noop = function noop() {};
+
+    window.addEventListener('testPassiveEventSupport', noop, opts);
+    window.removeEventListener('testPassiveEventSupport', noop, opts);
+  } catch (e) {}
+
+  return supportsPassiveOption;
+}
+
+exports.default = default_1;
+},{}],"scripts/lib/scroll.ts":[function(require,module,exports) {
+"use strict";
+
+var __importDefault = this && this.__importDefault || function (mod) {
+  return mod && mod.__esModule ? mod : {
+    "default": mod
+  };
+};
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var passive_event_listeners_1 = __importDefault(require("../feature-detect/passive-event-listeners"));
 
 exports.addScrollEventListener = function (handler) {
   var last_known_y = 0;
@@ -145,14 +180,16 @@ exports.addScrollEventListener = function (handler) {
     }
   }
 
-  window.addEventListener('scroll', handleScrollEvent);
+  window.addEventListener('scroll', handleScrollEvent, passive_event_listeners_1.default() ? {
+    passive: true
+  } : false);
   return handleScrollEvent;
 };
 
 exports.removeScrollEventListener = function (handler) {
-  window.removeEventListener('scroll', handler);
+  window.removeEventListener('scroll', handler, false);
 };
-},{}],"node_modules/object-assign/index.js":[function(require,module,exports) {
+},{"../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"node_modules/object-assign/index.js":[function(require,module,exports) {
 /*
 object-assign
 (c) Sindre Sorhus
@@ -48385,99 +48422,7 @@ var AnimatePresence = function (_a) {
 };
 
 exports.AnimatePresence = AnimatePresence;
-},{"tslib":"node_modules/tslib/tslib.es6.js","react":"node_modules/react/index.js","framesync":"node_modules/framesync/dist/framesync.es.js","@popmotion/popcorn":"node_modules/@popmotion/popcorn/dist/popcorn.es.js","stylefire":"node_modules/stylefire/dist/stylefire.es.js","hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","style-value-types":"node_modules/style-value-types/dist/style-value-types.es.js","popmotion":"node_modules/popmotion/dist/popmotion.es.js","@popmotion/easing":"node_modules/@popmotion/easing/dist/easing.es.js","@emotion/is-prop-valid":"node_modules/@emotion/is-prop-valid/dist/is-prop-valid.browser.esm.js"}],"node_modules/@n8tb1t/use-scroll-position/lib/useScrollPosition.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.useScrollPosition = useScrollPosition;
-
-var _react = require("react");
-
-/* eslint-disable react-hooks/exhaustive-deps */
-var isBrowser = typeof window !== "undefined";
-
-function getScrollPosition(_ref) {
-  var element = _ref.element,
-      useWindow = _ref.useWindow;
-  if (!isBrowser) return {
-    x: 0,
-    y: 0
-  };
-  var target = element ? element.current : document.body;
-  var position = target.getBoundingClientRect();
-  return useWindow ? {
-    x: window.scrollX,
-    y: window.scrollY
-  } : {
-    x: position.left,
-    y: position.top
-  };
-}
-
-function useScrollPosition(effect, deps, element, useWindow, wait) {
-  var position = (0, _react.useRef)(getScrollPosition({
-    useWindow: useWindow
-  }));
-  var throttleTimeout = null;
-
-  var callBack = function callBack() {
-    var currPos = getScrollPosition({
-      element: element,
-      useWindow: useWindow
-    });
-    effect({
-      prevPos: position.current,
-      currPos: currPos
-    });
-    position.current = currPos;
-    throttleTimeout = null;
-  };
-
-  (0, _react.useLayoutEffect)(function () {
-    if (!isBrowser) {
-      return;
-    }
-
-    var handleScroll = function handleScroll() {
-      if (wait) {
-        if (throttleTimeout === null) {
-          throttleTimeout = setTimeout(callBack, wait);
-        }
-      } else {
-        callBack();
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return function () {
-      return window.removeEventListener('scroll', handleScroll);
-    };
-  }, deps);
-}
-
-useScrollPosition.defaultProps = {
-  deps: [],
-  element: false,
-  useWindow: false,
-  wait: null
-};
-},{"react":"node_modules/react/index.js"}],"node_modules/@n8tb1t/use-scroll-position/lib/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-Object.defineProperty(exports, "useScrollPosition", {
-  enumerable: true,
-  get: function get() {
-    return _useScrollPosition.useScrollPosition;
-  }
-});
-
-var _useScrollPosition = require("./useScrollPosition");
-},{"./useScrollPosition":"node_modules/@n8tb1t/use-scroll-position/lib/useScrollPosition.js"}],"scripts/components/hero/logos-scroll.tsx":[function(require,module,exports) {
+},{"tslib":"node_modules/tslib/tslib.es6.js","react":"node_modules/react/index.js","framesync":"node_modules/framesync/dist/framesync.es.js","@popmotion/popcorn":"node_modules/@popmotion/popcorn/dist/popcorn.es.js","stylefire":"node_modules/stylefire/dist/stylefire.es.js","hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","style-value-types":"node_modules/style-value-types/dist/style-value-types.es.js","popmotion":"node_modules/popmotion/dist/popmotion.es.js","@popmotion/easing":"node_modules/@popmotion/easing/dist/easing.es.js","@emotion/is-prop-valid":"node_modules/@emotion/is-prop-valid/dist/is-prop-valid.browser.esm.js"}],"scripts/components/hero/logos-scroll.tsx":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -48505,7 +48450,151 @@ function backgroundPos(y) {
 }
 
 exports.backgroundPos = backgroundPos;
-},{}],"images/state-emblem-pk.svg":[function(require,module,exports) {
+},{}],"scripts/lib/use-scroll.ts":[function(require,module,exports) {
+"use strict";
+
+var __importDefault = this && this.__importDefault || function (mod) {
+  return mod && mod.__esModule ? mod : {
+    "default": mod
+  };
+};
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var react_1 = require("react");
+
+var passive_event_listeners_1 = __importDefault(require("../feature-detect/passive-event-listeners"));
+
+function useScroll(handler) {
+  react_1.useEffect(function () {
+    var latestKnownScrollPos = {
+      x: 0,
+      y: 0
+    };
+    var ticking = false;
+
+    function onScroll() {
+      latestKnownScrollPos = {
+        x: window.scrollX,
+        y: window.scrollY
+      };
+      requestTick();
+    }
+
+    function requestTick() {
+      if (!ticking) {
+        window.requestAnimationFrame(update);
+      }
+
+      ticking = true;
+    }
+
+    function update() {
+      ticking = false;
+      handler(latestKnownScrollPos);
+    }
+
+    window.addEventListener('scroll', onScroll, passive_event_listeners_1.default ? {
+      passive: true
+    } : false);
+    return function () {
+      window.removeEventListener('scroll', onScroll, false);
+    };
+  }, []);
+}
+
+exports.default = useScroll;
+},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/barley.jpg":[function(require,module,exports) {
+module.exports = "/barley.f9b7e2f2.jpg";
+},{}],"images/bridge-building.jpg":[function(require,module,exports) {
+module.exports = "/bridge-building.ce2c20e7.jpg";
+},{}],"images/foggy-forest.jpg":[function(require,module,exports) {
+module.exports = "/foggy-forest.977f9e40.jpg";
+},{}],"images/north-pak-plane.jpg":[function(require,module,exports) {
+module.exports = "/north-pak-plane.57e62030.jpg";
+},{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
+"use strict";
+
+var __importStar = this && this.__importStar || function (mod) {
+  if (mod && mod.__esModule) return mod;
+  var result = {};
+  if (mod != null) for (var k in mod) {
+    if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+  }
+  result["default"] = mod;
+  return result;
+};
+
+var __importDefault = this && this.__importDefault || function (mod) {
+  return mod && mod.__esModule ? mod : {
+    "default": mod
+  };
+};
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var react_1 = __importStar(require("react"));
+
+var barley_jpg_1 = __importDefault(require("../../../images/barley.jpg"));
+
+var bridge_building_jpg_1 = __importDefault(require("../../../images/bridge-building.jpg"));
+
+var foggy_forest_jpg_1 = __importDefault(require("../../../images/foggy-forest.jpg"));
+
+var north_pak_plane_jpg_1 = __importDefault(require("../../../images/north-pak-plane.jpg"));
+
+var images = [barley_jpg_1.default, bridge_building_jpg_1.default, foggy_forest_jpg_1.default, north_pak_plane_jpg_1.default];
+
+exports.default = function () {
+  var _a = react_1.useState(0),
+      active = _a[0],
+      setActive = _a[1];
+
+  react_1.useEffect(function () {
+    var container = document.getElementById("hero_homepage");
+    var styles = window.getComputedStyle(container);
+    var backgroundImage = styles.backgroundImage;
+    var backgroundColor = styles.backgroundColor;
+    container.style.backgroundColor = 'transparent';
+    container.style.backgroundImage = 'none';
+
+    function cleanUp() {
+      if (container) {
+        container.style.backgroundImage = backgroundImage;
+        container.style.backgroundColor = backgroundColor;
+      }
+    }
+
+    return cleanUp;
+  }, []);
+  react_1.useEffect(function () {
+    var interval = window.setInterval(function () {
+      setActive((active + 1) % images.length);
+    }, 8000);
+    return function () {
+      window.clearInterval(interval);
+      console.log('removing hero image changer interval');
+    };
+  });
+  return react_1.default.createElement("div", {
+    className: 'hero-scene'
+  }, react_1.default.createElement("div", {
+    className: 'background-layers'
+  }, images.map(function (v, idx) {
+    return react_1.default.createElement("div", {
+      key: idx,
+      className: "layer " + (active == idx ? 'active' : ''),
+      style: {
+        backgroundImage: "url(" + v + ")"
+      }
+    });
+  })));
+};
+},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/bridge-building.jpg":"images/bridge-building.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg","../../../images/north-pak-plane.jpg":"images/north-pak-plane.jpg"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
 module.exports = "/state-emblem-pk.f03983e3.svg";
 },{}],"images/undp-logo-30.svg":[function(require,module,exports) {
 module.exports = "/undp-logo-30.d146f0e5.svg";
@@ -48538,9 +48627,11 @@ var React = __importStar(require("react"));
 
 var framer_motion_1 = require("framer-motion");
 
-var use_scroll_position_1 = require("@n8tb1t/use-scroll-position");
-
 var logos_scroll_1 = require("./logos-scroll");
+
+var use_scroll_1 = __importDefault(require("../../lib/use-scroll"));
+
+var scene_1 = __importDefault(require("./scene"));
 
 var state_emblem_pk_svg_1 = __importDefault(require("./../../../images/state-emblem-pk.svg"));
 
@@ -48553,24 +48644,15 @@ exports.default = function () {
       y = _a[0],
       setY = _a[1];
 
-  use_scroll_position_1.useScrollPosition(function (_a) {
-    var prevPos = _a.prevPos,
-        currPos = _a.currPos;
-
-    if (prevPos.y !== currPos.y) {
-      if (-currPos.y < 500) {
-        setY(logos_scroll_1.backgroundPos(-currPos.y));
-      }
+  use_scroll_1.default(function (pos) {
+    if (pos.y < 500) {
+      setY(logos_scroll_1.backgroundPos(pos.y));
     }
   });
-  return React.createElement(framer_motion_1.motion.div, {
-    className: "hero hero-homepage is-primary is-fullheight",
-    style: {
-      backgroundPositionY: y.cover + "px"
-    }
-  }, React.createElement(AssociatedLogos, {
-    top: y.associatedLogos + "%"
-  }), React.createElement(Content, null));
+  return React.createElement("div", {
+    id: "hero_homepage",
+    className: "hero hero-homepage is-primary is-fullheight"
+  }, React.createElement(scene_1.default, null), React.createElement(Content, null));
 };
 
 var Content = function Content() {
@@ -48588,7 +48670,13 @@ var Content = function Content() {
     className: "logo-description"
   }, React.createElement("p", null, "Generating Global Environmental Benefits")))), React.createElement("p", {
     className: "subtitle tagline"
-  }, React.createElement("span", null, React.createElement("span", null, "Integrating Biodiversity, Climate change and Desertification consideration in Economic decision making in Pakistan")))));
+  }, React.createElement("span", null, React.createElement("span", null, "Integrating Biodiversity, Climate change and Desertification consideration in Economic decision making in Pakistan"))), React.createElement("div", {
+    style: {
+      textAlign: 'center'
+    }
+  }, React.createElement(AssociatedLogos, {
+    top: "auto"
+  }))));
 };
 
 var AssociatedLogos = function AssociatedLogos(_a) {
@@ -48612,7 +48700,7 @@ var AssociatedLogos = function AssociatedLogos(_a) {
     src: gef_png_1.default
   })));
 };
-},{"react":"node_modules/react/index.js","framer-motion":"node_modules/framer-motion/dist/framer-motion.es.js","@n8tb1t/use-scroll-position":"node_modules/@n8tb1t/use-scroll-position/lib/index.js","./logos-scroll":"scripts/components/hero/logos-scroll.tsx","./../../../images/state-emblem-pk.svg":"images/state-emblem-pk.svg","../../../images/undp-logo-30.svg":"images/undp-logo-30.svg","../../../images/gef.png":"images/gef.png"}],"scripts/index.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","framer-motion":"node_modules/framer-motion/dist/framer-motion.es.js","./logos-scroll":"scripts/components/hero/logos-scroll.tsx","../../lib/use-scroll":"scripts/lib/use-scroll.ts","./scene":"scripts/components/hero/scene.tsx","./../../../images/state-emblem-pk.svg":"images/state-emblem-pk.svg","../../../images/undp-logo-30.svg":"images/undp-logo-30.svg","../../../images/gef.png":"images/gef.png"}],"scripts/index.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48693,7 +48781,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "41329" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "44513" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
