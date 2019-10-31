@@ -38382,12 +38382,12 @@ var data = [{
 }];
 exports.default = React.createElement(nuka_carousel_1.default, {
   speed: 2000,
-  vertical: true,
   heightMode: 'max',
   renderCenterLeftControls: null,
   renderCenterRightControls: null,
   autoplay: true,
-  autoplayInterval: 5000
+  autoplayInterval: 5000,
+  wrapAround: true
 }, data.map(function (item, idx) {
   return React.createElement(news_item_1.default, {
     item: item,
@@ -48508,12 +48508,12 @@ function useScroll(handler) {
 exports.default = useScroll;
 },{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/barley.jpg":[function(require,module,exports) {
 module.exports = "/barley.f9b7e2f2.jpg";
-},{}],"images/bridge-building.jpg":[function(require,module,exports) {
-module.exports = "/bridge-building.ce2c20e7.jpg";
+},{}],"images/flower.jpg":[function(require,module,exports) {
+module.exports = "/flower.c64c5610.jpg";
 },{}],"images/foggy-forest.jpg":[function(require,module,exports) {
 module.exports = "/foggy-forest.977f9e40.jpg";
-},{}],"images/north-pak-plane.jpg":[function(require,module,exports) {
-module.exports = "/north-pak-plane.57e62030.jpg";
+},{}],"images/snowflakes.jpg":[function(require,module,exports) {
+module.exports = "/snowflakes.e6e6ffc8.jpg";
 },{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48541,13 +48541,13 @@ var react_1 = __importStar(require("react"));
 
 var barley_jpg_1 = __importDefault(require("../../../images/barley.jpg"));
 
-var bridge_building_jpg_1 = __importDefault(require("../../../images/bridge-building.jpg"));
+var flower_jpg_1 = __importDefault(require("../../../images/flower.jpg"));
 
 var foggy_forest_jpg_1 = __importDefault(require("../../../images/foggy-forest.jpg"));
 
-var north_pak_plane_jpg_1 = __importDefault(require("../../../images/north-pak-plane.jpg"));
+var snowflakes_jpg_1 = __importDefault(require("../../../images/snowflakes.jpg"));
 
-var images = [barley_jpg_1.default, bridge_building_jpg_1.default, foggy_forest_jpg_1.default, north_pak_plane_jpg_1.default];
+var images = [barley_jpg_1.default, flower_jpg_1.default, foggy_forest_jpg_1.default, snowflakes_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48594,12 +48594,14 @@ exports.default = function () {
     });
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/bridge-building.jpg":"images/bridge-building.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg","../../../images/north-pak-plane.jpg":"images/north-pak-plane.jpg"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/flower.jpg":"images/flower.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg","../../../images/snowflakes.jpg":"images/snowflakes.jpg"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
 module.exports = "/state-emblem-pk.f03983e3.svg";
 },{}],"images/undp-logo-30.svg":[function(require,module,exports) {
 module.exports = "/undp-logo-30.d146f0e5.svg";
 },{}],"images/gef.png":[function(require,module,exports) {
 module.exports = "/gef.2b1eb80f.png";
+},{}],"images/logo.png":[function(require,module,exports) {
+module.exports = "/logo.6023b87e.png";
 },{}],"scripts/components/hero/index.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48639,6 +48641,8 @@ var undp_logo_30_svg_1 = __importDefault(require("../../../images/undp-logo-30.s
 
 var gef_png_1 = __importDefault(require("../../../images/gef.png"));
 
+var logo_png_1 = __importDefault(require("../../../images/logo.png"));
+
 exports.default = function () {
   var _a = React.useState(logos_scroll_1.backgroundPos(0)),
       y = _a[0],
@@ -48666,17 +48670,13 @@ var Content = function Content() {
     className: "logo"
   }, React.createElement("li", {
     className: "logo-image title"
-  }, "GEB"), React.createElement("li", {
+  }, React.createElement("img", {
+    src: logo_png_1.default
+  }), React.createElement("span", null, "GEB")), React.createElement("li", {
     className: "logo-description"
   }, React.createElement("p", null, "Generating Global Environmental Benefits")))), React.createElement("p", {
     className: "subtitle tagline"
-  }, React.createElement("span", null, React.createElement("span", null, "Integrating Biodiversity, Climate change and Desertification consideration in Economic decision making in Pakistan"))), React.createElement("div", {
-    style: {
-      textAlign: 'center'
-    }
-  }, React.createElement(AssociatedLogos, {
-    top: "auto"
-  }))));
+  }, React.createElement("span", null, React.createElement("span", null, "Integrating Biodiversity, Climate change and Desertification consideration in Economic decision making in Pakistan")))));
 };
 
 var AssociatedLogos = function AssociatedLogos(_a) {
@@ -48700,7 +48700,7 @@ var AssociatedLogos = function AssociatedLogos(_a) {
     src: gef_png_1.default
   })));
 };
-},{"react":"node_modules/react/index.js","framer-motion":"node_modules/framer-motion/dist/framer-motion.es.js","./logos-scroll":"scripts/components/hero/logos-scroll.tsx","../../lib/use-scroll":"scripts/lib/use-scroll.ts","./scene":"scripts/components/hero/scene.tsx","./../../../images/state-emblem-pk.svg":"images/state-emblem-pk.svg","../../../images/undp-logo-30.svg":"images/undp-logo-30.svg","../../../images/gef.png":"images/gef.png"}],"scripts/index.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","framer-motion":"node_modules/framer-motion/dist/framer-motion.es.js","./logos-scroll":"scripts/components/hero/logos-scroll.tsx","../../lib/use-scroll":"scripts/lib/use-scroll.ts","./scene":"scripts/components/hero/scene.tsx","./../../../images/state-emblem-pk.svg":"images/state-emblem-pk.svg","../../../images/undp-logo-30.svg":"images/undp-logo-30.svg","../../../images/gef.png":"images/gef.png","../../../images/logo.png":"images/logo.png"}],"scripts/index.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48733,7 +48733,7 @@ var news_outline_1 = __importDefault(require("./components/news-outline"));
 
 var hero_1 = __importDefault(require("./components/hero"));
 
-var NavbarOpaqueBreakPointY = 100;
+var NavbarOpaqueBreakPointY = 30;
 var Navbar = document.getElementById('main_navbar');
 window.addEventListener('DOMContentLoaded', function (event) {
   if (window.scrollY === 0) {
@@ -48781,7 +48781,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "44513" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "40575" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
