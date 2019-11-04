@@ -38307,7 +38307,7 @@ exports.default = function (_a) {
       backgroundImage: "url(" + item.image + ")"
     }
   }, React.createElement("span", {
-    className: "tag is-dark"
+    className: "tag is-link"
   }, item.category), React.createElement("br", null), React.createElement("span", {
     className: "tag is-dark is-size-7 news-date"
   }, item.date.toLocaleDateString("en-US", dateOptions))), React.createElement("div", {
@@ -38847,7 +38847,7 @@ if ("development" !== 'production') {
     }
   };
 }
-},{}],"../../../../.nvm/versions/node/v12.12.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js":[function(require,module,exports) {
+},{}],"../../../../.nvm/versions/node/v13.0.1/lib/node_modules/parcel/node_modules/process/browser.js":[function(require,module,exports) {
 
 // shim for using process in browser
 var process = module.exports = {}; // cached from whatever global is present so that test runners that stub it
@@ -39235,7 +39235,7 @@ var getFrameData = function () {
 exports.getFrameData = getFrameData;
 var _default = sync;
 exports.default = _default;
-},{"hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","process":"../../../../.nvm/versions/node/v12.12.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js"}],"node_modules/style-value-types/dist/style-value-types.es.js":[function(require,module,exports) {
+},{"hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","process":"../../../../.nvm/versions/node/v13.0.1/lib/node_modules/parcel/node_modules/process/browser.js"}],"node_modules/style-value-types/dist/style-value-types.es.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -42921,7 +42921,7 @@ var styler = function () {
 };
 
 exports.styler = styler;
-},{"tslib":"node_modules/tslib/tslib.es6.js","@popmotion/popcorn":"node_modules/@popmotion/popcorn/dist/popcorn.es.js","framesync":"node_modules/framesync/dist/framesync.es.js","style-value-types":"node_modules/style-value-types/dist/style-value-types.es.js","@popmotion/easing":"node_modules/@popmotion/easing/dist/easing.es.js","hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","process":"../../../../.nvm/versions/node/v12.12.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js"}],"node_modules/@emotion/memoize/dist/memoize.browser.esm.js":[function(require,module,exports) {
+},{"tslib":"node_modules/tslib/tslib.es6.js","@popmotion/popcorn":"node_modules/@popmotion/popcorn/dist/popcorn.es.js","framesync":"node_modules/framesync/dist/framesync.es.js","style-value-types":"node_modules/style-value-types/dist/style-value-types.es.js","@popmotion/easing":"node_modules/@popmotion/easing/dist/easing.es.js","hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","process":"../../../../.nvm/versions/node/v13.0.1/lib/node_modules/parcel/node_modules/process/browser.js"}],"node_modules/@emotion/memoize/dist/memoize.browser.esm.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -48753,7 +48753,7 @@ window.addEventListener('DOMContentLoaded', function (event) {
   console.log("inserting hero into the dom");
   ReactDOM.render(React.createElement(hero_1.default, null), document.getElementById("hero_app"));
 });
-},{"./lib/scroll":"scripts/lib/scroll.ts","react":"node_modules/react/index.js","react-dom":"node_modules/react-dom/index.js","./components/news-outline":"scripts/components/news-outline/index.tsx","./components/hero":"scripts/components/hero/index.tsx"}],"../../../../.nvm/versions/node/v12.12.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"./lib/scroll":"scripts/lib/scroll.ts","react":"node_modules/react/index.js","react-dom":"node_modules/react-dom/index.js","./components/news-outline":"scripts/components/news-outline/index.tsx","./components/hero":"scripts/components/hero/index.tsx"}],"../../../../.nvm/versions/node/v13.0.1/lib/node_modules/parcel/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -48781,7 +48781,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "40575" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "38341" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
@@ -48957,5 +48957,5 @@ function hmrAcceptRun(bundle, id) {
     return true;
   }
 }
-},{}]},{},["../../../../.nvm/versions/node/v12.12.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js","scripts/index.tsx"], null)
+},{}]},{},["../../../../.nvm/versions/node/v13.0.1/lib/node_modules/parcel/src/builtins/hmr-runtime.js","scripts/index.tsx"], null)
 //# sourceMappingURL=/scripts.9da17dbf.js.map
