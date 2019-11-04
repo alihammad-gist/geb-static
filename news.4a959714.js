@@ -32014,11 +32014,11 @@ exports.default = function () {
     className: "dropdown-trigger"
   }, react_1.default.createElement("button", {
     className: "button is-success"
-  }, react_1.default.createElement("span", {
+  }, react_1.default.createElement("span", null, topics[selected]), react_1.default.createElement("span", {
     className: "icon"
   }, react_1.default.createElement("i", {
     className: "fa fa-th-list"
-  })), react_1.default.createElement("span", null, topics[selected]))), react_1.default.createElement("div", {
+  })))), react_1.default.createElement("div", {
     className: "dropdown-menu"
   }, react_1.default.createElement("div", {
     className: "dropdown-content"
@@ -32083,7 +32083,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "38341" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "35659" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
