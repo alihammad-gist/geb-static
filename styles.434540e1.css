@@ -8307,7 +8307,7 @@ ul.logo .logo-image {
   background-size: cover;
   background-repeat: no-repeat;
 }
-.page-banner .columns {
+.page-banner > .container > .columns {
   min-height: 200px;
 }
 
@@ -8339,6 +8339,34 @@ ul.logo .logo-image {
 }
 .contact-us--form .input {
   max-width: 320px;
+}
+
+.help-categories {
+  background-color: #F2F2F2;
+}
+.help-categories-title {
+  margin: 1rem auto;
+}
+
+.help-category-media {
+  text-align: center;
+}
+.help-category-media .box, .help-category-media .goal-outline .desc.pull-up, .goal-outline .help-category-media .desc.pull-up {
+  height: 250px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.help-category-media .category-title {
+  margin-top: 1rem;
+}
+
+.help-search-container {
+  margin-left: auto;
+}
+
+.help-highlights {
+  margin-top: 2rem;
 }
 
 /*# sourceMappingURL=/styles.434540e1.css.map */
