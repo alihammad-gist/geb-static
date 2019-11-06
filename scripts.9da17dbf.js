@@ -48508,8 +48508,8 @@ function useScroll(handler) {
 exports.default = useScroll;
 },{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/barley.jpg":[function(require,module,exports) {
 module.exports = "/barley.f9b7e2f2.jpg";
-},{}],"images/flower.jpg":[function(require,module,exports) {
-module.exports = "/flower.c64c5610.jpg";
+},{}],"images/arid-background.jpg":[function(require,module,exports) {
+module.exports = "/arid-background.747df050.jpg";
 },{}],"images/foggy-forest.jpg":[function(require,module,exports) {
 module.exports = "/foggy-forest.977f9e40.jpg";
 },{}],"images/snowflakes.jpg":[function(require,module,exports) {
@@ -48541,13 +48541,14 @@ var react_1 = __importStar(require("react"));
 
 var barley_jpg_1 = __importDefault(require("../../../images/barley.jpg"));
 
-var flower_jpg_1 = __importDefault(require("../../../images/flower.jpg"));
+var arid_background_jpg_1 = __importDefault(require("../../../images/arid-background.jpg"));
 
 var foggy_forest_jpg_1 = __importDefault(require("../../../images/foggy-forest.jpg"));
 
 var snowflakes_jpg_1 = __importDefault(require("../../../images/snowflakes.jpg"));
 
-var images = [barley_jpg_1.default, flower_jpg_1.default, foggy_forest_jpg_1.default, snowflakes_jpg_1.default];
+var AnimationInterval = 8000;
+var Backgrounds = [barley_jpg_1.default, arid_background_jpg_1.default, foggy_forest_jpg_1.default, snowflakes_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48573,8 +48574,8 @@ exports.default = function () {
   }, []);
   react_1.useEffect(function () {
     var interval = window.setInterval(function () {
-      setActive((active + 1) % images.length);
-    }, 8000);
+      setActive((active + 1) % Backgrounds.length);
+    }, AnimationInterval);
     return function () {
       window.clearInterval(interval);
       console.log('removing hero image changer interval');
@@ -48584,7 +48585,7 @@ exports.default = function () {
     className: 'hero-scene'
   }, react_1.default.createElement("div", {
     className: 'background-layers'
-  }, images.map(function (v, idx) {
+  }, Backgrounds.map(function (v, idx) {
     return react_1.default.createElement("div", {
       key: idx,
       className: "layer " + (active == idx ? 'active' : ''),
@@ -48594,14 +48595,14 @@ exports.default = function () {
     });
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/flower.jpg":"images/flower.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg","../../../images/snowflakes.jpg":"images/snowflakes.jpg"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/arid-background.jpg":"images/arid-background.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg","../../../images/snowflakes.jpg":"images/snowflakes.jpg"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
 module.exports = "/state-emblem-pk.f03983e3.svg";
 },{}],"images/undp-logo-30.svg":[function(require,module,exports) {
 module.exports = "/undp-logo-30.d146f0e5.svg";
 },{}],"images/gef.png":[function(require,module,exports) {
 module.exports = "/gef.2b1eb80f.png";
-},{}],"images/logo.png":[function(require,module,exports) {
-module.exports = "/logo.6023b87e.png";
+},{}],"images/logo-new-1.png":[function(require,module,exports) {
+module.exports = "/logo-new-1.54a43f74.png";
 },{}],"scripts/components/hero/index.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48641,7 +48642,7 @@ var undp_logo_30_svg_1 = __importDefault(require("../../../images/undp-logo-30.s
 
 var gef_png_1 = __importDefault(require("../../../images/gef.png"));
 
-var logo_png_1 = __importDefault(require("../../../images/logo.png"));
+var logo_new_1_png_1 = __importDefault(require("../../../images/logo-new-1.png"));
 
 exports.default = function () {
   var _a = React.useState(logos_scroll_1.backgroundPos(0)),
@@ -48671,10 +48672,8 @@ var Content = function Content() {
   }, React.createElement("li", {
     className: "logo-image title"
   }, React.createElement("img", {
-    src: logo_png_1.default
-  }), React.createElement("span", null, "GEB")), React.createElement("li", {
-    className: "logo-description"
-  }, React.createElement("p", null, "Generating Global Environmental Benefits")))), React.createElement("p", {
+    src: logo_new_1_png_1.default
+  }), React.createElement("span", null, "\xA0GEB")))), React.createElement("p", {
     className: "subtitle tagline"
   }, React.createElement("span", null, React.createElement("span", null, "Integrating Biodiversity, Climate change and Desertification consideration in Economic decision making in Pakistan")))));
 };
@@ -48700,7 +48699,7 @@ var AssociatedLogos = function AssociatedLogos(_a) {
     src: gef_png_1.default
   })));
 };
-},{"react":"node_modules/react/index.js","framer-motion":"node_modules/framer-motion/dist/framer-motion.es.js","./logos-scroll":"scripts/components/hero/logos-scroll.tsx","../../lib/use-scroll":"scripts/lib/use-scroll.ts","./scene":"scripts/components/hero/scene.tsx","./../../../images/state-emblem-pk.svg":"images/state-emblem-pk.svg","../../../images/undp-logo-30.svg":"images/undp-logo-30.svg","../../../images/gef.png":"images/gef.png","../../../images/logo.png":"images/logo.png"}],"scripts/index.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","framer-motion":"node_modules/framer-motion/dist/framer-motion.es.js","./logos-scroll":"scripts/components/hero/logos-scroll.tsx","../../lib/use-scroll":"scripts/lib/use-scroll.ts","./scene":"scripts/components/hero/scene.tsx","./../../../images/state-emblem-pk.svg":"images/state-emblem-pk.svg","../../../images/undp-logo-30.svg":"images/undp-logo-30.svg","../../../images/gef.png":"images/gef.png","../../../images/logo-new-1.png":"images/logo-new-1.png"}],"scripts/index.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48781,7 +48780,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "46863" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "46403" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

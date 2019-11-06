@@ -31994,7 +31994,7 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importStar(require("react"));
 
-var topics = ['All Topics', 'News', 'Media Coverage', 'Blog'];
+var topics = ['All Topics', 'Events', 'GEB in Press', 'Blog'];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -32013,11 +32013,11 @@ exports.default = function () {
   }, react_1.default.createElement("div", {
     className: "dropdown-trigger"
   }, react_1.default.createElement("button", {
-    className: "button is-success"
+    className: "button news-filter-btn"
   }, react_1.default.createElement("span", null, topics[selected]), react_1.default.createElement("span", {
-    className: "icon"
+    className: "icon is-pulled-right"
   }, react_1.default.createElement("i", {
-    className: "fa fa-th-list"
+    className: "fa fa-angle-down"
   })))), react_1.default.createElement("div", {
     className: "dropdown-menu"
   }, react_1.default.createElement("div", {
@@ -32083,7 +32083,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "46863" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "46403" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
