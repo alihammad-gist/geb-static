@@ -7908,17 +7908,20 @@ ul.logo li {
   vertical-align: middle;
 }
 ul.logo .logo-description {
-  border-top: 1px solid #4D4D4D;
   color: #4D4D4D !important;
-  font-weight: normal;
-  text-align: center;
+  font-weight: 500;
+  text-align: left;
+  font-size: 3rem;
+  height: 250px;
+  font-family: "Roboto", sans-serif;
+  font-weight: 500;
+  font-style: normal;
 }
 ul.logo .logo-image {
   margin-bottom: 0 !important;
   color: #5b92e5 !important;
   font-family: "Roboto", sans-serif;
   font-size: 4rem;
-  text-align: center;
   text-shadow: 2px 2px 3px rgba(255, 255, 255, 0.5);
   -webkit-background-clip: text;
   -moz-background-clip: text;
@@ -7927,7 +7930,6 @@ ul.logo .logo-image {
 
 .hero .logo-container {
   display: table;
-  margin: 0 auto;
 }
 
 .logo-image img {
@@ -7936,7 +7938,7 @@ ul.logo .logo-image {
   vertical-align: middle;
 }
 .hero .logo-image img {
-  height: 2.3em;
+  height: 1.2em;
 }
 
 .navbar-brand .logo-image {
@@ -7953,23 +7955,13 @@ ul.logo .logo-image {
   vertical-align: middle;
 }
 
-.hero .tagline {
-  margin: 0 auto;
-  text-align: center;
-  width: 60%;
+.hero.is-primary .tagline {
   margin-top: 1rem;
-  line-height: 2rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.1rem;
-}
-.hero .tagline > span {
-  background: #5b92e5;
-  box-shadow: -0.5em -0.5em 0 #5b92e5, 0.5em -0.5em 0 #5b92e5, -0.5em 0.5em 0 #5b92e5, 0.5em 0.5em 0 #5b92e5;
-}
-.hero .tagline > span > span {
-  color: white;
-  position: relative;
+  font-weight: bold;
+  font-style: normal;
+  color: #5b92e5;
+  font-family: "Lora", serif;
+  font-size: 2rem;
 }
 
 .hero-homepage {
@@ -7979,10 +7971,6 @@ ul.logo .logo-image {
   background-clip: border-box;
   background-repeat: no-repeat;
   background-position: top 0% left 0%;
-}
-.hero-homepage .hero-body {
-  padding-top: 4rem;
-  padding-bottom: 8rem;
 }
 
 .hero-scene {
@@ -8013,7 +8001,31 @@ ul.logo .logo-image {
   transition-property: all;
   transition-duration: 5s;
 }
+.hero-scene .clouds {
+  background-image: url(/clouds2.48985ff1.png);
+  background-repeat: repeat-x;
+  background-size: 1600px auto !important;
+  background-position: 0 0;
+  animation: moving-clouds 30s linear infinite;
+}
 
+.project-background {
+  color: black;
+}
+
+.hero-columns {
+  width: 80%;
+  margin: 0 auto;
+}
+
+@keyframes moving-clouds {
+  0% {
+    background-position: 0 100%;
+  }
+  100% {
+    background-position: -1600px 100%;
+  }
+}
 .navbar-transparent {
   background-color: rgba(255, 255, 255, 0);
   transform: translateY(20px);
@@ -8084,7 +8096,6 @@ ul.logo .logo-image {
   padding: 1rem 0.25rem;
 }
 .goal-outline .desc.pull-up {
-  margin-top: -300px;
   box-shadow: 10px 5px 21px -8px rgba(51, 51, 51, 0.4);
 }
 .goal-outline .desc .padded {

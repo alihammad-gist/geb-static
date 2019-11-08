@@ -48506,14 +48506,8 @@ function useScroll(handler) {
 }
 
 exports.default = useScroll;
-},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/barley.jpg":[function(require,module,exports) {
-module.exports = "/barley.f9b7e2f2.jpg";
-},{}],"images/arid-background.jpg":[function(require,module,exports) {
-module.exports = "/arid-background.747df050.jpg";
-},{}],"images/foggy-forest.jpg":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/foggy-forest.jpg":[function(require,module,exports) {
 module.exports = "/foggy-forest.977f9e40.jpg";
-},{}],"images/snowflakes.jpg":[function(require,module,exports) {
-module.exports = "/snowflakes.e6e6ffc8.jpg";
 },{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48539,16 +48533,10 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importStar(require("react"));
 
-var barley_jpg_1 = __importDefault(require("../../../images/barley.jpg"));
-
-var arid_background_jpg_1 = __importDefault(require("../../../images/arid-background.jpg"));
-
 var foggy_forest_jpg_1 = __importDefault(require("../../../images/foggy-forest.jpg"));
 
-var snowflakes_jpg_1 = __importDefault(require("../../../images/snowflakes.jpg"));
-
 var AnimationInterval = 8000;
-var Backgrounds = [barley_jpg_1.default, arid_background_jpg_1.default, foggy_forest_jpg_1.default, snowflakes_jpg_1.default];
+var Backgrounds = [foggy_forest_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48593,16 +48581,105 @@ exports.default = function () {
         backgroundImage: "url(" + v + ")"
       }
     });
+  }), react_1.default.createElement("div", {
+    className: "layer active clouds"
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/arid-background.jpg":"images/arid-background.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg","../../../images/snowflakes.jpg":"images/snowflakes.jpg"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg"}],"scripts/components/hero/logo-desc.tsx":[function(require,module,exports) {
+"use strict";
+
+var __importStar = this && this.__importStar || function (mod) {
+  if (mod && mod.__esModule) return mod;
+  var result = {};
+  if (mod != null) for (var k in mod) {
+    if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+  }
+  result["default"] = mod;
+  return result;
+};
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var react_1 = __importStar(require("react"));
+
+var Desc = 'Generating Global Environmental Benefits';
+var Size = Desc.length;
+var Tick = 100;
+
+exports.default = function () {
+  var _a = react_1.useState(0),
+      idx = _a[0],
+      setIdx = _a[1];
+
+  react_1.useEffect(function () {
+    if (idx < Size) {
+      window.setTimeout(function () {
+        return setIdx(idx + 1);
+      }, Tick);
+    }
+  });
+  return react_1.default.createElement("h2", {
+    className: "logo-description"
+  }, Desc.slice(0, idx).split('').map(function (letter, key) {
+    return letter == ' ' ? react_1.default.createElement("br", {
+      key: key
+    }) : react_1.default.createElement("span", {
+      key: key
+    }, letter);
+  }), "_");
+};
+},{"react":"node_modules/react/index.js"}],"images/logo.png":[function(require,module,exports) {
+module.exports = "/logo.6023b87e.png";
+},{}],"scripts/components/hero/content.tsx":[function(require,module,exports) {
+"use strict";
+
+var __importDefault = this && this.__importDefault || function (mod) {
+  return mod && mod.__esModule ? mod : {
+    "default": mod
+  };
+};
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var react_1 = __importDefault(require("react"));
+
+var logo_desc_1 = __importDefault(require("./logo-desc"));
+
+var logo_png_1 = __importDefault(require("../../../images/logo.png"));
+
+exports.default = function () {
+  return react_1.default.createElement("div", {
+    className: "hero-body"
+  }, react_1.default.createElement("div", {
+    className: "container"
+  }, react_1.default.createElement("div", {
+    className: "columns is-vcentered hero-columns"
+  }, react_1.default.createElement("div", {
+    className: "column is-5"
+  }, react_1.default.createElement("div", {
+    className: "logo-container"
+  }, react_1.default.createElement("ul", {
+    className: "logo"
+  }, react_1.default.createElement("li", {
+    className: "logo-image title"
+  }, react_1.default.createElement("img", {
+    src: logo_png_1.default
+  }), react_1.default.createElement("span", null, "GEB")), react_1.default.createElement("li", null, react_1.default.createElement(logo_desc_1.default, null))))), react_1.default.createElement("div", {
+    className: "column"
+  }, react_1.default.createElement("h2", {
+    className: "subtitle tagline"
+  }, "Strengthening national capacities and improving living conditions through environmental management for sustainable development")))));
+};
+},{"react":"node_modules/react/index.js","./logo-desc":"scripts/components/hero/logo-desc.tsx","../../../images/logo.png":"images/logo.png"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
 module.exports = "/state-emblem-pk.f03983e3.svg";
 },{}],"images/undp-logo-30.svg":[function(require,module,exports) {
 module.exports = "/undp-logo-30.d146f0e5.svg";
 },{}],"images/gef.png":[function(require,module,exports) {
 module.exports = "/gef.2b1eb80f.png";
-},{}],"images/logo-new-1.png":[function(require,module,exports) {
-module.exports = "/logo-new-1.54a43f74.png";
 },{}],"scripts/components/hero/index.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48636,13 +48713,13 @@ var use_scroll_1 = __importDefault(require("../../lib/use-scroll"));
 
 var scene_1 = __importDefault(require("./scene"));
 
+var content_1 = __importDefault(require("./content"));
+
 var state_emblem_pk_svg_1 = __importDefault(require("./../../../images/state-emblem-pk.svg"));
 
 var undp_logo_30_svg_1 = __importDefault(require("../../../images/undp-logo-30.svg"));
 
 var gef_png_1 = __importDefault(require("../../../images/gef.png"));
-
-var logo_new_1_png_1 = __importDefault(require("../../../images/logo-new-1.png"));
 
 exports.default = function () {
   var _a = React.useState(logos_scroll_1.backgroundPos(0)),
@@ -48657,25 +48734,7 @@ exports.default = function () {
   return React.createElement("div", {
     id: "hero_homepage",
     className: "hero hero-homepage is-primary is-fullheight"
-  }, React.createElement(scene_1.default, null), React.createElement(Content, null));
-};
-
-var Content = function Content() {
-  return React.createElement("div", {
-    className: "hero-body"
-  }, React.createElement("div", {
-    className: "container"
-  }, React.createElement("div", {
-    className: "logo-container"
-  }, React.createElement("ul", {
-    className: "logo"
-  }, React.createElement("li", {
-    className: "logo-image title"
-  }, React.createElement("img", {
-    src: logo_new_1_png_1.default
-  }), React.createElement("span", null, "\xA0GEB")))), React.createElement("p", {
-    className: "subtitle tagline"
-  }, React.createElement("span", null, React.createElement("span", null, "Integrating Biodiversity, Climate change and Desertification consideration in Economic decision making in Pakistan")))));
+  }, React.createElement(scene_1.default, null), React.createElement(content_1.default, null));
 };
 
 var AssociatedLogos = function AssociatedLogos(_a) {
@@ -48699,7 +48758,7 @@ var AssociatedLogos = function AssociatedLogos(_a) {
     src: gef_png_1.default
   })));
 };
-},{"react":"node_modules/react/index.js","framer-motion":"node_modules/framer-motion/dist/framer-motion.es.js","./logos-scroll":"scripts/components/hero/logos-scroll.tsx","../../lib/use-scroll":"scripts/lib/use-scroll.ts","./scene":"scripts/components/hero/scene.tsx","./../../../images/state-emblem-pk.svg":"images/state-emblem-pk.svg","../../../images/undp-logo-30.svg":"images/undp-logo-30.svg","../../../images/gef.png":"images/gef.png","../../../images/logo-new-1.png":"images/logo-new-1.png"}],"scripts/index.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","framer-motion":"node_modules/framer-motion/dist/framer-motion.es.js","./logos-scroll":"scripts/components/hero/logos-scroll.tsx","../../lib/use-scroll":"scripts/lib/use-scroll.ts","./scene":"scripts/components/hero/scene.tsx","./content":"scripts/components/hero/content.tsx","./../../../images/state-emblem-pk.svg":"images/state-emblem-pk.svg","../../../images/undp-logo-30.svg":"images/undp-logo-30.svg","../../../images/gef.png":"images/gef.png"}],"scripts/index.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48780,7 +48839,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "46403" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36271" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
