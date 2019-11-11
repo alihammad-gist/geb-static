@@ -48506,11 +48506,7 @@ function useScroll(handler) {
 }
 
 exports.default = useScroll;
-},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/barley.jpg":[function(require,module,exports) {
-module.exports = "/barley.f9b7e2f2.jpg";
-},{}],"images/arid-background.jpg":[function(require,module,exports) {
-module.exports = "/arid-background.747df050.jpg";
-},{}],"images/foggy-forest.jpg":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/foggy-forest.jpg":[function(require,module,exports) {
 module.exports = "/foggy-forest.977f9e40.jpg";
 },{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
 "use strict";
@@ -48537,14 +48533,10 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importStar(require("react"));
 
-var barley_jpg_1 = __importDefault(require("../../../images/barley.jpg"));
-
-var arid_background_jpg_1 = __importDefault(require("../../../images/arid-background.jpg"));
-
 var foggy_forest_jpg_1 = __importDefault(require("../../../images/foggy-forest.jpg"));
 
 var AnimationInterval = 8000;
-var Backgrounds = [barley_jpg_1.default, arid_background_jpg_1.default, foggy_forest_jpg_1.default];
+var Backgrounds = [foggy_forest_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48589,9 +48581,11 @@ exports.default = function () {
         backgroundImage: "url(" + v + ")"
       }
     });
+  }), react_1.default.createElement("div", {
+    className: 'layer active clouds'
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/arid-background.jpg":"images/arid-background.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg"}],"scripts/components/hero/logo-desc.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg"}],"scripts/components/hero/logo-desc.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48833,7 +48827,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "40389" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "41741" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
