@@ -8064,10 +8064,16 @@ ul.logo .logo-image {
 .goal-outline {
   margin-bottom: 0 !important;
 }
+.goal-outline .columns {
+  margin-bottom: 0 !important;
+}
 .goal-outline .desc {
   padding: 2rem;
   padding-top: 0;
   min-height: 250px;
+}
+.goal-outline .desc h2 {
+  text-align: justify;
 }
 .goal-outline .graphic {
   background-image: url(/footer_lodyas.d1433b70.png);
