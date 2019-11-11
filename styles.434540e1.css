@@ -7910,10 +7910,10 @@ ul.logo li {
 ul.logo .logo-description {
   color: #4D4D4D !important;
   font-weight: 500;
-  font-size: 3rem;
-  font-family: "Roboto", sans-serif;
+  font-size: 2.5rem;
+  font-family: "Lora", serif;
   font-weight: 500;
-  font-style: normal;
+  font-style: italic;
   text-align: center;
 }
 ul.logo .logo-image {
