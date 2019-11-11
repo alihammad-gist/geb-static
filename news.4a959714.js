@@ -31994,26 +31994,25 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importStar(require("react"));
 
-var topics = ['All Topics', 'Events', 'GEB in Press', 'Blog'];
+var topics = ['All Topics', 'Activities', 'GEB in Press', 'Blog'];
 
 exports.default = function () {
   var _a = react_1.useState(0),
       selected = _a[0],
       setSelected = _a[1];
 
-  var _b = react_1.useState(false),
-      active = _b[0],
-      setActive = _b[1];
+  var _b = useDropDownToggle(false),
+      className = _b[0],
+      toggleClassname = _b[1];
 
   return react_1.default.createElement("div", {
-    className: "dropdown " + (active ? 'is-active' : ''),
-    onClick: function onClick() {
-      return setActive(!active);
-    }
+    className: "dropdown " + className,
+    onClick: toggleClassname
   }, react_1.default.createElement("div", {
     className: "dropdown-trigger"
-  }, react_1.default.createElement("button", {
-    className: "button news-filter-btn"
+  }, react_1.default.createElement("a", {
+    className: "button news-filter-btn",
+    name: "news_filter"
   }, react_1.default.createElement("span", null, topics[selected]), react_1.default.createElement("span", {
     className: "icon is-pulled-right"
   }, react_1.default.createElement("i", {
@@ -32025,6 +32024,7 @@ exports.default = function () {
   }, topics.map(function (topic, key) {
     return selected !== key && react_1.default.createElement("a", {
       className: "dropdown-item",
+      name: topic.replace(' ', '_').toLowerCase(),
       href: '#',
       onClick: function onClick(e) {
         e.preventDefault();
@@ -32033,6 +32033,22 @@ exports.default = function () {
       key: key
     }, topic);
   }))));
+};
+
+var useDropDownToggle = function useDropDownToggle(startStateActive) {
+  if (startStateActive === void 0) {
+    startStateActive = false;
+  }
+
+  var _a = react_1.useState(startStateActive),
+      active = _a[0],
+      setActive = _a[1];
+
+  function toggle() {
+    setActive(!active);
+  }
+
+  return [active ? 'is-active' : '', toggle];
 };
 },{"react":"node_modules/react/index.js"}],"scripts/news.tsx":[function(require,module,exports) {
 "use strict";
@@ -32083,7 +32099,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34281" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "40389" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
