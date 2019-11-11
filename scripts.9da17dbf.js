@@ -48622,7 +48622,13 @@ exports.default = function () {
   });
   return react_1.default.createElement("h2", {
     className: "logo-description"
-  }, Desc.slice(0, idx), "_");
+  }, Desc.slice(0, idx), idx >= Size && react_1.default.createElement("span", null, "."), react_1.default.createElement("i", {
+    className: "fa fa-i-cursor",
+    style: {
+      fontWeight: "normal",
+      color: "rgba(0, 0, 0, 0.3)"
+    }
+  }));
 };
 },{"react":"node_modules/react/index.js"}],"images/logo-old.png":[function(require,module,exports) {
 module.exports = "/logo-old.30121491.png";
@@ -48827,7 +48833,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "41355" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34367" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
