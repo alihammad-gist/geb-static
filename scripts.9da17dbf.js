@@ -48508,6 +48508,10 @@ function useScroll(handler) {
 exports.default = useScroll;
 },{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/foggy-forest.jpg":[function(require,module,exports) {
 module.exports = "/foggy-forest.977f9e40.jpg";
+},{}],"images/river-canal.jpg":[function(require,module,exports) {
+module.exports = "/river-canal.f9255dfb.jpg";
+},{}],"images/hunza-valley.jpg":[function(require,module,exports) {
+module.exports = "/hunza-valley.6e075bd4.jpg";
 },{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48535,8 +48539,13 @@ var react_1 = __importStar(require("react"));
 
 var foggy_forest_jpg_1 = __importDefault(require("../../../images/foggy-forest.jpg"));
 
+var river_canal_jpg_1 = __importDefault(require("../../../images/river-canal.jpg"));
+
+var hunza_valley_jpg_1 = __importDefault(require("../../../images/hunza-valley.jpg"));
+
 var AnimationInterval = 8000;
-var Backgrounds = [foggy_forest_jpg_1.default];
+var CloudsIdxs = [0];
+var Backgrounds = [foggy_forest_jpg_1.default, river_canal_jpg_1.default, hunza_valley_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48582,10 +48591,10 @@ exports.default = function () {
       }
     });
   }), react_1.default.createElement("div", {
-    className: 'layer active clouds'
+    className: "layer clouds " + (CloudsIdxs.indexOf(active) >= 0 ? 'active' : '')
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg"}],"scripts/components/hero/logo-desc.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg","../../../images/river-canal.jpg":"images/river-canal.jpg","../../../images/hunza-valley.jpg":"images/hunza-valley.jpg"}],"scripts/components/hero/logo-desc.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48604,7 +48613,7 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importStar(require("react"));
 
-var Desc = 'Generating Global Environmental Benefits';
+var Desc = 'Generating Global Environmental Benefits.';
 var Size = Desc.length;
 var Tick = 100;
 
@@ -48622,7 +48631,11 @@ exports.default = function () {
   });
   return react_1.default.createElement("h2", {
     className: "logo-description"
-  }, Desc.slice(0, idx), idx >= Size && react_1.default.createElement("span", null, "."), react_1.default.createElement("i", {
+  }, Desc.slice(0, idx).split('').map(function (ltr, key) {
+    return react_1.default.createElement("span", {
+      key: key
+    }, ltr);
+  }), react_1.default.createElement("i", {
     className: "fa fa-i-cursor",
     style: {
       fontWeight: "normal",
@@ -48833,7 +48846,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34367" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "37703" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
