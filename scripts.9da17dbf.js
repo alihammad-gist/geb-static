@@ -48506,7 +48506,11 @@ function useScroll(handler) {
 }
 
 exports.default = useScroll;
-},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/foggy-forest.jpg":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/barley.jpg":[function(require,module,exports) {
+module.exports = "/barley.f9b7e2f2.jpg";
+},{}],"images/arid-background.jpg":[function(require,module,exports) {
+module.exports = "/arid-background.747df050.jpg";
+},{}],"images/foggy-forest.jpg":[function(require,module,exports) {
 module.exports = "/foggy-forest.977f9e40.jpg";
 },{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
 "use strict";
@@ -48533,10 +48537,14 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importStar(require("react"));
 
+var barley_jpg_1 = __importDefault(require("../../../images/barley.jpg"));
+
+var arid_background_jpg_1 = __importDefault(require("../../../images/arid-background.jpg"));
+
 var foggy_forest_jpg_1 = __importDefault(require("../../../images/foggy-forest.jpg"));
 
 var AnimationInterval = 8000;
-var Backgrounds = [foggy_forest_jpg_1.default];
+var Backgrounds = [barley_jpg_1.default, arid_background_jpg_1.default, foggy_forest_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48581,11 +48589,9 @@ exports.default = function () {
         backgroundImage: "url(" + v + ")"
       }
     });
-  }), react_1.default.createElement("div", {
-    className: "layer active clouds"
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg"}],"scripts/components/hero/logo-desc.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/arid-background.jpg":"images/arid-background.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg"}],"scripts/components/hero/logo-desc.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48613,25 +48619,19 @@ exports.default = function () {
       idx = _a[0],
       setIdx = _a[1];
 
-  react_1.useEffect(function () {
+  react_1.useLayoutEffect(function () {
     if (idx < Size) {
       window.setTimeout(function () {
         return setIdx(idx + 1);
-      }, Tick);
+      }, Math.floor(Math.random() * Tick, 10) + 50);
     }
   });
   return react_1.default.createElement("h2", {
     className: "logo-description"
-  }, Desc.slice(0, idx).split('').map(function (letter, key) {
-    return letter == ' ' ? react_1.default.createElement("br", {
-      key: key
-    }) : react_1.default.createElement("span", {
-      key: key
-    }, letter);
-  }), "_");
+  }, Desc.slice(0, idx), "_");
 };
-},{"react":"node_modules/react/index.js"}],"images/logo.png":[function(require,module,exports) {
-module.exports = "/logo.6023b87e.png";
+},{"react":"node_modules/react/index.js"}],"images/logo-old.png":[function(require,module,exports) {
+module.exports = "/logo-old.30121491.png";
 },{}],"scripts/components/hero/content.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48649,32 +48649,26 @@ var react_1 = __importDefault(require("react"));
 
 var logo_desc_1 = __importDefault(require("./logo-desc"));
 
-var logo_png_1 = __importDefault(require("../../../images/logo.png"));
+var logo_old_png_1 = __importDefault(require("../../../images/logo-old.png"));
 
 exports.default = function () {
   return react_1.default.createElement("div", {
     className: "hero-body"
   }, react_1.default.createElement("div", {
     className: "container"
-  }, react_1.default.createElement("div", {
-    className: "columns is-vcentered hero-columns"
-  }, react_1.default.createElement("div", {
-    className: "column is-5"
-  }, react_1.default.createElement("div", {
+  }, react_1.default.createElement("div", null, react_1.default.createElement("div", {
     className: "logo-container"
   }, react_1.default.createElement("ul", {
     className: "logo"
   }, react_1.default.createElement("li", {
     className: "logo-image title"
   }, react_1.default.createElement("img", {
-    src: logo_png_1.default
-  }), react_1.default.createElement("span", null, "GEB")), react_1.default.createElement("li", null, react_1.default.createElement(logo_desc_1.default, null))))), react_1.default.createElement("div", {
-    className: "column"
-  }, react_1.default.createElement("h2", {
+    src: logo_old_png_1.default
+  }), react_1.default.createElement("span", null, "GEB")), react_1.default.createElement("li", null, react_1.default.createElement(logo_desc_1.default, null))))), react_1.default.createElement("div", null, react_1.default.createElement("h2", {
     className: "subtitle tagline"
-  }, "Strengthening national capacities and improving living conditions through environmental management for sustainable development")))));
+  }, react_1.default.createElement("span", null, react_1.default.createElement("span", null, "Strengthening National Capacities and improving living conditions through Environmental Management for Sustainable Development"))))));
 };
-},{"react":"node_modules/react/index.js","./logo-desc":"scripts/components/hero/logo-desc.tsx","../../../images/logo.png":"images/logo.png"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","./logo-desc":"scripts/components/hero/logo-desc.tsx","../../../images/logo-old.png":"images/logo-old.png"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
 module.exports = "/state-emblem-pk.f03983e3.svg";
 },{}],"images/undp-logo-30.svg":[function(require,module,exports) {
 module.exports = "/undp-logo-30.d146f0e5.svg";
@@ -48839,7 +48833,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36271" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "44227" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
