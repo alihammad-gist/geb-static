@@ -48544,8 +48544,8 @@ var foggy_forest_jpg_1 = __importDefault(require("../../../images/foggy-forest.j
 var leafs_jpg_1 = __importDefault(require("../../../images/leafs.jpg"));
 
 var AnimationInterval = 8000;
-var CloudsIdxs = [1];
-var Backgrounds = [barley_jpg_1.default, foggy_forest_jpg_1.default, leafs_jpg_1.default];
+var CloudsIdxs = [2];
+var Backgrounds = [leafs_jpg_1.default, barley_jpg_1.default, foggy_forest_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48846,7 +48846,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "43205" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "40747" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
