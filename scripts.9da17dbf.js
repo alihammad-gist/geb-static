@@ -48512,6 +48512,8 @@ module.exports = "/barley.f9b7e2f2.jpg";
 module.exports = "/foggy-forest.977f9e40.jpg";
 },{}],"images/leafs.jpg":[function(require,module,exports) {
 module.exports = "/leafs.1c9566d4.jpg";
+},{}],"images/hunza-valley.jpg":[function(require,module,exports) {
+module.exports = "/hunza-valley.6e075bd4.jpg";
 },{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48543,9 +48545,11 @@ var foggy_forest_jpg_1 = __importDefault(require("../../../images/foggy-forest.j
 
 var leafs_jpg_1 = __importDefault(require("../../../images/leafs.jpg"));
 
+var hunza_valley_jpg_1 = __importDefault(require("../../../images/hunza-valley.jpg"));
+
 var AnimationInterval = 8000;
 var CloudsIdxs = [2];
-var Backgrounds = [leafs_jpg_1.default, barley_jpg_1.default, foggy_forest_jpg_1.default];
+var Backgrounds = [leafs_jpg_1.default, barley_jpg_1.default, foggy_forest_jpg_1.default, hunza_valley_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48592,9 +48596,11 @@ exports.default = function () {
     });
   }), react_1.default.createElement("div", {
     className: "layer clouds " + (CloudsIdxs.indexOf(active) >= 0 ? 'active' : '')
+  }), react_1.default.createElement("div", {
+    className: "layer brightner active"
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg","../../../images/leafs.jpg":"images/leafs.jpg"}],"scripts/components/hero/logo-desc.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg","../../../images/leafs.jpg":"images/leafs.jpg","../../../images/hunza-valley.jpg":"images/hunza-valley.jpg"}],"scripts/components/hero/logo-desc.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48846,7 +48852,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "40747" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "45989" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

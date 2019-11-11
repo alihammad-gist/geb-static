@@ -8011,6 +8011,9 @@ ul.logo .logo-image {
   animation: moving-clouds 180s linear infinite;
   height: 450px;
 }
+.hero-scene .brightner {
+  background-color: rgba(255, 255, 255, 0.5);
+}
 
 .project-background {
   color: black;
