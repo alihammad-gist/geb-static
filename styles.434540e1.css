@@ -7949,6 +7949,7 @@ ul.logo .logo-image {
 .navbar-brand .logo-image .logo-label {
   display: inline-block;
   vertical-align: middle;
+  text-shadow: none;
 }
 
 .hero.is-primary .tagline {
@@ -8012,7 +8013,7 @@ ul.logo .logo-image {
   height: 450px;
 }
 .hero-scene .brightner {
-  background-color: rgba(255, 255, 255, 0.5);
+  background-color: rgba(255, 255, 255, 0.4);
 }
 
 .project-background {
