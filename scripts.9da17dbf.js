@@ -48512,8 +48512,8 @@ module.exports = "/barley.f9b7e2f2.jpg";
 module.exports = "/foggy-forest.977f9e40.jpg";
 },{}],"images/leafs.jpg":[function(require,module,exports) {
 module.exports = "/leafs.1c9566d4.jpg";
-},{}],"images/hunza-valley.jpg":[function(require,module,exports) {
-module.exports = "/hunza-valley.6e075bd4.jpg";
+},{}],"images/hunza-valley-2.png":[function(require,module,exports) {
+module.exports = "/hunza-valley-2.d7a44497.png";
 },{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48545,11 +48545,11 @@ var foggy_forest_jpg_1 = __importDefault(require("../../../images/foggy-forest.j
 
 var leafs_jpg_1 = __importDefault(require("../../../images/leafs.jpg"));
 
-var hunza_valley_jpg_1 = __importDefault(require("../../../images/hunza-valley.jpg"));
+var hunza_valley_2_png_1 = __importDefault(require("../../../images/hunza-valley-2.png"));
 
 var AnimationInterval = 8000;
 var CloudsIdxs = [2];
-var Backgrounds = [leafs_jpg_1.default, barley_jpg_1.default, foggy_forest_jpg_1.default, hunza_valley_jpg_1.default];
+var Backgrounds = [leafs_jpg_1.default, barley_jpg_1.default, foggy_forest_jpg_1.default, hunza_valley_2_png_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48600,7 +48600,7 @@ exports.default = function () {
     className: "layer brightner active"
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg","../../../images/leafs.jpg":"images/leafs.jpg","../../../images/hunza-valley.jpg":"images/hunza-valley.jpg"}],"scripts/components/hero/logo-desc.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg","../../../images/leafs.jpg":"images/leafs.jpg","../../../images/hunza-valley-2.png":"images/hunza-valley-2.png"}],"scripts/components/hero/logo-desc.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48649,8 +48649,8 @@ exports.default = function () {
     }
   }));
 };
-},{"react":"node_modules/react/index.js"}],"images/logo-old.png":[function(require,module,exports) {
-module.exports = "/logo-old.30121491.png";
+},{"react":"node_modules/react/index.js"}],"images/logo-trans-shrinked.png":[function(require,module,exports) {
+module.exports = "/logo-trans-shrinked.8ae4827a.png";
 },{}],"scripts/components/hero/content.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48668,7 +48668,7 @@ var react_1 = __importDefault(require("react"));
 
 var logo_desc_1 = __importDefault(require("./logo-desc"));
 
-var logo_old_png_1 = __importDefault(require("../../../images/logo-old.png"));
+var logo_trans_shrinked_png_1 = __importDefault(require("../../../images/logo-trans-shrinked.png"));
 
 exports.default = function () {
   return react_1.default.createElement("div", {
@@ -48682,12 +48682,12 @@ exports.default = function () {
   }, react_1.default.createElement("li", {
     className: "logo-image title"
   }, react_1.default.createElement("img", {
-    src: logo_old_png_1.default
+    src: logo_trans_shrinked_png_1.default
   }), react_1.default.createElement("span", null, "GEB")), react_1.default.createElement("li", null, react_1.default.createElement(logo_desc_1.default, null))))), react_1.default.createElement("div", null, react_1.default.createElement("h2", {
     className: "subtitle tagline"
   }, react_1.default.createElement("span", null, react_1.default.createElement("span", null, "Strengthening National Capacities and improving living conditions through Environmental Management for Sustainable Development"))))));
 };
-},{"react":"node_modules/react/index.js","./logo-desc":"scripts/components/hero/logo-desc.tsx","../../../images/logo-old.png":"images/logo-old.png"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","./logo-desc":"scripts/components/hero/logo-desc.tsx","../../../images/logo-trans-shrinked.png":"images/logo-trans-shrinked.png"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
 module.exports = "/state-emblem-pk.f03983e3.svg";
 },{}],"images/undp-logo-30.svg":[function(require,module,exports) {
 module.exports = "/undp-logo-30.d146f0e5.svg";
@@ -48852,7 +48852,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "41119" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36845" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
