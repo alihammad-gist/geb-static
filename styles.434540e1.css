@@ -8040,6 +8040,19 @@ ul.logo .logo-image {
     background-position: -1600px 100%;
   }
 }
+.conventions-strip {
+  background-color: rgba(255, 255, 255, 0.5);
+  color: #333333;
+  clear: both;
+}
+
+.conventions-container {
+  background-color: white;
+}
+
+.convention {
+  padding: 1.5rem;
+}
 .navbar-transparent {
   background-color: rgba(255, 255, 255, 0);
   transform: translateY(20px);

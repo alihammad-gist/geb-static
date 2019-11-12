@@ -48685,7 +48685,67 @@ exports.default = function () {
     className: "subtitle tagline"
   }, react_1.default.createElement("span", null, react_1.default.createElement("span", null, "Strengthening National Capacities and improving living conditions through Environmental Management for Sustainable Development"))))));
 };
-},{"react":"node_modules/react/index.js","./logo-desc":"scripts/components/hero/logo-desc.tsx","../../../images/logo-trans-shrinked.png":"images/logo-trans-shrinked.png"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","./logo-desc":"scripts/components/hero/logo-desc.tsx","../../../images/logo-trans-shrinked.png":"images/logo-trans-shrinked.png"}],"images/unfccc.png":[function(require,module,exports) {
+module.exports = "/unfccc.c0e29d9c.png";
+},{}],"images/unccd.png":[function(require,module,exports) {
+module.exports = "/unccd.8f09dc2f.png";
+},{}],"images/cbd.png":[function(require,module,exports) {
+module.exports = "/cbd.60a19bc6.png";
+},{}],"scripts/components/hero/conventions.tsx":[function(require,module,exports) {
+"use strict";
+
+var __importDefault = this && this.__importDefault || function (mod) {
+  return mod && mod.__esModule ? mod : {
+    "default": mod
+  };
+};
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var react_1 = __importDefault(require("react"));
+
+var unfccc_png_1 = __importDefault(require("../../../images/unfccc.png"));
+
+var unccd_png_1 = __importDefault(require("../../../images/unccd.png"));
+
+var cbd_png_1 = __importDefault(require("../../../images/cbd.png"));
+
+exports.default = function () {
+  return react_1.default.createElement("div", {
+    className: "conventions-strip"
+  }, react_1.default.createElement("div", {
+    className: "container conventions-container"
+  }, react_1.default.createElement("div", {
+    className: "columns"
+  }, react_1.default.createElement("div", {
+    className: "column convention"
+  }, react_1.default.createElement("div", {
+    className: "box"
+  }, react_1.default.createElement("figure", {
+    className: "figure"
+  }, react_1.default.createElement("img", {
+    src: unfccc_png_1.default
+  })))), react_1.default.createElement("div", {
+    className: "column convention"
+  }, react_1.default.createElement("div", {
+    className: "box"
+  }, react_1.default.createElement("figure", {
+    className: "figure"
+  }, react_1.default.createElement("img", {
+    src: unccd_png_1.default
+  })))), react_1.default.createElement("div", {
+    className: "column convention"
+  }, react_1.default.createElement("div", {
+    className: "box"
+  }, react_1.default.createElement("figure", {
+    className: "figure"
+  }, react_1.default.createElement("img", {
+    src: cbd_png_1.default
+  })))))));
+};
+},{"react":"node_modules/react/index.js","../../../images/unfccc.png":"images/unfccc.png","../../../images/unccd.png":"images/unccd.png","../../../images/cbd.png":"images/cbd.png"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
 module.exports = "/state-emblem-pk.f03983e3.svg";
 },{}],"images/undp-logo-30.svg":[function(require,module,exports) {
 module.exports = "/undp-logo-30.d146f0e5.svg";
@@ -48726,6 +48786,8 @@ var scene_1 = __importDefault(require("./scene"));
 
 var content_1 = __importDefault(require("./content"));
 
+var conventions_1 = __importDefault(require("./conventions"));
+
 var state_emblem_pk_svg_1 = __importDefault(require("./../../../images/state-emblem-pk.svg"));
 
 var undp_logo_30_svg_1 = __importDefault(require("../../../images/undp-logo-30.svg"));
@@ -48745,7 +48807,7 @@ exports.default = function () {
   return React.createElement("div", {
     id: "hero_homepage",
     className: "hero hero-homepage is-primary is-fullheight"
-  }, React.createElement(scene_1.default, null), React.createElement(content_1.default, null));
+  }, React.createElement(scene_1.default, null), React.createElement(content_1.default, null), React.createElement(conventions_1.default, null));
 };
 
 var AssociatedLogos = function AssociatedLogos(_a) {
@@ -48769,7 +48831,7 @@ var AssociatedLogos = function AssociatedLogos(_a) {
     src: gef_png_1.default
   })));
 };
-},{"react":"node_modules/react/index.js","framer-motion":"node_modules/framer-motion/dist/framer-motion.es.js","./logos-scroll":"scripts/components/hero/logos-scroll.tsx","../../lib/use-scroll":"scripts/lib/use-scroll.ts","./scene":"scripts/components/hero/scene.tsx","./content":"scripts/components/hero/content.tsx","./../../../images/state-emblem-pk.svg":"images/state-emblem-pk.svg","../../../images/undp-logo-30.svg":"images/undp-logo-30.svg","../../../images/gef.png":"images/gef.png"}],"scripts/index.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","framer-motion":"node_modules/framer-motion/dist/framer-motion.es.js","./logos-scroll":"scripts/components/hero/logos-scroll.tsx","../../lib/use-scroll":"scripts/lib/use-scroll.ts","./scene":"scripts/components/hero/scene.tsx","./content":"scripts/components/hero/content.tsx","./conventions":"scripts/components/hero/conventions.tsx","./../../../images/state-emblem-pk.svg":"images/state-emblem-pk.svg","../../../images/undp-logo-30.svg":"images/undp-logo-30.svg","../../../images/gef.png":"images/gef.png"}],"scripts/index.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48850,7 +48912,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "37427" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "37143" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
