@@ -8398,7 +8398,7 @@ ul.logo .logo-image {
 
 .footer .partner-logo {
   display: inline-block;
-  margin-right: 1.2rem;
+  margin-left: 1.2rem;
   padding: 0.2rem;
 }
 .footer .partner-logo img {
@@ -8410,7 +8410,7 @@ ul.logo .logo-image {
 }
 
 .footer .partner-logos-container {
-  text-align: left;
+  text-align: right;
 }
 .footer .partner-logos-container figure {
   display: inline-block;
