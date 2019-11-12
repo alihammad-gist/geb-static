@@ -7962,8 +7962,15 @@ ul.logo .logo-image {
   text-transform: capitalize;
   letter-spacing: 0.05em;
   text-align: center;
-  background-color: rgba(51, 51, 51, 0.7);
-  padding: 1rem;
+  text-shadow: none;
+}
+.hero.is-primary .tagline > span {
+  box-shadow: #4D4D4D -0.5em -0.5em 0px, #4D4D4D 0.5em -0.5em 0px, #4D4D4D -0.5em 0.5em 0px, #4D4D4D 0.5em 0.5em 0px;
+  background: #4D4D4D;
+}
+.hero.is-primary .tagline > span > span {
+  color: #ffffff;
+  position: relative;
   text-shadow: none;
 }
 

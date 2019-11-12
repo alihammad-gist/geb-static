@@ -48596,8 +48596,6 @@ exports.default = function () {
     });
   }), react_1.default.createElement("div", {
     className: "layer clouds " + (CloudsIdxs.indexOf(active) >= 0 ? 'active' : '')
-  }), react_1.default.createElement("div", {
-    className: "layer brightner active"
   })));
 };
 },{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg","../../../images/leafs.jpg":"images/leafs.jpg","../../../images/hunza-valley-2.png":"images/hunza-valley-2.png"}],"scripts/components/hero/logo-desc.tsx":[function(require,module,exports) {
@@ -48852,7 +48850,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "45595" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "37427" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
