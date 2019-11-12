@@ -8378,12 +8378,15 @@ ul.logo .logo-image {
   margin-top: 1rem;
   font-size: 1.1rem;
   margin-bottom: 0;
+  font-family: "Nunito", sans-serif;
+  font-weight: 700;
 }
 .team-member .team-member-title {
   margin-bottom: 1rem;
   color: #4D4D4D;
-  font-style: italic;
   text-align: center;
+  font-family: "Nunito", sans-serif;
+  font-weight: 700;
 }
 .team-member .team-member-description {
   text-align: justify;
