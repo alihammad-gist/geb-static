@@ -43,9 +43,8 @@ h3,
 h4,
 h5,
 h6 {
-  font-weight: bold;
-  font-family: "Lora", serif;
-  font-style: italic;
+  font-weight: 900;
+  font-family: "Nunito", sans-serif;
 }
 
 @keyframes spinAround {
@@ -271,7 +270,7 @@ button,
 input,
 select,
 textarea {
-  font-family: "Roboto", sans-serif;
+  font-family: "Nunito", sans-serif;
 }
 
 code,
@@ -1018,15 +1017,15 @@ a.has-text-danger:hover, a.has-text-danger:focus {
 }
 
 .is-family-primary {
-  font-family: "Roboto", sans-serif !important;
+  font-family: "Nunito", sans-serif !important;
 }
 
 .is-family-secondary {
-  font-family: "Roboto", sans-serif !important;
+  font-family: "Nunito", sans-serif !important;
 }
 
 .is-family-sans-serif {
-  font-family: "Roboto", sans-serif !important;
+  font-family: "Nunito", sans-serif !important;
 }
 
 .is-family-monospace {
@@ -1552,6 +1551,7 @@ ul.logo .logo-description span,
   border-width: 1px;
   color: #363636;
   cursor: pointer;
+  font-family: "Nunito", sans-serif;
   justify-content: center;
   padding-bottom: calc(0.375em - 1px);
   padding-left: 0.75em;
@@ -7863,7 +7863,7 @@ h3,
 h4,
 h5,
 h6 {
-  font-weight: bold;
+  font-weight: 900;
   text-shadow: 2px 2px 3px rgba(255, 255, 255, 0.5);
 }
 
@@ -7900,6 +7900,11 @@ p.content {
   margin-bottom: 3rem;
 }
 
+body {
+  font-family: "Martel", serif;
+  font-weight: 300;
+}
+
 ul.logo {
   list-style: none;
 }
@@ -7911,18 +7916,18 @@ ul.logo .logo-description {
   color: #4D4D4D !important;
   font-weight: 500;
   font-size: 2.5rem;
-  font-family: "Lora", serif;
-  font-weight: 500;
-  font-style: italic;
+  font-family: "Nunito", sans-serif;
+  font-weight: 700;
   text-align: center;
 }
 ul.logo .logo-image {
   text-align: center;
   margin-bottom: 0 !important;
   color: #5b92e5 !important;
-  font-family: "Roboto", sans-serif;
+  font-family: "Nunito", sans-serif;
   font-size: 4rem;
-  text-shadow: 2px 2px 3px rgba(255, 255, 255, 0.5);
+  font-weight: 900;
+  text-shadow: #4D4D4D 1px 1px 0.04em;
   -webkit-background-clip: text;
   -moz-background-clip: text;
   background-clip: text;
@@ -7939,8 +7944,9 @@ ul.logo .logo-image {
 
 .navbar-brand .logo-image {
   color: #5b92e5;
-  font-family: "Roboto", sans-serif;
+  font-family: "Nunito", sans-serif;
   font-style: normal;
+  text-shadow: #4D4D4D 1px 1px 0.04em;
 }
 .navbar-brand .logo-image img {
   max-height: inherit;
@@ -7949,7 +7955,6 @@ ul.logo .logo-image {
 .navbar-brand .logo-image .logo-label {
   display: inline-block;
   vertical-align: middle;
-  text-shadow: none;
 }
 
 .hero.is-primary .tagline {
@@ -7957,7 +7962,7 @@ ul.logo .logo-image {
   font-weight: bold;
   font-style: normal;
   color: white;
-  font-family: "Roboto", sans-serif;
+  font-family: "Nunito", sans-serif;
   font-size: 1.5rem;
   text-transform: capitalize;
   letter-spacing: 0.05em;
@@ -8069,6 +8074,7 @@ ul.logo .logo-image {
 .navbar {
   transition-property: background-color, box-shadow, transform;
   transition-duration: 1s;
+  font-family: "Nunito", sans-serif;
 }
 .navbar .navbar-link:not(.is-arrowless) {
   padding-right: 2em;
@@ -8490,11 +8496,18 @@ ul.logo .logo-image {
 }
 
 .menu-label {
-  font-size: 1em;
+  font-family: "Nunito", sans-serif;
+  font-weight: 900;
 }
 
 .menu-list a {
   font-size: 1.1em;
+}
+
+.button {
+  text-transform: uppercase;
+  font-weight: 700;
+  word-spacing: 0.3rem;
 }
 
 /*# sourceMappingURL=/styles.434540e1.css.map */
