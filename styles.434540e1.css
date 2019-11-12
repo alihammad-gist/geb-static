@@ -7873,7 +7873,7 @@ p.content {
 
 .section-heading {
   text-align: center;
-  font-weight: 500 !important;
+  font-weight: 700 !important;
   text-shadow: 4px 4px 4px #F2F2F2;
 }
 .section-heading:after {
@@ -7898,6 +7898,24 @@ p.content {
 }
 .section-heading.margin-bottom-3x {
   margin-bottom: 3rem;
+}
+
+.para-summary {
+  font-weight: 500;
+  font-family: "Nunito", sans-serif;
+  font-size: 1.8rem;
+}
+
+.sub-heading {
+  font-size: 1.4rem;
+  font-weight: 900;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.panel-heading {
+  font-size: 1.2rem;
+  font-weight: 700;
 }
 
 body {
@@ -8075,6 +8093,8 @@ ul.logo .logo-image {
   transition-property: background-color, box-shadow, transform;
   transition-duration: 1s;
   font-family: "Nunito", sans-serif;
+  font-weight: 400;
+  font-size: 1rem;
 }
 .navbar .navbar-link:not(.is-arrowless) {
   padding-right: 2em;
@@ -8086,9 +8106,6 @@ ul.logo .logo-image {
 }
 .navbar .navbar-menu {
   text-transform: uppercase;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-  word-spacing: 0.1em;
 }
 
 .goal-outline {
@@ -8502,6 +8519,8 @@ ul.logo .logo-image {
 
 .menu-list a {
   font-size: 1.1em;
+  font-family: "Nunito", sans-serif;
+  font-weight: 400;
 }
 
 .button {
