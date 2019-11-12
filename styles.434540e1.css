@@ -8242,20 +8242,34 @@ ul.logo .logo-image {
   margin-top: 2rem;
 }
 
-.news-outline .news-outline-image {
+.news-outline {
   background-size: cover;
   background-repeat: no-repeat;
 }
-.news-outline .news-date {
-  opacity: 0.5;
-  filter: alpha(opacity=50);
+.news-outline-item {
+  margin: 7rem 2rem;
+  min-height: 400px;
+  box-shadow: 10px 5px 21px -8px rgba(51, 51, 51, 0.4);
+}
+.news-outline-item .button {
+  margin-top: 1rem;
 }
 
-#news_outline .slider-slide {
-  padding: 20px;
+.news-outline-flexbox {
+  justify-content: flex-end;
 }
-#news_outline .slider-control-bottomcenter {
-  bottom: -35px !important;
+
+#news_outline .paging-item .paging-dot {
+  width: 12px !important;
+  height: 12px !important;
+  border: 2px solid white;
+}
+#news_outline .paging-item:hover .paging-dot {
+  transform: scale(1.4);
+}
+#news_outline .paging-item.active .paging-dot {
+  transform: scale(1.4);
+  background: white !important;
 }
 
 .news-grid-item {

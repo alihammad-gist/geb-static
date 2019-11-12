@@ -38297,7 +38297,7 @@ var dateOptions = {
   day: 'numeric'
 };
 
-exports.default = function (_a) {
+exports.old = function (_a) {
   var item = _a.item;
   return React.createElement("div", {
     className: 'columns news-outline'
@@ -38319,6 +38319,43 @@ exports.default = function (_a) {
   }, item.title)), React.createElement("p", {
     className: 'content'
   }, item.content)));
+};
+
+exports.default = function (_a) {
+  var item = _a.item;
+  return React.createElement("div", {
+    className: 'news-outline',
+    style: {
+      backgroundImage: "url(" + item.image + ")"
+    }
+  }, React.createElement("div", {
+    className: "container"
+  }, React.createElement("div", {
+    className: "columns news-outline-flexbox"
+  }, React.createElement("div", {
+    className: "column is-6"
+  }, React.createElement("div", {
+    className: "box news-outline-item"
+  }, React.createElement("div", {
+    className: "level"
+  }, React.createElement("div", {
+    className: "level-left"
+  }, React.createElement("div", {
+    className: "level-item"
+  }, React.createElement("small", null, item.date.toLocaleDateString("en-US", dateOptions))), React.createElement("div", {
+    className: "level-right"
+  }, React.createElement("div", {
+    className: "level-item"
+  }, React.createElement("span", {
+    className: "tag is-link"
+  }, item.category))))), React.createElement("h2", {
+    className: "title is-4"
+  }, item.title), React.createElement("p", {
+    className: 'content'
+  }, item.content), React.createElement("a", {
+    href: "#",
+    className: "button is-success"
+  }, "READ MORE"))))));
 };
 },{"react":"node_modules/react/index.js"}],"scripts/components/news-outline/index.tsx":[function(require,module,exports) {
 "use strict";
@@ -38350,41 +38387,38 @@ var nuka_carousel_1 = __importDefault(require("nuka-carousel"));
 var news_item_1 = __importDefault(require("./news-item"));
 
 var data = [{
-  title: "MOU signed with Peshawar University 1",
+  title: "MOU signed with University of Peshawar  for EMIS research 1",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
   category: "Event",
-  image: "//placeimg.com/640/480/nature?" + Math.random().toString()
+  image: "//placeimg.com/1200/600/nature?" + Math.random().toString()
 }, {
-  title: "MOU signed with Peshawar University 2",
+  title: "MOU signed with University of Peshawar  for EMIS research 2",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
   category: "Lecture",
-  image: "//placeimg.com/640/480/nature?" + Math.random().toString()
+  image: "//placeimg.com/1200/600/nature?" + Math.random().toString()
 }, {
-  title: "MOU signed with Peshawar University 3",
+  title: "MOU signed with University of Peshawar  for EMIS research 3",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
   category: "Seminar",
-  image: "//placeimg.com/640/480/nature?" + Math.random().toString()
+  image: "//placeimg.com/1200/600/nature?" + Math.random().toString()
 }, {
-  title: "MOU signed with Peshawar University 4",
+  title: "MOU signed with University of Peshawar  for EMIS research 4",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
   category: "Conference",
-  image: "//placeimg.com/640/480/nature?" + Math.random().toString()
+  image: "//placeimg.com/1200/600/nature?" + Math.random().toString()
 }, {
-  title: "MOU signed with Peshawar University 5",
+  title: "MOU signed with University of Peshawar  for EMIS research 5",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
   category: "Event",
-  image: "//placeimg.com/640/480/nature?" + Math.random().toString()
+  image: "//placeimg.com/1200/600/nature?" + Math.random().toString()
 }];
 exports.default = React.createElement(nuka_carousel_1.default, {
-  speed: 2000,
   heightMode: 'max',
-  renderCenterLeftControls: null,
-  renderCenterRightControls: null,
   autoplay: true,
   autoplayInterval: 5000,
   wrapAround: true
@@ -48846,7 +48880,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "35791" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34931" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
