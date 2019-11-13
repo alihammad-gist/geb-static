@@ -7903,7 +7903,28 @@ p.content {
 .para-summary {
   font-weight: 500;
   font-family: "Nunito", sans-serif;
-  font-size: 1.8rem;
+  font-size: 1.4rem;
+  padding-left: 1rem;
+  border-left: 3px solid #009976;
+}
+
+.para-detailed {
+  padding: 1rem;
+  background: white;
+  position: relative;
+}
+.para-detailed:before {
+  position: absolute;
+  left: -20px;
+  top: 0;
+  content: "";
+  width: 0px;
+  height: 0px;
+  font-size: 0;
+  line-height: 0;
+  border-top: 0px solid transparent;
+  border-bottom: 20px solid transparent;
+  border-right: 20px solid white;
 }
 
 .sub-heading {
@@ -8109,6 +8130,17 @@ ul.logo .logo-image {
   text-transform: uppercase;
 }
 
+.logo {
+  transition-property: opacity;
+  transition-duration: 1s;
+  opacity: 1;
+}
+.navbar.navbar-transparent .logo {
+  opacity: 0;
+  transition-property: opacity;
+  transition-duration: 1s;
+}
+
 .goal-outline {
   margin-bottom: 0 !important;
 }
@@ -8243,22 +8275,23 @@ ul.logo .logo-image {
   margin-top: 2rem;
 }
 
-.news-outline {
-  background-size: cover;
-  background-repeat: no-repeat;
-}
 .news-outline-item {
-  margin: 7rem 2rem;
-  box-shadow: 10px 5px 21px -8px #333333;
+  margin: 2.8rem 0;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 10px 13px 21px 0px rgba(51, 51, 51, 0.14);
 }
 .news-outline-item .button {
   margin-top: 1rem;
+}
+.news-outline-item .padded {
+  padding: 1rem;
 }
 
 #news_outline .paging-item .paging-dot {
   width: 12px !important;
   height: 12px !important;
-  border: 1px solid white;
+  border: 1px solid black;
   opacity: 0.7;
 }
 #news_outline .paging-item:hover .paging-dot {
@@ -8272,7 +8305,7 @@ ul.logo .logo-image {
   opacity: 1;
 }
 #news_outline .slider-control-centerleft a, #news_outline .slider-control-centerright a {
-  color: white;
+  color: black;
   opacity: 0.7;
 }
 #news_outline .slider-control-centerleft a:hover, #news_outline .slider-control-centerright a:hover {
@@ -8360,8 +8393,6 @@ ul.logo .logo-image {
 .team-member {
   background-color: white;
   padding: 1rem;
-  border: 1px solid #e3e3e3;
-  box-shadow: 10px 5px 21px -8px rgba(51, 51, 51, 0.4);
 }
 .team-listing .team-member {
   box-shadow: none;
@@ -8562,6 +8593,10 @@ ul.logo .logo-image {
 .tag {
   font-family: "Nunito", sans-serif;
   font-weight: 500;
+}
+
+.section {
+  padding: 1.5rem 1rem;
 }
 
 /*# sourceMappingURL=/styles.434540e1.css.map */
