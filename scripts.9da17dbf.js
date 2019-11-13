@@ -38333,9 +38333,9 @@ exports.default = function (_a) {
   }, React.createElement("div", {
     className: "columns news-outline-flexbox"
   }, React.createElement("div", {
-    className: "column is-6"
+    className: "column is-5"
   }, React.createElement("div", {
-    className: "box news-outline-item"
+    className: "box news-outline-item is-clearfix"
   }, React.createElement("div", {
     className: "level"
   }, React.createElement("div", {
@@ -38355,7 +38355,11 @@ exports.default = function (_a) {
   }, item.content), React.createElement("a", {
     href: "#",
     className: "button is-success"
-  }, "READ MORE"))))));
+  }, React.createElement("span", {
+    className: "icon is-small"
+  }, React.createElement("i", {
+    className: "fa fa-angle-right"
+  })), React.createElement("span", null, "Read More")))))));
 };
 },{"react":"node_modules/react/index.js"}],"scripts/components/news-outline/index.tsx":[function(require,module,exports) {
 "use strict";
@@ -38419,9 +38423,33 @@ var data = [{
 }];
 exports.default = React.createElement(nuka_carousel_1.default, {
   heightMode: 'max',
-  autoplay: true,
+  autoplay: false,
   autoplayInterval: 5000,
-  wrapAround: true
+  wrapAround: true,
+  renderCenterLeftControls: function renderCenterLeftControls(_a) {
+    var previousSlide = _a.previousSlide;
+    return React.createElement("a", {
+      href: "#",
+      onClick: function onClick(e) {
+        e.preventDefault();
+        previousSlide();
+      }
+    }, React.createElement("i", {
+      className: "fa fa-arrow-circle-left fa-3x"
+    }));
+  },
+  renderCenterRightControls: function renderCenterRightControls(_a) {
+    var nextSlide = _a.nextSlide;
+    return React.createElement("a", {
+      href: "#",
+      onClick: function onClick(e) {
+        e.preventDefault();
+        nextSlide();
+      }
+    }, React.createElement("i", {
+      className: "fa fa-arrow-circle-right fa-3x"
+    }));
+  }
 }, data.map(function (item, idx) {
   return React.createElement(news_item_1.default, {
     item: item,
@@ -48880,7 +48908,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34931" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "39371" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
