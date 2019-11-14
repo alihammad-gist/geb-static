@@ -47,6 +47,36 @@ h6 {
   font-family: "Nunito", sans-serif;
 }
 
+/**
+ * A mixin which helps you to add depth to elements according to the Google Material Design spec:
+ * http://www.google.com/design/spec/layout/layout-principles.html#layout-principles-dimensionality
+ *
+ * Please note that the values given in the specification cannot be used as is. To create the same visual experience
+ * the blur parameter has to be doubled.
+ *
+ * Adapted from a LESS version at https://medium.com/@Florian/freebie-google-material-design-shadow-helper-2a0501295a2d
+ *
+ * Original Author: Florian Kutschera (@gefangenimnetz), Conceptboard GmbH (@conceptboardapp)
+ *
+ * Example usage:
+ *
+ * .card {
+ *     width: 95px;
+ *     height: 95px;
+ *     background: #f4f4f4;
+ *     -webkit-transition: all 250ms;
+ *     -moz-transition: all 250ms;
+ *     transition: all 250ms;
+ *     @include box_shadow(1);
+ *     &:hover {
+ *         @include box_shadow(3);
+ *         -webkit-transform: translateY(-5px);
+ *         -moz-transform: translateY(-5px);
+ *         transform: translateY(-5px);
+ *     }
+ * }
+ *
+ */
 @keyframes spinAround {
   from {
     transform: rotate(0deg);
@@ -7912,6 +7942,8 @@ p.content {
   padding: 1rem;
   background: white;
   position: relative;
+  border-radius: 4px;
+  border-top-left-radius: 0;
 }
 .para-detailed:before {
   position: absolute;
@@ -7932,6 +7964,12 @@ p.content {
   font-weight: 900;
   margin-top: 1.5rem;
   margin-bottom: 1rem;
+}
+.team-member-homepage .sub-heading {
+  margin: 0;
+}
+.news-outline-item .sub-heading {
+  margin-top: 0;
 }
 
 .panel-heading {
@@ -8276,10 +8314,18 @@ ul.logo .logo-image {
 }
 
 .news-outline-item {
+  display: block;
   margin: 2.8rem 0;
   padding: 0;
   overflow: hidden;
-  box-shadow: 10px 13px 21px 0px rgba(51, 51, 51, 0.14);
+  transition-property: box-shadow;
+  transition-duration: 500ms;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24) !important;
+}
+.news-outline-item:hover {
+  transition-property: box-shadow;
+  transition-duration: 500ms;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22) !important;
 }
 .news-outline-item .button {
   margin-top: 1rem;
@@ -8291,8 +8337,8 @@ ul.logo .logo-image {
 #news_outline .paging-item .paging-dot {
   width: 12px !important;
   height: 12px !important;
-  border: 1px solid black;
-  opacity: 0.7;
+  background-color: #009976 !important;
+  opacity: 0.5;
 }
 #news_outline .paging-item:hover .paging-dot {
   transform: scale(1.4);
@@ -8300,13 +8346,12 @@ ul.logo .logo-image {
 }
 #news_outline .paging-item.active .paging-dot {
   transform: scale(1.4);
-  background: white !important;
-  border-color: #333333;
+  background: #009976 !important;
   opacity: 1;
 }
 #news_outline .slider-control-centerleft a, #news_outline .slider-control-centerright a {
-  color: black;
-  opacity: 0.7;
+  color: #009976;
+  opacity: 0.5;
 }
 #news_outline .slider-control-centerleft a:hover, #news_outline .slider-control-centerright a:hover {
   opacity: 1;
@@ -8476,6 +8521,15 @@ ul.logo .logo-image {
   text-align: center;
 }
 
+.team-member-homepage, .team-member-homepage .media-content, .team-member-homepage .media-content .para-detailed {
+  height: 100%;
+}
+.team-member-homepage .team-member-title {
+  margin-bottom: 1rem;
+  font-family: "Nunito", sans-serif;
+  font-weight: 700;
+}
+
 .partners {
   background-color: white;
 }
@@ -8597,6 +8651,14 @@ ul.logo .logo-image {
 
 .section {
   padding: 1.5rem 1rem;
+}
+
+.pad-left {
+  padding-left: 1rem;
+}
+
+.pad-right {
+  padding-right: 1rem;
 }
 
 /*# sourceMappingURL=/styles.434540e1.css.map */
