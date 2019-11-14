@@ -8351,17 +8351,16 @@ ul.logo .logo-image {
 }
 
 #news_outline .paging-item .paging-dot {
-  width: 12px !important;
-  height: 12px !important;
+  width: 8px !important;
+  height: 8px !important;
   background-color: #009976 !important;
   opacity: 0.5;
 }
 #news_outline .paging-item:hover .paging-dot {
-  transform: scale(1.4);
   opacity: 1;
 }
 #news_outline .paging-item.active .paging-dot {
-  transform: scale(1.4);
+  transform: scale(1.2);
   background: #009976 !important;
   opacity: 1;
 }

@@ -38455,7 +38455,7 @@ exports.default = React.createElement(nuka_carousel_1.default, {
         previousSlide();
       }
     }, React.createElement("i", {
-      className: "fa fa-arrow-circle-left fa-3x"
+      className: "fa fa-chevron-left fa-3x"
     }));
   },
   renderCenterRightControls: function renderCenterRightControls(_a) {
@@ -38467,7 +38467,7 @@ exports.default = React.createElement(nuka_carousel_1.default, {
         nextSlide();
       }
     }, React.createElement("i", {
-      className: "fa fa-arrow-circle-right fa-3x"
+      className: "fa fa-chevron-right fa-3x"
     }));
   }
 }, data.map(function (item, idx) {
@@ -48928,7 +48928,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "37933" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "46639" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
