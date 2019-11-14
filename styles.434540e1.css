@@ -7971,6 +7971,9 @@ p.content {
 .news-outline-item .sub-heading {
   margin-top: 0;
 }
+.goal-outline-container .sub-heading {
+  margin-top: 0;
+}
 
 .panel-heading {
   font-size: 1.2rem;
@@ -7980,6 +7983,18 @@ p.content {
 body {
   font-family: "Martel", serif;
   font-weight: 300;
+}
+
+.socialmedia-container {
+  text-align: right;
+}
+.socialmedia-container a {
+  padding: 0 1rem;
+  display: inline-block;
+  color: #dbdbdb;
+}
+.socialmedia-container a:hover {
+  color: white;
 }
 
 ul.logo {
@@ -8290,6 +8305,7 @@ ul.logo .logo-image {
 
 .footer {
   background-image: url(/footer_lodyas.d1433b70.png);
+  padding: 3rem;
   padding-bottom: 1rem;
 }
 .footer .menu-list a {
@@ -8540,7 +8556,7 @@ ul.logo .logo-image {
   padding: 0.2rem;
 }
 .footer .partner-logo img {
-  height: 100px;
+  height: 75px;
   width: auto;
 }
 .footer .partner-logo.state-emblem, .footer .partner-logo.gef {
@@ -8548,10 +8564,9 @@ ul.logo .logo-image {
 }
 
 .footer .partner-logos-container {
-  text-align: right;
-}
-.footer .partner-logos-container figure {
-  display: inline-block;
+  margin-bottom: 2rem !important;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #dbdbdb;
 }
 
 .page-banner {
@@ -8667,6 +8682,14 @@ ul.logo .logo-image {
 
 .pad-right {
   padding-right: 1rem;
+}
+
+.pad-less {
+  padding: 0 !important;
+}
+
+.m-less {
+  margin: 0 !important;
 }
 
 /*# sourceMappingURL=/styles.434540e1.css.map */
