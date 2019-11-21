@@ -48676,7 +48676,58 @@ exports.default = function () {
     className: "layer clouds " + (CloudsIdxs.indexOf(active) >= 0 ? 'active' : '')
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg","../../../images/leafs.jpg":"images/leafs.jpg"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg","../../../images/leafs.jpg":"images/leafs.jpg"}],"scripts/components/typewriter/index.tsx":[function(require,module,exports) {
+"use strict";
+
+var __importStar = this && this.__importStar || function (mod) {
+  if (mod && mod.__esModule) return mod;
+  var result = {};
+  if (mod != null) for (var k in mod) {
+    if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+  }
+  result["default"] = mod;
+  return result;
+};
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var react_1 = __importStar(require("react"));
+
+exports.default = function (_a) {
+  var text = _a.text,
+      _b = _a.speed,
+      speed = _b === void 0 ? 100 : _b;
+  var len = text.length;
+
+  var _c = react_1.useState(0),
+      cursor = _c[0],
+      setCursor = _c[1];
+
+  react_1.useLayoutEffect(function () {
+    if (cursor < len) {
+      var interval_1 = window.setInterval(function () {
+        setCursor(cursor + 1);
+      }, speed);
+      return function () {
+        return window.clearInterval(interval_1);
+      };
+    }
+  });
+  return react_1.default.createElement("span", null, text.slice(0, cursor).split('').map(function (ltr, key) {
+    return react_1.default.createElement("span", {
+      key: key
+    }, ltr);
+  }), react_1.default.createElement("i", {
+    className: "fa fa-i-cursor",
+    style: {
+      fontWeight: "normal",
+      color: "rgba(0, 0, 0, 0.3)"
+    }
+  }));
+};
+},{"react":"node_modules/react/index.js"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
 module.exports = "/state-emblem-pk.f03983e3.svg";
 },{}],"images/undp-logo-30.svg":[function(require,module,exports) {
 module.exports = "/undp-logo-30.d146f0e5.svg";
@@ -48697,6 +48748,8 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importDefault(require("react"));
 
+var typewriter_1 = __importDefault(require("./../typewriter"));
+
 var state_emblem_pk_svg_1 = __importDefault(require("../../../images/state-emblem-pk.svg"));
 
 var undp_logo_30_svg_1 = __importDefault(require("../../../images/undp-logo-30.svg"));
@@ -48711,14 +48764,13 @@ exports.default = function () {
   }), react_1.default.createElement("div", {
     className: "container hero-tagline-content"
   }, react_1.default.createElement("h2", {
-    className: "tagline-heading title is-2"
-  }, react_1.default.createElement("span", {
-    style: {
-      paddingLeft: "8px"
-    }
-  }, "Generating"), react_1.default.createElement("span", null, react_1.default.createElement("strong", null, "G"), "lobal"), react_1.default.createElement("span", null, react_1.default.createElement("strong", null, "E"), "nvironmental"), react_1.default.createElement("span", null, react_1.default.createElement("strong", null, "B"), "enefits")), react_1.default.createElement("p", {
+    className: "title is-2 tagline-heading"
+  }, react_1.default.createElement("span", null, "Generating"), react_1.default.createElement("span", null, "Global"), react_1.default.createElement("span", null, "Environmental"), react_1.default.createElement("span", null, "Benefits")), react_1.default.createElement("p", {
     className: "tagline-desc"
-  }, "Strengthening National Capacities and improving living conditions through Environmental Management for Sustainable Development"), react_1.default.createElement("div", {
+  }, react_1.default.createElement(typewriter_1.default, {
+    text: "Strengthening National Capacities and improving living conditions through Environmental Management for Sustainable Development.",
+    speed: 30
+  })), react_1.default.createElement("div", {
     className: "tagline-logos"
   }, react_1.default.createElement("img", {
     src: state_emblem_pk_svg_1.default,
@@ -48743,7 +48795,7 @@ exports.default = function () {
     className: "fa fa-chevron-down"
   })), react_1.default.createElement("span", null, "Project description")))));
 };
-},{"react":"node_modules/react/index.js","../../../images/state-emblem-pk.svg":"images/state-emblem-pk.svg","../../../images/undp-logo-30.svg":"images/undp-logo-30.svg","../../../images/gef.png":"images/gef.png"}],"scripts/components/hero/index.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","./../typewriter":"scripts/components/typewriter/index.tsx","../../../images/state-emblem-pk.svg":"images/state-emblem-pk.svg","../../../images/undp-logo-30.svg":"images/undp-logo-30.svg","../../../images/gef.png":"images/gef.png"}],"scripts/components/hero/index.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48902,7 +48954,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34639" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "35367" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

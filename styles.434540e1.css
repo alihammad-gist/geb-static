@@ -44,7 +44,7 @@ h4,
 h5,
 h6 {
   font-weight: 900;
-  font-family: "Nunito", sans-serif;
+  font-family: "Montserrat", sans-serif;
 }
 
 /**
@@ -371,7 +371,7 @@ button,
 input,
 select,
 textarea {
-  font-family: "Nunito", sans-serif;
+  font-family: "Montserrat", sans-serif;
 }
 
 code,
@@ -990,15 +990,15 @@ a.has-text-info:hover, a.has-text-info:focus {
 }
 
 .has-text-success {
-  color: #919452 !important;
+  color: #75791e !important;
 }
 
 a.has-text-success:hover, a.has-text-success:focus {
-  color: #717340 !important;
+  color: #4d5014 !important;
 }
 
 .has-background-success {
-  background-color: #919452 !important;
+  background-color: #75791e !important;
 }
 
 .has-text-warning {
@@ -1118,15 +1118,15 @@ a.has-text-danger:hover, a.has-text-danger:focus {
 }
 
 .is-family-primary {
-  font-family: "Nunito", sans-serif !important;
+  font-family: "Montserrat", sans-serif !important;
 }
 
 .is-family-secondary {
-  font-family: "Nunito", sans-serif !important;
+  font-family: "Montserrat", sans-serif !important;
 }
 
 .is-family-sans-serif {
-  font-family: "Nunito", sans-serif !important;
+  font-family: "Montserrat", sans-serif !important;
 }
 
 .is-family-monospace {
@@ -1652,7 +1652,7 @@ ul.logo .logo-description span,
   border-width: 1px;
   color: #363636;
   cursor: pointer;
-  font-family: "Nunito", sans-serif;
+  font-family: "Montserrat", sans-serif;
   justify-content: center;
   padding-bottom: calc(0.375em - 1px);
   padding-left: 0.75em;
@@ -2296,12 +2296,12 @@ ul.logo .logo-description span,
   color: #fff;
 }
 .button.is-success {
-  background-color: #919452;
+  background-color: #75791e;
   border-color: transparent;
   color: #fff;
 }
 .button.is-success:hover, .button.is-success.is-hovered {
-  background-color: #898c4d;
+  background-color: #6b6f1b;
   border-color: transparent;
   color: #fff;
 }
@@ -2310,21 +2310,21 @@ ul.logo .logo-description span,
   color: #fff;
 }
 .button.is-success:focus:not(:active), .button.is-success.is-focused:not(:active) {
-  box-shadow: 0 0 0 0.125em rgba(145, 148, 82, 0.25);
+  box-shadow: 0 0 0 0.125em rgba(117, 121, 30, 0.25);
 }
 .button.is-success:active, .button.is-success.is-active {
-  background-color: #818449;
+  background-color: #616519;
   border-color: transparent;
   color: #fff;
 }
 .button.is-success[disabled], fieldset[disabled] .button.is-success {
-  background-color: #919452;
+  background-color: #75791e;
   border-color: transparent;
   box-shadow: none;
 }
 .button.is-success.is-inverted {
   background-color: #fff;
-  color: #919452;
+  color: #75791e;
 }
 .button.is-success.is-inverted:hover, .button.is-success.is-inverted.is-hovered {
   background-color: #f2f2f2;
@@ -2333,32 +2333,32 @@ ul.logo .logo-description span,
   background-color: #fff;
   border-color: transparent;
   box-shadow: none;
-  color: #919452;
+  color: #75791e;
 }
 .button.is-success.is-loading::after {
   border-color: transparent transparent #fff #fff !important;
 }
 .button.is-success.is-outlined {
   background-color: transparent;
-  border-color: #919452;
-  color: #919452;
+  border-color: #75791e;
+  color: #75791e;
 }
 .button.is-success.is-outlined:hover, .button.is-success.is-outlined.is-hovered, .button.is-success.is-outlined:focus, .button.is-success.is-outlined.is-focused {
-  background-color: #919452;
-  border-color: #919452;
+  background-color: #75791e;
+  border-color: #75791e;
   color: #fff;
 }
 .button.is-success.is-outlined.is-loading::after {
-  border-color: transparent transparent #919452 #919452 !important;
+  border-color: transparent transparent #75791e #75791e !important;
 }
 .button.is-success.is-outlined.is-loading:hover::after, .button.is-success.is-outlined.is-loading.is-hovered::after, .button.is-success.is-outlined.is-loading:focus::after, .button.is-success.is-outlined.is-loading.is-focused::after {
   border-color: transparent transparent #fff #fff !important;
 }
 .button.is-success.is-outlined[disabled], fieldset[disabled] .button.is-success.is-outlined {
   background-color: transparent;
-  border-color: #919452;
+  border-color: #75791e;
   box-shadow: none;
-  color: #919452;
+  color: #75791e;
 }
 .button.is-success.is-inverted.is-outlined {
   background-color: transparent;
@@ -2367,10 +2367,10 @@ ul.logo .logo-description span,
 }
 .button.is-success.is-inverted.is-outlined:hover, .button.is-success.is-inverted.is-outlined.is-hovered, .button.is-success.is-inverted.is-outlined:focus, .button.is-success.is-inverted.is-outlined.is-focused {
   background-color: #fff;
-  color: #919452;
+  color: #75791e;
 }
 .button.is-success.is-inverted.is-outlined.is-loading:hover::after, .button.is-success.is-inverted.is-outlined.is-loading.is-hovered::after, .button.is-success.is-inverted.is-outlined.is-loading:focus::after, .button.is-success.is-inverted.is-outlined.is-loading.is-focused::after {
-  border-color: transparent transparent #919452 #919452 !important;
+  border-color: transparent transparent #75791e #75791e !important;
 }
 .button.is-success.is-inverted.is-outlined[disabled], fieldset[disabled] .button.is-success.is-inverted.is-outlined {
   background-color: transparent;
@@ -2884,7 +2884,7 @@ ul.logo .logo-description span,
   color: #fff;
 }
 .tag:not(body).is-success {
-  background-color: #919452;
+  background-color: #75791e;
   color: #fff;
 }
 .tag:not(body).is-warning {
@@ -3369,7 +3369,7 @@ a.box:active, .goal-outline a.desc.pull-up:active {
   }
 }
 .navbar.is-success {
-  background-color: #919452;
+  background-color: #75791e;
   color: #fff;
 }
 .navbar.is-success .navbar-brand > .navbar-item,
@@ -3380,7 +3380,7 @@ a.box:active, .goal-outline a.desc.pull-up:active {
 .navbar.is-success .navbar-brand .navbar-link:focus,
 .navbar.is-success .navbar-brand .navbar-link:hover,
 .navbar.is-success .navbar-brand .navbar-link.is-active {
-  background-color: #818449;
+  background-color: #616519;
   color: #fff;
 }
 .navbar.is-success .navbar-brand .navbar-link::after {
@@ -3406,7 +3406,7 @@ a.box:active, .goal-outline a.desc.pull-up:active {
 .navbar.is-success .navbar-end .navbar-link:focus,
 .navbar.is-success .navbar-end .navbar-link:hover,
 .navbar.is-success .navbar-end .navbar-link.is-active {
-    background-color: #818449;
+    background-color: #616519;
     color: #fff;
   }
   .navbar.is-success .navbar-start .navbar-link::after,
@@ -3416,11 +3416,11 @@ a.box:active, .goal-outline a.desc.pull-up:active {
   .navbar.is-success .navbar-item.has-dropdown:focus .navbar-link,
 .navbar.is-success .navbar-item.has-dropdown:hover .navbar-link,
 .navbar.is-success .navbar-item.has-dropdown.is-active .navbar-link {
-    background-color: #818449;
+    background-color: #616519;
     color: #fff;
   }
   .navbar.is-success .navbar-dropdown a.navbar-item.is-active {
-    background-color: #919452;
+    background-color: #75791e;
     color: #fff;
   }
 }
@@ -5010,7 +5010,7 @@ button.dropdown-item.is-active {
   }
 }
 .hero.is-success {
-  background-color: #919452;
+  background-color: #75791e;
   color: #fff;
 }
 .hero.is-success a:not(.button):not(.dropdown-item):not(.tag):not(.pagination-link.is-current),
@@ -5029,7 +5029,7 @@ button.dropdown-item.is-active {
 }
 @media screen and (max-width: 1023px) {
   .hero.is-success .navbar-menu {
-    background-color: #919452;
+    background-color: #75791e;
   }
 }
 .hero.is-success .navbar-item,
@@ -5039,7 +5039,7 @@ button.dropdown-item.is-active {
 .hero.is-success a.navbar-item:hover, .hero.is-success a.navbar-item.is-active,
 .hero.is-success .navbar-link:hover,
 .hero.is-success .navbar-link.is-active {
-  background-color: #818449;
+  background-color: #616519;
   color: #fff;
 }
 .hero.is-success .tabs a {
@@ -5061,14 +5061,14 @@ button.dropdown-item.is-active {
 .hero.is-success .tabs.is-boxed li.is-active a, .hero.is-success .tabs.is-boxed li.is-active a:hover, .hero.is-success .tabs.is-toggle li.is-active a, .hero.is-success .tabs.is-toggle li.is-active a:hover {
   background-color: #fff;
   border-color: #fff;
-  color: #919452;
+  color: #75791e;
 }
 .hero.is-success.is-bold {
-  background-image: linear-gradient(141deg, #7c7437 0%, #919452 71%, #98ab55 100%);
+  background-image: linear-gradient(141deg, #554d0f 0%, #75791e 71%, #7a921f 100%);
 }
 @media screen and (max-width: 768px) {
   .hero.is-success.is-bold .navbar-menu {
-    background-image: linear-gradient(141deg, #7c7437 0%, #919452 71%, #98ab55 100%);
+    background-image: linear-gradient(141deg, #554d0f 0%, #75791e 71%, #7a921f 100%);
   }
 }
 .hero.is-warning {
@@ -7115,10 +7115,10 @@ button.dropdown-item.is-active {
   box-shadow: 0 0 0 0.125em rgba(32, 156, 238, 0.25);
 }
 .is-success.textarea, .is-success.input {
-  border-color: #919452;
+  border-color: #75791e;
 }
 .is-success.textarea:focus, .is-success.input:focus, .is-success.is-focused.textarea, .is-success.is-focused.input, .is-success.textarea:active, .is-success.input:active, .is-success.is-active.textarea, .is-success.is-active.input {
-  box-shadow: 0 0 0 0.125em rgba(145, 148, 82, 0.25);
+  box-shadow: 0 0 0 0.125em rgba(117, 121, 30, 0.25);
 }
 .is-warning.textarea, .is-warning.input {
   border-color: #ffdd57;
@@ -7332,16 +7332,16 @@ button.dropdown-item.is-active {
   box-shadow: 0 0 0 0.125em rgba(32, 156, 238, 0.25);
 }
 .select.is-success:not(:hover)::after {
-  border-color: #919452;
+  border-color: #75791e;
 }
 .select.is-success select {
-  border-color: #919452;
+  border-color: #75791e;
 }
 .select.is-success select:hover, .select.is-success select.is-hovered {
-  border-color: #818449;
+  border-color: #616519;
 }
 .select.is-success select:focus, .select.is-success select.is-focused, .select.is-success select:active, .select.is-success select.is-active {
-  box-shadow: 0 0 0 0.125em rgba(145, 148, 82, 0.25);
+  box-shadow: 0 0 0 0.125em rgba(117, 121, 30, 0.25);
 }
 .select.is-warning:not(:hover)::after {
   border-color: #ffdd57;
@@ -7550,22 +7550,22 @@ button.dropdown-item.is-active {
   color: #fff;
 }
 .file.is-success .file-cta {
-  background-color: #919452;
+  background-color: #75791e;
   border-color: transparent;
   color: #fff;
 }
 .file.is-success:hover .file-cta, .file.is-success.is-hovered .file-cta {
-  background-color: #898c4d;
+  background-color: #6b6f1b;
   border-color: transparent;
   color: #fff;
 }
 .file.is-success:focus .file-cta, .file.is-success.is-focused .file-cta {
   border-color: transparent;
-  box-shadow: 0 0 0.5em rgba(145, 148, 82, 0.25);
+  box-shadow: 0 0 0.5em rgba(117, 121, 30, 0.25);
   color: #fff;
 }
 .file.is-success:active .file-cta, .file.is-success.is-active .file-cta {
-  background-color: #818449;
+  background-color: #616519;
   border-color: transparent;
   color: #fff;
 }
@@ -7811,7 +7811,7 @@ button.dropdown-item.is-active {
   color: #209cee;
 }
 .help.is-success {
-  color: #919452;
+  color: #75791e;
 }
 .help.is-warning {
   color: #ffdd57;
@@ -8058,7 +8058,7 @@ h3,
 h4,
 h5,
 h6 {
-  font-weight: 900;
+  font-weight: 700;
 }
 
 p.content {
@@ -8075,7 +8075,7 @@ p.content {
   width: 40px;
   margin: 0 auto;
   margin-top: 0.5rem;
-  border-bottom: 3px solid #919452;
+  border-bottom: 3px solid #75791e;
 }
 .section-heading.margin-top {
   margin-top: 2rem;
@@ -8095,10 +8095,10 @@ p.content {
 
 .para-summary {
   font-weight: 500;
-  font-family: "Nunito", sans-serif;
+  font-family: "Montserrat", sans-serif;
   font-size: 1.2rem;
   padding: 0 1rem;
-  border-left: 3px solid #919452;
+  border-left: 3px solid #75791e;
 }
 
 .para-detailed {
@@ -8124,7 +8124,7 @@ p.content {
 
 .sub-heading {
   font-size: 1.4rem;
-  font-weight: 900;
+  font-weight: 700;
   margin-top: 1.5rem;
   margin-bottom: 1rem;
 }
@@ -8144,7 +8144,7 @@ p.content {
 }
 
 body {
-  font-family: "Martel", serif;
+  font-family: "Montserrat", sans-serif;
   font-weight: 300;
 }
 
@@ -8171,7 +8171,7 @@ ul.logo .logo-description {
   color: #4D4D4D !important;
   font-weight: 500;
   font-size: 2.5rem;
-  font-family: "Nunito", sans-serif;
+  font-family: "Montserrat", sans-serif;
   font-weight: 700;
   text-align: center;
 }
@@ -8179,7 +8179,7 @@ ul.logo .logo-image {
   text-align: center;
   margin-bottom: 0 !important;
   color: #5DA0DD !important;
-  font-family: "Nunito", sans-serif;
+  font-family: "Montserrat", sans-serif;
   font-size: 4rem;
   font-weight: 900;
   text-shadow: #4D4D4D 1px 1px 0.04em;
@@ -8199,7 +8199,7 @@ ul.logo .logo-image {
 
 .navbar-brand .logo-image {
   color: #5DA0DD;
-  font-family: "Nunito", sans-serif;
+  font-family: "Montserrat", sans-serif;
   font-style: normal;
   text-shadow: #4D4D4D 1px 1px 0.04em;
   font-weight: 900;
@@ -8218,7 +8218,7 @@ ul.logo .logo-image {
   font-weight: bold;
   font-style: normal;
   color: white;
-  font-family: "Nunito", sans-serif;
+  font-family: "Montserrat", sans-serif;
   font-size: 1.5rem;
   text-transform: capitalize;
   letter-spacing: 0.05em;
@@ -8317,11 +8317,11 @@ ul.logo .logo-image {
 .hero-tagline {
   min-height: 100vh;
   position: relative;
-  padding-bottom: 1.5em;
+  display: flex;
+  align-items: center;
 }
 .hero-tagline-content {
-  margin-top: 200px;
-  padding-left: 1em;
+  padding-left: 2.1em;
 }
 .hero-tagline .button {
   margin-left: 2rem;
@@ -8335,16 +8335,17 @@ ul.logo .logo-image {
 }
 
 h2.tagline-heading {
-  color: #919452 !important;
+  color: #75791e !important;
   padding: 1rem;
   margin: 1rem;
   margin-left: 0;
-  letter-spacing: 0.2rem;
+  margin-bottom: 0 !important;
   line-height: 120%;
-  font-weight: normal;
+  font-weight: 400;
 }
 h2.tagline-heading span {
   display: block;
+  margin-bottom: 0.1em;
 }
 h2.tagline-heading strong {
   box-sizing: content-box;
@@ -8354,21 +8355,24 @@ h2.tagline-heading strong {
   width: 1em;
   height: 1em;
   border-radius: 50%;
-  background-color: #919452;
-  font-weight: 900;
+  background-color: #75791e;
+  font-weight: 700;
   color: #F2F2F2 !important;
   text-shadow: none;
   margin-right: 0.1em;
-  line-height: 110%;
+  line-height: 100%;
 }
 
 .tagline-desc {
   color: #272727;
   background-color: white;
   max-width: 61.8%;
-  padding: 1rem;
+  padding: 1em;
   margin: 1rem;
+  margin-top: 0;
   font-size: 1.2rem;
+  min-height: 5em;
+  border-radius: 4px;
 }
 
 .tagline-logos {
@@ -8400,8 +8404,8 @@ h2.tagline-heading strong {
 .navbar {
   transition-property: background-color, box-shadow, transform;
   transition-duration: 1s;
-  font-family: "Nunito", sans-serif;
-  font-weight: 700;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 600;
   font-size: 1rem;
 }
 .navbar .navbar-link:not(.is-arrowless) {
@@ -8581,7 +8585,7 @@ h2.tagline-heading strong {
 #news_outline .paging-item .paging-dot {
   width: 8px !important;
   height: 8px !important;
-  background-color: #919452 !important;
+  background-color: #75791e !important;
   opacity: 0.5;
 }
 #news_outline .paging-item:hover .paging-dot {
@@ -8589,7 +8593,7 @@ h2.tagline-heading strong {
 }
 #news_outline .paging-item.active .paging-dot {
   transform: scale(1.2);
-  background: #919452 !important;
+  background: #75791e !important;
   opacity: 1;
 }
 #news_outline .slider-control-centerleft a, #news_outline .slider-control-centerright a {
@@ -8744,15 +8748,15 @@ h2.tagline-heading strong {
   margin-top: 1rem;
   font-size: 1.1rem;
   margin-bottom: 0;
-  font-family: "Nunito", sans-serif;
+  font-family: "Montserrat", sans-serif;
   font-weight: 700;
 }
 .team-member .team-member-title {
   margin-bottom: 1rem;
   color: #4D4D4D;
   text-align: center;
-  font-family: "Nunito", sans-serif;
-  font-weight: 700;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 600;
 }
 .team-member .team-member-description {
   text-align: justify;
@@ -8789,8 +8793,8 @@ h2.tagline-heading strong {
 }
 .team-member-homepage .team-member-title {
   margin-bottom: 1rem;
-  font-family: "Nunito", sans-serif;
-  font-weight: 700;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 600;
 }
 
 .partners {
@@ -8886,23 +8890,28 @@ h2.tagline-heading strong {
 
 .breadcrumb {
   text-transform: uppercase;
-  font-size: 0.9em;
-  font-weight: 700;
-  font-family: "Nunito", sans-serif;
+  font-size: 0.8rem;
+  color: #4D4D4D;
+  font-weight: 600;
+  font-family: "Montserrat", sans-serif;
   font-style: normal;
+  display: inline-block;
+  padding: 0.5em;
+  background-color: #F2F2F2;
+  border-radius: 1em;
 }
 .breadcrumb li + li::before {
   color: #4D4D4D;
 }
 
 .menu-label {
-  font-family: "Nunito", sans-serif;
-  font-weight: 900;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 700;
 }
 
 .menu-list a {
   font-size: 1.1em;
-  font-family: "Nunito", sans-serif;
+  font-family: "Montserrat", sans-serif;
   font-weight: 400;
 }
 
@@ -8920,7 +8929,7 @@ h2.tagline-heading strong {
 }
 
 .tag, a.tag {
-  font-family: "Nunito", sans-serif;
+  font-family: "Montserrat", sans-serif;
   font-weight: 500;
   transition-property: box-shadow;
   transition-duration: 500ms;
@@ -8934,7 +8943,7 @@ h2.tagline-heading strong {
 }
 
 .section {
-  padding: 1.5rem 1rem;
+  padding: 3rem 1rem;
 }
 
 .pad-left {
