@@ -48676,7 +48676,13 @@ exports.default = function () {
     className: "layer clouds " + (CloudsIdxs.indexOf(active) >= 0 ? 'active' : '')
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg","../../../images/leafs.jpg":"images/leafs.jpg"}],"scripts/components/hero/tagline.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg","../../../images/leafs.jpg":"images/leafs.jpg"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
+module.exports = "/state-emblem-pk.f03983e3.svg";
+},{}],"images/undp-logo-30.svg":[function(require,module,exports) {
+module.exports = "/undp-logo-30.d146f0e5.svg";
+},{}],"images/gef.png":[function(require,module,exports) {
+module.exports = "/gef.2b1eb80f.png";
+},{}],"scripts/components/hero/tagline.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importDefault = this && this.__importDefault || function (mod) {
@@ -48690,6 +48696,12 @@ Object.defineProperty(exports, "__esModule", {
 });
 
 var react_1 = __importDefault(require("react"));
+
+var state_emblem_pk_svg_1 = __importDefault(require("../../../images/state-emblem-pk.svg"));
+
+var undp_logo_30_svg_1 = __importDefault(require("../../../images/undp-logo-30.svg"));
+
+var gef_png_1 = __importDefault(require("../../../images/gef.png"));
 
 exports.default = function () {
   return react_1.default.createElement("div", {
@@ -48707,6 +48719,17 @@ exports.default = function () {
   }, "Generating"), react_1.default.createElement("span", null, react_1.default.createElement("strong", null, "G"), "lobal"), react_1.default.createElement("span", null, react_1.default.createElement("strong", null, "E"), "nvironmental"), react_1.default.createElement("span", null, react_1.default.createElement("strong", null, "B"), "enefits")), react_1.default.createElement("p", {
     className: "tagline-desc"
   }, "Strengthening National Capacities and improving living conditions through Environmental Management for Sustainable Development"), react_1.default.createElement("div", {
+    className: "tagline-logos"
+  }, react_1.default.createElement("img", {
+    src: state_emblem_pk_svg_1.default,
+    alt: ""
+  }), react_1.default.createElement("img", {
+    src: undp_logo_30_svg_1.default,
+    alt: ""
+  }), react_1.default.createElement("img", {
+    src: gef_png_1.default,
+    alt: ""
+  })), react_1.default.createElement("div", {
     className: "buttons"
   }, react_1.default.createElement("a", {
     href: "#",
@@ -48720,13 +48743,7 @@ exports.default = function () {
     className: "fa fa-chevron-down"
   })), react_1.default.createElement("span", null, "Project description")))));
 };
-},{"react":"node_modules/react/index.js"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
-module.exports = "/state-emblem-pk.f03983e3.svg";
-},{}],"images/undp-logo-30.svg":[function(require,module,exports) {
-module.exports = "/undp-logo-30.d146f0e5.svg";
-},{}],"images/gef.png":[function(require,module,exports) {
-module.exports = "/gef.2b1eb80f.png";
-},{}],"scripts/components/hero/index.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/state-emblem-pk.svg":"images/state-emblem-pk.svg","../../../images/undp-logo-30.svg":"images/undp-logo-30.svg","../../../images/gef.png":"images/gef.png"}],"scripts/components/hero/index.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48885,7 +48902,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "42335" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34639" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

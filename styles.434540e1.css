@@ -8315,8 +8315,9 @@ ul.logo .logo-image {
   padding: 1.5rem;
 }
 .hero-tagline {
-  height: 100vh;
+  min-height: 100vh;
   position: relative;
+  padding-bottom: 1.5em;
 }
 .hero-tagline-content {
   margin-top: 200px;
@@ -8337,7 +8338,7 @@ h2.tagline-heading {
   color: #919452 !important;
   padding: 1rem;
   margin: 1rem;
-  border-left: 3px solid #919452;
+  margin-left: 0;
   letter-spacing: 0.2rem;
   line-height: 120%;
   font-weight: normal;
@@ -8368,6 +8369,19 @@ h2.tagline-heading strong {
   padding: 1rem;
   margin: 1rem;
   font-size: 1.2rem;
+}
+
+.tagline-logos {
+  display: block;
+  margin-top: 1em;
+  margin-left: 2em;
+  margin-bottom: 2em;
+}
+.tagline-logos img {
+  display: inline-block;
+  margin-right: 0.5em;
+  height: 60px;
+  width: auto;
 }
 
 .navbar-transparent {
