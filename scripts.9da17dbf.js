@@ -48588,12 +48588,8 @@ function useScroll(handler) {
 }
 
 exports.default = useScroll;
-},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/barley.jpg":[function(require,module,exports) {
-module.exports = "/barley.f9b7e2f2.jpg";
-},{}],"images/foggy-forest.jpg":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/foggy-forest.jpg":[function(require,module,exports) {
 module.exports = "/foggy-forest.977f9e40.jpg";
-},{}],"images/leafs.jpg":[function(require,module,exports) {
-module.exports = "/leafs.1c9566d4.jpg";
 },{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48619,15 +48615,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importStar(require("react"));
 
-var barley_jpg_1 = __importDefault(require("../../../images/barley.jpg"));
-
 var foggy_forest_jpg_1 = __importDefault(require("../../../images/foggy-forest.jpg"));
 
-var leafs_jpg_1 = __importDefault(require("../../../images/leafs.jpg"));
-
-var AnimationInterval = 10000;
+var AnimationInterval = 90000;
 var CloudsIdxs = [0];
-var Backgrounds = [foggy_forest_jpg_1.default, leafs_jpg_1.default, barley_jpg_1.default];
+var Backgrounds = [foggy_forest_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48676,7 +48668,7 @@ exports.default = function () {
     className: "layer clouds " + (CloudsIdxs.indexOf(active) >= 0 ? 'active' : '')
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg","../../../images/leafs.jpg":"images/leafs.jpg"}],"scripts/components/typewriter/index.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg"}],"scripts/components/typewriter/index.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48954,7 +48946,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "40819" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "37515" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
