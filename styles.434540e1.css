@@ -8833,14 +8833,15 @@ h2.tagline-heading strong {
   min-height: 200px;
 }
 
-.page-title {
+.page-title h1 {
   font-size: 2.617924em;
+  font-weight: normal;
 }
 .page-title span {
   display: block;
 }
 .page-title .small {
-  font-size: 0.6180469716em;
+  font-size: 0.3819820591em;
 }
 
 .page-content {
