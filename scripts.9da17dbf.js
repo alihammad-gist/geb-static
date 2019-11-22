@@ -48756,7 +48756,7 @@ exports.default = function () {
   }), react_1.default.createElement("div", {
     className: "container hero-tagline-content"
   }, react_1.default.createElement("h2", {
-    className: "title is-2 tagline-heading"
+    className: "tagline-heading"
   }, react_1.default.createElement("span", null, "Generating"), react_1.default.createElement("span", null, "Global"), react_1.default.createElement("span", null, "Environmental"), react_1.default.createElement("span", null, "Benefits")), react_1.default.createElement("p", {
     className: "tagline-desc"
   }, react_1.default.createElement(typewriter_1.default, {
@@ -48946,7 +48946,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "37515" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "42341" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
