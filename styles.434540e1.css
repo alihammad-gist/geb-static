@@ -8668,9 +8668,12 @@ h2.tagline-heading strong {
   right: 0;
   left: 0;
   padding: 1rem;
+  max-height: 250px;
+  overflow: hidden;
 }
-.news-grid-item .news-content h2 {
+.news-grid-item .news-content h2 a {
   text-shadow: none;
+  z-index: 0;
 }
 .news-grid-item .news-content a {
   color: white;
