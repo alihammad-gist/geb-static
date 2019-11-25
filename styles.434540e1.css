@@ -8155,6 +8155,10 @@ p.content {
   font-weight: 700;
 }
 
+body {
+  line-height: 1.7;
+}
+
 a.offset {
   display: block;
   visibility: hidden;
@@ -8936,8 +8940,8 @@ h2.tagline-heading strong {
 }
 
 .about-menu {
-  border-right: 1px solid #4D4D4D;
-  text-align: right;
+  border-right: 1px solid #e6e6e6;
+  height: 100%;
 }
 
 .button {
