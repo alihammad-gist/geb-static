@@ -8352,7 +8352,7 @@ ul.logo .logo-image {
 }
 
 h2.tagline-heading {
-  font-size: 1.776889em;
+  font-size: 2.368593037em;
   color: #75791e !important;
   padding: 1rem;
   margin: 1rem;
@@ -8975,6 +8975,9 @@ h2.tagline-heading strong {
   background: #F2F2F2;
 }
 
+.outcome-grid {
+  justify-content: stretch;
+}
 .outcome-grid .outcome-image img {
   width: 61.8%;
   height: auto;
@@ -8983,6 +8986,9 @@ h2.tagline-heading strong {
 }
 .outcome-grid .para-summary {
   text-align: center;
+}
+.outcome-grid .para-detailed {
+  height: 100%;
 }
 
 .section {
@@ -9003,6 +9009,10 @@ h2.tagline-heading strong {
 
 .m-less {
   margin: 0 !important;
+}
+
+.m-top {
+  margin-top: 1rem;
 }
 
 /*# sourceMappingURL=/styles.434540e1.css.map */
