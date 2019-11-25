@@ -8402,7 +8402,6 @@ h2.tagline-heading strong {
   min-height: 4.9003750938em;
   border-radius: 4px;
   font-size: 1.333em;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23) !important;
 }
 
 .tagline-logos {
@@ -8822,6 +8821,10 @@ h2.tagline-heading strong {
   margin-bottom: 1rem;
   font-family: "Montserrat", sans-serif;
   font-weight: 600;
+}
+
+.team-member-description {
+  text-align: justify;
 }
 
 .partners {
