@@ -48588,8 +48588,8 @@ function useScroll(handler) {
 }
 
 exports.default = useScroll;
-},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/barley.jpg":[function(require,module,exports) {
-module.exports = "/barley.f9b7e2f2.jpg";
+},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/cycle.jpg":[function(require,module,exports) {
+module.exports = "/cycle.0e4f23fc.jpg";
 },{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48615,11 +48615,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importStar(require("react"));
 
-var barley_jpg_1 = __importDefault(require("../../../images/barley.jpg"));
+var cycle_jpg_1 = __importDefault(require("../../../images/cycle.jpg"));
 
 var AnimationInterval = 90000;
 var CloudsIdxs = [];
-var Backgrounds = [barley_jpg_1.default];
+var Backgrounds = [cycle_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48668,7 +48668,7 @@ exports.default = function () {
     className: "layer clouds " + (CloudsIdxs.indexOf(active) >= 0 ? 'active' : '')
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg"}],"scripts/components/typewriter/index.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/cycle.jpg":"images/cycle.jpg"}],"scripts/components/typewriter/index.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48946,7 +48946,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "38023" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "37037" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

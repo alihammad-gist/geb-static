@@ -122,7 +122,7 @@ var reloadCSS = require('_css_loader');
 
 module.hot.dispose(reloadCSS);
 module.hot.accept(reloadCSS);
-},{"./../images/barley.jpg":[["barley.f9b7e2f2.jpg","images/barley.jpg"],"images/barley.jpg"],"./../images/clouds2.png":[["clouds2.48985ff1.png","images/clouds2.png"],"images/clouds2.png"],"./../images/footer_lodyas.png":[["footer_lodyas.d1433b70.png","images/footer_lodyas.png"],"images/footer_lodyas.png"],"_css_loader":"../../../../.nvm/versions/node/v13.0.1/lib/node_modules/parcel/src/builtins/css-loader.js"}],"../../../../.nvm/versions/node/v13.0.1/lib/node_modules/parcel/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"./../images/barley.jpg":[["barley.f9b7e2f2.jpg","images/barley.jpg"],"barley.f9b7e2f2.js","images/barley.jpg"],"./../images/clouds2.png":[["clouds2.48985ff1.png","images/clouds2.png"],"clouds2.48985ff1.js","images/clouds2.png"],"./../images/footer_lodyas.png":[["footer_lodyas.d1433b70.png","images/footer_lodyas.png"],"footer_lodyas.d1433b70.js","images/footer_lodyas.png"],"_css_loader":"../../../../.nvm/versions/node/v13.0.1/lib/node_modules/parcel/src/builtins/css-loader.js"}],"../../../../.nvm/versions/node/v13.0.1/lib/node_modules/parcel/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -150,7 +150,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "38023" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "37037" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
