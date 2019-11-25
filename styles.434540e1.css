@@ -8975,6 +8975,16 @@ h2.tagline-heading strong {
   background: #F2F2F2;
 }
 
+.outcome-grid .outcome-image img {
+  width: 61.8%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+.outcome-grid .para-summary {
+  text-align: center;
+}
+
 .section {
   padding: 3rem 1rem;
 }
