@@ -38391,55 +38391,55 @@ var data = [[{
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Event",
-  image: "//placeimg.com/440/240/nature?" + Math.random().toString()
+  image: "//placeimg.com/440/240/nature?"
 }, {
   title: "MOU signed with University of Peshawar  for EMIS research 2",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Lecture",
-  image: "//placeimg.com/440/240/nature?" + Math.random().toString()
+  image: "//placeimg.com/440/240/nature?"
 }, {
   title: "MOU signed with University of Peshawar  for EMIS research 3",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Seminar",
-  image: "//placeimg.com/440/240/nature?" + Math.random().toString()
+  image: "//placeimg.com/440/240/nature?"
 }], [{
   title: "MOU signed with University of Peshawar  for EMIS research 4",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Conference",
-  image: "//placeimg.com/440/240/nature?" + Math.random().toString()
+  image: "//placeimg.com/440/240/nature?"
 }, {
   title: "MOU signed with University of Peshawar  for EMIS research 4",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Conference",
-  image: "//placeimg.com/440/240/nature?" + Math.random().toString()
+  image: "//placeimg.com/440/240/nature?"
 }, {
   title: "MOU signed with University of Peshawar  for EMIS research 5",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Event",
-  image: "//placeimg.com/440/240/nature?" + Math.random().toString()
+  image: "//placeimg.com/440/240/nature?"
 }], [{
   title: "MOU signed with University of Peshawar  for EMIS research 4",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Conference",
-  image: "//placeimg.com/440/240/nature?" + Math.random().toString()
+  image: "//placeimg.com/440/240/nature?"
 }, {
   title: "MOU signed with University of Peshawar  for EMIS research 4",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Conference",
-  image: "//placeimg.com/440/240/nature?" + Math.random().toString()
+  image: "//placeimg.com/440/240/nature?"
 }, {
   title: "MOU signed with University of Peshawar  for EMIS research 5",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Event",
-  image: "//placeimg.com/440/240/nature?" + Math.random().toString()
+  image: "//placeimg.com/440/240/nature?"
 }]];
 exports.default = React.createElement(nuka_carousel_1.default, {
   heightMode: 'max',
@@ -48588,8 +48588,8 @@ function useScroll(handler) {
 }
 
 exports.default = useScroll;
-},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/foggy-forest.jpg":[function(require,module,exports) {
-module.exports = "/foggy-forest.977f9e40.jpg";
+},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/barley.jpg":[function(require,module,exports) {
+module.exports = "/barley.f9b7e2f2.jpg";
 },{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48615,11 +48615,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importStar(require("react"));
 
-var foggy_forest_jpg_1 = __importDefault(require("../../../images/foggy-forest.jpg"));
+var barley_jpg_1 = __importDefault(require("../../../images/barley.jpg"));
 
 var AnimationInterval = 90000;
-var CloudsIdxs = [0];
-var Backgrounds = [foggy_forest_jpg_1.default];
+var CloudsIdxs = [];
+var Backgrounds = [barley_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48668,7 +48668,7 @@ exports.default = function () {
     className: "layer clouds " + (CloudsIdxs.indexOf(active) >= 0 ? 'active' : '')
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/foggy-forest.jpg":"images/foggy-forest.jpg"}],"scripts/components/typewriter/index.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/barley.jpg":"images/barley.jpg"}],"scripts/components/typewriter/index.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48776,7 +48776,7 @@ exports.default = function () {
   })), react_1.default.createElement("div", {
     className: "buttons"
   }, react_1.default.createElement("a", {
-    href: "#",
+    href: "#project_details",
     className: "button is-success",
     style: {
       marginLeft: "1em"
@@ -48946,7 +48946,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "35339" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "44149" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
