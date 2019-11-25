@@ -8940,8 +8940,23 @@ h2.tagline-heading strong {
 }
 
 .about-menu {
-  border-right: 1px solid #e6e6e6;
+  border-right: 3px solid rgba(117, 121, 30, 0.3);
   height: 100%;
+}
+.about-menu li ul {
+  border-left: 0px solid rgba(117, 121, 30, 0.3);
+  background: white;
+  padding-left: 0;
+}
+.about-menu li ul a:hover {
+  background: rgba(2, 101, 181, 0.3);
+}
+.about-menu li ul a:before {
+  font-family: FontAwesome;
+  content: "";
+  display: inline-block;
+  margin-right: 10px;
+  color: #F2F2F2;
 }
 
 .button {
