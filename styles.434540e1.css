@@ -8134,6 +8134,13 @@ p.content {
   content: none;
 }
 
+.tp-1 {
+  padding-left: 1rem !important;
+}
+.tp-2 {
+  padding-left: 2rem !important;
+}
+
 .sub-heading {
   font-size: 1.333em;
   font-weight: 600;
@@ -8992,6 +8999,10 @@ h2.tagline-heading strong {
 
 .about-container {
   background: #F2F2F2;
+}
+
+.about-content .para-detailed:not(:first-child) {
+  margin-top: 1rem;
 }
 
 .outcome-grid {
