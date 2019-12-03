@@ -38391,55 +38391,55 @@ var data = [[{
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Event",
-  image: "//placeimg.com/440/240/nature?"
+  image: "//placeimg.com/440/240/nature?1"
 }, {
   title: "MOU signed with University of Peshawar  for EMIS research 2",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Lecture",
-  image: "//placeimg.com/440/240/nature?"
+  image: "//placeimg.com/440/240/nature?2"
 }, {
   title: "MOU signed with University of Peshawar  for EMIS research 3",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Seminar",
-  image: "//placeimg.com/440/240/nature?"
+  image: "//placeimg.com/440/240/nature?3"
 }], [{
   title: "MOU signed with University of Peshawar  for EMIS research 4",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Conference",
-  image: "//placeimg.com/440/240/nature?"
+  image: "//placeimg.com/440/240/nature?3"
 }, {
   title: "MOU signed with University of Peshawar  for EMIS research 4",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Conference",
-  image: "//placeimg.com/440/240/nature?"
+  image: "//placeimg.com/440/240/nature?2"
 }, {
   title: "MOU signed with University of Peshawar  for EMIS research 5",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Event",
-  image: "//placeimg.com/440/240/nature?"
+  image: "//placeimg.com/440/240/nature?1"
 }], [{
   title: "MOU signed with University of Peshawar  for EMIS research 4",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Conference",
-  image: "//placeimg.com/440/240/nature?"
+  image: "//placeimg.com/440/240/nature?2"
 }, {
   title: "MOU signed with University of Peshawar  for EMIS research 4",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Conference",
-  image: "//placeimg.com/440/240/nature?"
+  image: "//placeimg.com/440/240/nature?1"
 }, {
   title: "MOU signed with University of Peshawar  for EMIS research 5",
   date: new Date(),
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
   category: "Event",
-  image: "//placeimg.com/440/240/nature?"
+  image: "//placeimg.com/440/240/nature?3"
 }]];
 exports.default = React.createElement(nuka_carousel_1.default, {
   heightMode: 'max',
@@ -38454,9 +38454,13 @@ exports.default = React.createElement(nuka_carousel_1.default, {
         e.preventDefault();
         previousSlide();
       }
+    }, React.createElement("span", {
+      className: "fa-stack fa-lg"
     }, React.createElement("i", {
-      className: "fa fa-chevron-left fa-3x"
-    }));
+      className: "fa fa-circle fa-stack-2x"
+    }), React.createElement("i", {
+      className: "fa fa-arrow-left fa-stack-1x color-green"
+    })));
   },
   renderCenterRightControls: function renderCenterRightControls(_a) {
     var nextSlide = _a.nextSlide;
@@ -38466,9 +38470,13 @@ exports.default = React.createElement(nuka_carousel_1.default, {
         e.preventDefault();
         nextSlide();
       }
+    }, React.createElement("span", {
+      className: "fa-stack fa-lg"
     }, React.createElement("i", {
-      className: "fa fa-chevron-right fa-3x"
-    }));
+      className: "fa fa-circle fa-stack-2x"
+    }), React.createElement("i", {
+      className: "fa fa-arrow-right fa-stack-1x color-green"
+    })));
   }
 }, data.map(function (item, idx) {
   return React.createElement(news_item_1.default, {
@@ -48588,8 +48596,8 @@ function useScroll(handler) {
 }
 
 exports.default = useScroll;
-},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/cycle.jpg":[function(require,module,exports) {
-module.exports = "/cycle.0e4f23fc.jpg";
+},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/mountain-water.jpg":[function(require,module,exports) {
+module.exports = "/mountain-water.860799a1.jpg";
 },{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48615,11 +48623,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importStar(require("react"));
 
-var cycle_jpg_1 = __importDefault(require("../../../images/cycle.jpg"));
+var mountain_water_jpg_1 = __importDefault(require("../../../images/mountain-water.jpg"));
 
 var AnimationInterval = 90000;
 var CloudsIdxs = [];
-var Backgrounds = [cycle_jpg_1.default];
+var Backgrounds = [mountain_water_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48664,11 +48672,9 @@ exports.default = function () {
         backgroundImage: "url(" + v + ")"
       }
     });
-  }), react_1.default.createElement("div", {
-    className: "layer clouds " + (CloudsIdxs.indexOf(active) >= 0 ? 'active' : '')
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/cycle.jpg":"images/cycle.jpg"}],"scripts/components/typewriter/index.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/mountain-water.jpg":"images/mountain-water.jpg"}],"scripts/components/typewriter/index.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48690,12 +48696,16 @@ var react_1 = __importStar(require("react"));
 exports.default = function (_a) {
   var text = _a.text,
       _b = _a.speed,
-      speed = _b === void 0 ? 100 : _b;
+      speed = _b === void 0 ? 100 : _b,
+      _c = _a.className,
+      className = _c === void 0 ? '' : _c,
+      _d = _a.onComplete,
+      onComplete = _d === void 0 ? null : _d;
   var len = text.length;
 
-  var _c = react_1.useState(0),
-      cursor = _c[0],
-      setCursor = _c[1];
+  var _e = react_1.useState(0),
+      cursor = _e[0],
+      setCursor = _e[1];
 
   react_1.useLayoutEffect(function () {
     if (cursor < len) {
@@ -48705,9 +48715,13 @@ exports.default = function (_a) {
       return function () {
         return window.clearInterval(interval_1);
       };
+    } else {
+      if (onComplete) onComplete();
     }
   });
-  return react_1.default.createElement("span", null, text.slice(0, cursor).split('').map(function (ltr, key) {
+  return react_1.default.createElement("span", {
+    className: className
+  }, text.slice(0, cursor).split('').map(function (ltr, key) {
     return react_1.default.createElement("span", {
       key: key
     }, ltr);
@@ -48719,14 +48733,18 @@ exports.default = function (_a) {
     }
   }));
 };
-},{"react":"node_modules/react/index.js"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
-module.exports = "/state-emblem-pk.f03983e3.svg";
-},{}],"images/undp-logo-30.svg":[function(require,module,exports) {
-module.exports = "/undp-logo-30.d146f0e5.svg";
-},{}],"images/gef.png":[function(require,module,exports) {
-module.exports = "/gef.2b1eb80f.png";
-},{}],"scripts/components/hero/tagline.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js"}],"scripts/components/hero/tagline.tsx":[function(require,module,exports) {
 "use strict";
+
+var __importStar = this && this.__importStar || function (mod) {
+  if (mod && mod.__esModule) return mod;
+  var result = {};
+  if (mod != null) for (var k in mod) {
+    if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+  }
+  result["default"] = mod;
+  return result;
+};
 
 var __importDefault = this && this.__importDefault || function (mod) {
   return mod && mod.__esModule ? mod : {
@@ -48738,56 +48756,39 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-var react_1 = __importDefault(require("react"));
+var react_1 = __importStar(require("react"));
 
 var typewriter_1 = __importDefault(require("./../typewriter"));
 
-var state_emblem_pk_svg_1 = __importDefault(require("../../../images/state-emblem-pk.svg"));
-
-var undp_logo_30_svg_1 = __importDefault(require("../../../images/undp-logo-30.svg"));
-
-var gef_png_1 = __importDefault(require("../../../images/gef.png"));
-
 exports.default = function () {
+  var _a = react_1.useState(false),
+      animeFinished = _a[0],
+      setAnimeFinished = _a[1];
+
   return react_1.default.createElement("div", {
-    className: 'hero-tagline'
+    className: "hero-tagline"
   }, react_1.default.createElement("div", {
-    className: "hero-white-backdrop"
-  }), react_1.default.createElement("div", {
     className: "container hero-tagline-content"
-  }, react_1.default.createElement("h2", {
-    className: "tagline-heading"
-  }, react_1.default.createElement("span", null, "Generating"), react_1.default.createElement("span", null, "Global"), react_1.default.createElement("span", null, "Environmental"), react_1.default.createElement("span", null, "Benefits")), react_1.default.createElement("p", {
-    className: "tagline-desc"
-  }, react_1.default.createElement(typewriter_1.default, {
+  }, react_1.default.createElement("div", {
+    className: "tagline-desc " + (animeFinished ? '' : 'in-animation')
+  }, react_1.default.createElement("div", {
+    className: "tagline"
+  }, react_1.default.createElement("span", null, react_1.default.createElement("span", null, react_1.default.createElement(typewriter_1.default, {
     text: "Strengthening National Capacities and improving living conditions through Environmental Management for Sustainable Development.",
-    speed: 30
-  })), react_1.default.createElement("div", {
-    className: "tagline-logos"
-  }, react_1.default.createElement("img", {
-    src: state_emblem_pk_svg_1.default,
-    alt: ""
-  }), react_1.default.createElement("img", {
-    src: undp_logo_30_svg_1.default,
-    alt: ""
-  }), react_1.default.createElement("img", {
-    src: gef_png_1.default,
-    alt: ""
-  })), react_1.default.createElement("div", {
-    className: "buttons"
-  }, react_1.default.createElement("a", {
-    href: "#project_details",
-    className: "button is-success",
-    style: {
-      marginLeft: "1em"
+    speed: 20,
+    className: "",
+    onComplete: function onComplete() {
+      return setAnimeFinished(true);
     }
-  }, react_1.default.createElement("span", {
-    className: "icon is-small"
-  }, react_1.default.createElement("i", {
-    className: "fa fa-chevron-down"
-  })), react_1.default.createElement("span", null, "Project description")))));
+  })))))));
 };
-},{"react":"node_modules/react/index.js","./../typewriter":"scripts/components/typewriter/index.tsx","../../../images/state-emblem-pk.svg":"images/state-emblem-pk.svg","../../../images/undp-logo-30.svg":"images/undp-logo-30.svg","../../../images/gef.png":"images/gef.png"}],"scripts/components/hero/index.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","./../typewriter":"scripts/components/typewriter/index.tsx"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
+module.exports = "/state-emblem-pk.f03983e3.svg";
+},{}],"images/undp-logo-30.svg":[function(require,module,exports) {
+module.exports = "/undp-logo-30.d146f0e5.svg";
+},{}],"images/gef.png":[function(require,module,exports) {
+module.exports = "/gef.2b1eb80f.png";
+},{}],"scripts/components/hero/index.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48840,7 +48841,10 @@ exports.default = function () {
   });
   return React.createElement("div", {
     id: "hero_homepage",
-    className: "hero hero-homepage is-primary is-fullheight"
+    className: "hero hero-homepage is-primary",
+    style: {
+      minHeight: "50vh"
+    }
   }, React.createElement(scene_1.default, null), React.createElement(tagline_1.default, null));
 };
 
@@ -48946,7 +48950,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "45879" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "45243" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
