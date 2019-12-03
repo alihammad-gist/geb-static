@@ -8412,7 +8412,7 @@ h2.tagline-heading strong {
   border-radius: 4px;
   font-size: 1.333em;
   margin: 0 auto;
-  margin-left: 2rem;
+  text-align: center;
   transition-property: box-shadow, border;
   transition-duration: 1.4s;
 }

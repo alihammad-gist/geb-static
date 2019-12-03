@@ -48775,7 +48775,7 @@ exports.default = function () {
     className: "tagline"
   }, react_1.default.createElement("span", null, react_1.default.createElement("span", null, react_1.default.createElement(typewriter_1.default, {
     text: "Strengthening National Capacities and improving living conditions through Environmental Management for Sustainable Development.",
-    speed: 20,
+    speed: 40,
     className: "",
     onComplete: function onComplete() {
       return setAnimeFinished(true);
@@ -48950,7 +48950,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "45243" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36419" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
