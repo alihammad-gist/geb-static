@@ -8990,6 +8990,8 @@ a.navbar-item.is-active, .navbar-item > .navbar-link.is-active {
 .team-member-homepage {
   margin-left: 45px;
   margin-top: 30px;
+  padding-left: 0;
+  padding-bottom: 0;
 }
 .team-member-homepage, .team-member-homepage .media-content, .team-member-homepage .media-content .para-detailed {
   height: 100%;
@@ -9002,8 +9004,8 @@ a.navbar-item.is-active, .navbar-item > .navbar-link.is-active {
 .team-member-homepage figure {
   width: 170px;
   height: 170px;
-  margin-left: -45px;
-  margin-top: -35px;
+  margin-left: -72px;
+  margin-top: -40px;
   padding: 12px;
   background-color: #f7fae8;
   border-radius: 50%;
