@@ -8274,6 +8274,10 @@ a.offset {
   font-size: 0.7501875469em;
 }
 
+.texture {
+  background: url(/rough-diagonal.0c0d0026.png);
+}
+
 ul.logo {
   list-style: none;
 }
@@ -8553,7 +8557,7 @@ h2.tagline-heading strong {
   font-size: 1em;
 }
 .navbar a, .navbar .logo-label {
-  text-shadow: 1px 1px 1px rgba(77, 77, 77, 0.5) !important;
+  text-shadow: 1px 1px 1px rgba(77, 77, 77, 0.2) !important;
 }
 .navbar .navbar-link:not(.is-arrowless) {
   padding-right: 2em;
@@ -9213,7 +9217,7 @@ a.navbar-item.is-active, .navbar-item > .navbar-link.is-active {
 }
 
 .about-container {
-  background: #f7fae8;
+  background-color: #f7fae8;
 }
 
 .about-content .para-detailed:not(:first-child) {
