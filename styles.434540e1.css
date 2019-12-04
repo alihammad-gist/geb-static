@@ -8482,13 +8482,14 @@ h2.tagline-heading strong {
 
 .tagline-desc {
   color: white;
-  font-weight: 600;
+  font-weight: 700;
   max-width: 62%;
   padding: 0.7501875469em;
   padding-left: 50px;
   border-radius: 4px;
   font-size: 1.5rem;
-  text-shadow: 3px 3px 5px #4D4D4D;
+  text-shadow: 4px 3px 2px #4D4D4D;
+  letter-spacing: 2px;
   transition-property: box-shadow, border;
   transition-duration: 1.4s;
 }
@@ -8550,6 +8551,9 @@ h2.tagline-heading strong {
   font-family: "Montserrat", sans-serif;
   font-weight: 600;
   font-size: 1em;
+}
+.navbar a, .navbar .logo-label {
+  text-shadow: 1px 1px 1px rgba(77, 77, 77, 0.5) !important;
 }
 .navbar .navbar-link:not(.is-arrowless) {
   padding-right: 2em;
