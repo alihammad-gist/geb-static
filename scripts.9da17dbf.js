@@ -48672,9 +48672,11 @@ exports.default = function () {
         backgroundImage: "url(" + v + ")"
       }
     });
+  }), react_1.default.createElement("div", {
+    className: "hero-black-backdrop"
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/mountain-water.jpg":"images/mountain-water.jpg"}],"scripts/components/typewriter/index.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/mountain-water.jpg":"images/mountain-water.jpg"}],"scripts/components/hero/tagline.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48692,73 +48694,6 @@ Object.defineProperty(exports, "__esModule", {
 });
 
 var react_1 = __importStar(require("react"));
-
-exports.default = function (_a) {
-  var text = _a.text,
-      _b = _a.speed,
-      speed = _b === void 0 ? 100 : _b,
-      _c = _a.className,
-      className = _c === void 0 ? '' : _c,
-      _d = _a.onComplete,
-      onComplete = _d === void 0 ? null : _d;
-  var len = text.length;
-
-  var _e = react_1.useState(0),
-      cursor = _e[0],
-      setCursor = _e[1];
-
-  react_1.useLayoutEffect(function () {
-    if (cursor < len) {
-      var interval_1 = window.setInterval(function () {
-        setCursor(cursor + 1);
-      }, speed);
-      return function () {
-        return window.clearInterval(interval_1);
-      };
-    } else {
-      if (onComplete) onComplete();
-    }
-  });
-  return react_1.default.createElement("span", {
-    className: className
-  }, text.slice(0, cursor).split('').map(function (ltr, key) {
-    return react_1.default.createElement("span", {
-      key: key
-    }, ltr);
-  }), react_1.default.createElement("i", {
-    className: "fa fa-i-cursor",
-    style: {
-      fontWeight: "normal",
-      color: "rgba(0, 0, 0, 0.3)"
-    }
-  }));
-};
-},{"react":"node_modules/react/index.js"}],"scripts/components/hero/tagline.tsx":[function(require,module,exports) {
-"use strict";
-
-var __importStar = this && this.__importStar || function (mod) {
-  if (mod && mod.__esModule) return mod;
-  var result = {};
-  if (mod != null) for (var k in mod) {
-    if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-  }
-  result["default"] = mod;
-  return result;
-};
-
-var __importDefault = this && this.__importDefault || function (mod) {
-  return mod && mod.__esModule ? mod : {
-    "default": mod
-  };
-};
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var react_1 = __importStar(require("react"));
-
-var typewriter_1 = __importDefault(require("./../typewriter"));
 
 exports.default = function () {
   var _a = react_1.useState(false),
@@ -48770,19 +48705,10 @@ exports.default = function () {
   }, react_1.default.createElement("div", {
     className: "container hero-tagline-content"
   }, react_1.default.createElement("div", {
-    className: "tagline-desc " + (animeFinished ? '' : 'in-animation')
-  }, react_1.default.createElement("div", {
-    className: "tagline"
-  }, react_1.default.createElement("span", null, react_1.default.createElement("span", null, react_1.default.createElement(typewriter_1.default, {
-    text: "Strengthening National Capacities and improving living conditions through Environmental Management for Sustainable Development.",
-    speed: 40,
-    className: "",
-    onComplete: function onComplete() {
-      return setAnimeFinished(true);
-    }
-  })))))));
+    className: "tagline-desc " + (animeFinished ? '' : 'in-animation') + " animated fadeIn"
+  }, "Strengthening National Capacities and improving living conditions through Environmental Management for Sustainable Development.")));
 };
-},{"react":"node_modules/react/index.js","./../typewriter":"scripts/components/typewriter/index.tsx"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
 module.exports = "/state-emblem-pk.f03983e3.svg";
 },{}],"images/undp-logo-30.svg":[function(require,module,exports) {
 module.exports = "/undp-logo-30.d146f0e5.svg";
@@ -48950,7 +48876,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "45359" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "43621" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
