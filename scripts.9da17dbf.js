@@ -48596,8 +48596,8 @@ function useScroll(handler) {
 }
 
 exports.default = useScroll;
-},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/mountain-water.jpg":[function(require,module,exports) {
-module.exports = "/mountain-water.860799a1.jpg";
+},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/mountain-trees.jpg":[function(require,module,exports) {
+module.exports = "/mountain-trees.f431a194.jpg";
 },{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48623,11 +48623,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importStar(require("react"));
 
-var mountain_water_jpg_1 = __importDefault(require("../../../images/mountain-water.jpg"));
+var mountain_trees_jpg_1 = __importDefault(require("../../../images/mountain-trees.jpg"));
 
 var AnimationInterval = 90000;
 var CloudsIdxs = [];
-var Backgrounds = [mountain_water_jpg_1.default];
+var Backgrounds = [mountain_trees_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48676,7 +48676,7 @@ exports.default = function () {
     className: "hero-black-backdrop"
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/mountain-water.jpg":"images/mountain-water.jpg"}],"scripts/components/hero/tagline.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/mountain-trees.jpg":"images/mountain-trees.jpg"}],"scripts/components/hero/tagline.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48876,7 +48876,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "39041" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36423" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
