@@ -117,8 +117,8 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   }
 
   return newRequire;
-})({"images/mountain-trees.jpg":[function(require,module,exports) {
-module.exports = "/mountain-trees.f431a194.jpg";
+})({"images/dot-grid.png":[function(require,module,exports) {
+module.exports = "/dot-grid.e0b889ea.png";
 },{}],"../../../../.nvm/versions/node/v13.2.0/lib/node_modules/parcel/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
@@ -324,4 +324,4 @@ function hmrAcceptRun(bundle, id) {
   }
 }
 },{}]},{},["../../../../.nvm/versions/node/v13.2.0/lib/node_modules/parcel/src/builtins/hmr-runtime.js"], null)
-//# sourceMappingURL=/mountain-trees.f431a194.js.map
+//# sourceMappingURL=/dot-grid.e0b889ea.js.map
