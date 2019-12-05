@@ -1071,7 +1071,7 @@
     opacity: 1;
   }
 }
-.fadeIn, div.navbar-item.has-dropdown:hover > .navbar-dropdown {
+.fadeIn {
   -webkit-animation-name: fadeIn;
   animation-name: fadeIn;
 }
@@ -1324,7 +1324,7 @@
     opacity: 0;
   }
 }
-.fadeOut, div.navbar-item.has-dropdown > .navbar-dropdown {
+.fadeOut {
   -webkit-animation-name: fadeOut;
   animation-name: fadeOut;
 }
@@ -1593,7 +1593,7 @@
     animation-timing-function: ease-in;
   }
 }
-.animated.flip, div.navbar-item.has-dropdown > .flip.navbar-dropdown {
+.animated.flip {
   -webkit-backface-visibility: visible;
   backface-visibility: visible;
   -webkit-animation-name: flip;
@@ -2972,65 +2972,65 @@
   animation-name: slideOutUp;
 }
 
-.animated, div.navbar-item.has-dropdown > .navbar-dropdown {
+.animated {
   -webkit-animation-duration: 1s;
   animation-duration: 1s;
   -webkit-animation-fill-mode: both;
   animation-fill-mode: both;
 }
 
-.animated.infinite, div.navbar-item.has-dropdown > .infinite.navbar-dropdown {
+.animated.infinite {
   -webkit-animation-iteration-count: infinite;
   animation-iteration-count: infinite;
 }
 
-.animated.delay-1s, div.navbar-item.has-dropdown > .delay-1s.navbar-dropdown {
+.animated.delay-1s {
   -webkit-animation-delay: 1s;
   animation-delay: 1s;
 }
 
-.animated.delay-2s, div.navbar-item.has-dropdown > .delay-2s.navbar-dropdown {
+.animated.delay-2s {
   -webkit-animation-delay: 2s;
   animation-delay: 2s;
 }
 
-.animated.delay-3s, div.navbar-item.has-dropdown > .delay-3s.navbar-dropdown {
+.animated.delay-3s {
   -webkit-animation-delay: 3s;
   animation-delay: 3s;
 }
 
-.animated.delay-4s, div.navbar-item.has-dropdown > .delay-4s.navbar-dropdown {
+.animated.delay-4s {
   -webkit-animation-delay: 4s;
   animation-delay: 4s;
 }
 
-.animated.delay-5s, div.navbar-item.has-dropdown > .delay-5s.navbar-dropdown {
+.animated.delay-5s {
   -webkit-animation-delay: 5s;
   animation-delay: 5s;
 }
 
-.animated.fast, div.navbar-item.has-dropdown > .fast.navbar-dropdown {
+.animated.fast {
   -webkit-animation-duration: 800ms;
   animation-duration: 800ms;
 }
 
-.animated.faster, div.navbar-item.has-dropdown > .faster.navbar-dropdown {
+.animated.faster {
   -webkit-animation-duration: 500ms;
   animation-duration: 500ms;
 }
 
-.animated.slow, div.navbar-item.has-dropdown > .slow.navbar-dropdown {
+.animated.slow {
   -webkit-animation-duration: 2s;
   animation-duration: 2s;
 }
 
-.animated.slower, div.navbar-item.has-dropdown > .slower.navbar-dropdown {
+.animated.slower {
   -webkit-animation-duration: 3s;
   animation-duration: 3s;
 }
 
 @media (print), (prefers-reduced-motion: reduce) {
-  .animated, div.navbar-item.has-dropdown > .navbar-dropdown {
+  .animated {
     -webkit-animation-duration: 1ms !important;
     animation-duration: 1ms !important;
     -webkit-transition-duration: 1ms !important;
@@ -3095,7 +3095,7 @@ h6 {
     transform: rotate(359deg);
   }
 }
-.file, .tabs, .breadcrumb, .button, .is-unselectable, .news-outline, .modal-close {
+.file, .tabs, .breadcrumb, .button, .is-unselectable, a.news-outline, .modal-close {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -11282,12 +11282,12 @@ a.offset {
 }
 
 .card-hover {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
   transition-property: box-shadow, transform;
   transition-duration: 0.5s;
 }
 .card-hover:hover {
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22) !important;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22);
   transition-property: box-shadow, transform;
   transition-duration: 0.5s;
   transform: translateY(-0.618rem);
@@ -11649,13 +11649,9 @@ a.navbar-item.is-active, .navbar-item > .navbar-link.is-active {
 }
 
 div.navbar-item.has-dropdown:hover > .navbar-dropdown {
+  animation-name: menu-show;
   animation-duration: 500ms;
-  visibility: visible;
-}
-div.navbar-item.has-dropdown > .navbar-dropdown {
-  visibility: hidden;
-  display: block;
-  animation-duration: 300ms;
+  animation-fill-mode: forwards;
 }
 
 .goal-outline {
@@ -11793,7 +11789,7 @@ div.navbar-item.has-dropdown > .navbar-dropdown {
   margin-top: 2rem;
 }
 
-.news-outline-item {
+a.news-outline-item {
   display: block;
   margin: 2.8rem 0;
   padding: 0;
@@ -11802,16 +11798,16 @@ div.navbar-item.has-dropdown > .navbar-dropdown {
   transition-property: box-shadow, transform;
   transition-duration: 500ms;
 }
-.news-outline-item:hover {
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22) !important;
+a.news-outline-item:hover {
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22);
   transition-property: box-shadow, transform;
   transition-duration: 500ms;
   transform: translateY(-0.618rem);
 }
-.news-outline-item .button {
+a.news-outline-item .button {
   margin-top: 1rem;
 }
-.news-outline-item .padded {
+a.news-outline-item .padded {
   padding: 1rem;
 }
 
@@ -12238,13 +12234,13 @@ div.navbar-item.has-dropdown > .navbar-dropdown {
 .button {
   text-transform: uppercase;
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
   transform: translateY(0em);
   transition-property: box-shadow, transform;
   transition-duration: 500ms;
 }
 .button:hover {
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23) !important;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
   transition-property: box-shadow, transform;
   transition-duration: 500ms;
   transform: translateY(-0.1rem);
@@ -12255,12 +12251,12 @@ div.navbar-item.has-dropdown > .navbar-dropdown {
   font-weight: 500;
   transition-property: box-shadow;
   transition-duration: 500ms;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
 }
 .tag:hover, a.tag:hover {
   transition-property: box-shadow;
   transition-duration: 500ms;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23) !important;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
   text-decoration: none;
 }
 
@@ -12320,7 +12316,7 @@ div.navbar-item.has-dropdown > .navbar-dropdown {
   overflow: hidden;
   position: relative;
   height: 100%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
   transition-property: box-shadow, transform;
   transition-duration: 500ms;
 }
@@ -12335,7 +12331,7 @@ div.navbar-item.has-dropdown > .navbar-dropdown {
   transition-duration: 500ms;
 }
 .publication:hover, .report:hover {
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22) !important;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22);
   transform: translateY(-0.618rem);
   transition-property: box-shadow, transform;
   transition-duration: 500ms;
@@ -12358,9 +12354,68 @@ div.navbar-item.has-dropdown > .navbar-dropdown {
 .slideInUp,
 .fadeInRight,
 .fadeInLeft {
-  animation-duration: 500ms;
+  animation-duration: 800ms;
 }
 
+@keyframes menu-show {
+  from {
+    display: block;
+    transform: translateY(1rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.card-show {
+  animation-duration: 1s;
+  animation-name: card-show-anime;
+}
+
+@keyframes card-show-anime {
+  from {
+    transform: translateY(4rem);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22);
+  }
+  80% {
+    transform: translateY(0);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22);
+  }
+  to {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  }
+}
+.left-reveal {
+  animation-duration: 1s;
+  animation-name: left-reveal-anime;
+}
+
+@keyframes left-reveal-anime {
+  from {
+    transform: translateX(-3rem);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateX(0rem);
+    opacity: 1;
+  }
+}
+.subtle-fadeUp {
+  animation-duration: 500ms;
+  animation-name: subtle-fadeUp-anime;
+}
+
+@keyframes subtle-fadeUp-anime {
+  from {
+    opacity: 0;
+    transform: translateY(4rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0rem);
+  }
+}
 .section {
   padding: 2rem 1rem;
 }
