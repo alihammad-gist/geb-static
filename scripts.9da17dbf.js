@@ -38351,8 +38351,8 @@ exports.default = function (_a) {
     }, React.createElement("div", {
       className: "level-item"
     }, React.createElement("span", {
-      className: "tag is-link"
-    }, item.category)))), React.createElement("small", null, item.date.toLocaleDateString("en-US", dateOptions)), React.createElement("h2", {
+      className: "news-outline-tag"
+    }, item.category.toUpperCase())))), React.createElement("small", null, item.date.toLocaleDateString("en-US", dateOptions)), React.createElement("h2", {
       className: "sub-heading"
     }, item.title))));
   }))));
@@ -38459,7 +38459,7 @@ exports.default = React.createElement(nuka_carousel_1.default, {
     }, React.createElement("i", {
       className: "fa fa-circle fa-stack-2x"
     }), React.createElement("i", {
-      className: "fa fa-arrow-left fa-stack-1x color-green"
+      className: "fa fa-arrow-left fa-stack-1x color-blue"
     })));
   },
   renderCenterRightControls: function renderCenterRightControls(_a) {
@@ -38475,7 +38475,7 @@ exports.default = React.createElement(nuka_carousel_1.default, {
     }, React.createElement("i", {
       className: "fa fa-circle fa-stack-2x"
     }), React.createElement("i", {
-      className: "fa fa-arrow-right fa-stack-1x color-green"
+      className: "fa fa-arrow-right fa-stack-1x color-blue"
     })));
   }
 }, data.map(function (item, idx) {
@@ -48596,8 +48596,8 @@ function useScroll(handler) {
 }
 
 exports.default = useScroll;
-},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/mountain-trees.jpg":[function(require,module,exports) {
-module.exports = "/mountain-trees.f431a194.jpg";
+},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/arch-over-river.jpg":[function(require,module,exports) {
+module.exports = "/arch-over-river.72cad366.jpg";
 },{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48623,11 +48623,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importStar(require("react"));
 
-var mountain_trees_jpg_1 = __importDefault(require("../../../images/mountain-trees.jpg"));
+var arch_over_river_jpg_1 = __importDefault(require("../../../images/arch-over-river.jpg"));
 
 var AnimationInterval = 90000;
 var CloudsIdxs = [];
-var Backgrounds = [mountain_trees_jpg_1.default];
+var Backgrounds = [arch_over_river_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48672,11 +48672,9 @@ exports.default = function () {
         backgroundImage: "url(" + v + ")"
       }
     });
-  }), react_1.default.createElement("div", {
-    className: "hero-black-backdrop"
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/mountain-trees.jpg":"images/mountain-trees.jpg"}],"scripts/components/hero/tagline.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/arch-over-river.jpg":"images/arch-over-river.jpg"}],"scripts/components/hero/tagline.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48703,9 +48701,9 @@ exports.default = function () {
   return react_1.default.createElement("div", {
     className: "hero-tagline"
   }, react_1.default.createElement("div", {
-    className: "container hero-tagline-content"
+    className: "hero-tagline-content"
   }, react_1.default.createElement("div", {
-    className: "tagline-desc " + (animeFinished ? '' : 'in-animation') + " animated fadeIn"
+    className: "tagline-desc " + (animeFinished ? '' : 'in-animation') + " animated fadeIn container "
   }, "Strengthening National Capacities and improving living conditions through Environmental Management for Sustainable Development.")));
 };
 },{"react":"node_modules/react/index.js"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
@@ -48767,10 +48765,7 @@ exports.default = function () {
   });
   return React.createElement("div", {
     id: "hero_homepage",
-    className: "hero hero-homepage is-primary",
-    style: {
-      minHeight: "50vh"
-    }
+    className: "hero hero-homepage is-primary"
   }, React.createElement(scene_1.default, null), React.createElement(tagline_1.default, null));
 };
 
@@ -48876,7 +48871,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "35335" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "41969" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
