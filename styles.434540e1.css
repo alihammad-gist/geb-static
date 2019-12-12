@@ -11617,6 +11617,10 @@ h2.tagline-heading strong {
   margin-bottom: 0.3rem;
   transition: color;
   color: #747474;
+  display: block;
+  margin: 0 auto;
+  width: auto;
+  height: auto;
 }
 .navbar .navbar-end > .navbar-item:hover .icon {
   color: #49824d;
