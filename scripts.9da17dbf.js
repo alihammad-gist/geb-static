@@ -48596,8 +48596,8 @@ function useScroll(handler) {
 }
 
 exports.default = useScroll;
-},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/river-canal.jpg":[function(require,module,exports) {
-module.exports = "/river-canal.f9255dfb.jpg";
+},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/undp_pakistan_farmer.jpg":[function(require,module,exports) {
+module.exports = "/undp_pakistan_farmer.121a2a90.jpg";
 },{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48623,11 +48623,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importStar(require("react"));
 
-var river_canal_jpg_1 = __importDefault(require("../../../images/river-canal.jpg"));
+var undp_pakistan_farmer_jpg_1 = __importDefault(require("../../../images/undp_pakistan_farmer.jpg"));
 
 var AnimationInterval = 90000;
 var CloudsIdxs = [];
-var Backgrounds = [river_canal_jpg_1.default];
+var Backgrounds = [undp_pakistan_farmer_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48674,7 +48674,7 @@ exports.default = function () {
     });
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/river-canal.jpg":"images/river-canal.jpg"}],"scripts/components/hero/tagline.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/undp_pakistan_farmer.jpg":"images/undp_pakistan_farmer.jpg"}],"scripts/components/hero/tagline.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48871,7 +48871,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "44727" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "39113" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

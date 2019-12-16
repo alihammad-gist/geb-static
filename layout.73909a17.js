@@ -126,6 +126,11 @@ Object.defineProperty(exports, "__esModule", {
 window.addEventListener('DOMContentLoaded', function () {
   new window['WOW']().init();
 });
+
+window.toggleModal = function (id) {
+  var elem = document.getElementById(id);
+  elem.classList.toggle("is-active");
+};
 },{}],"../../../../.nvm/versions/node/v13.2.0/lib/node_modules/parcel/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
@@ -154,7 +159,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "44727" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "39113" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
