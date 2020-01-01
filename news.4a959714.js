@@ -32071,7 +32071,7 @@ var news_filter_1 = __importDefault(require("./components/news-filter"));
 
 var btnContainer = document.getElementById('news_filter_btn');
 react_dom_1.default.render(react_1.default.createElement(news_filter_1.default, null), btnContainer);
-},{"react":"node_modules/react/index.js","react-dom":"node_modules/react-dom/index.js","./components/news-filter":"scripts/components/news-filter/index.tsx"}],"../../../../.nvm/versions/node/v13.2.0/lib/node_modules/parcel/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","react-dom":"node_modules/react-dom/index.js","./components/news-filter":"scripts/components/news-filter/index.tsx"}],"../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -32099,7 +32099,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "39881" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36283" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
@@ -32275,5 +32275,5 @@ function hmrAcceptRun(bundle, id) {
     return true;
   }
 }
-},{}]},{},["../../../../.nvm/versions/node/v13.2.0/lib/node_modules/parcel/src/builtins/hmr-runtime.js","scripts/news.tsx"], null)
+},{}]},{},["../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js","scripts/news.tsx"], null)
 //# sourceMappingURL=/news.4a959714.js.map

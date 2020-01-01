@@ -38352,12 +38352,114 @@ exports.default = function (_a) {
       className: "level-item"
     }, React.createElement("span", {
       className: "news-outline-tag"
-    }, item.category.toUpperCase())))), React.createElement("small", null, item.date.toLocaleDateString("en-US", dateOptions)), React.createElement("h2", {
+    }, item.category.toUpperCase()))), React.createElement("div", null, React.createElement("div", {
+      className: "level-right"
+    }, React.createElement("div", {
+      className: "level-item"
+    }, React.createElement("div", {
+      className: "news-outline-location"
+    }, React.createElement("span", {
+      className: "icon"
+    }, React.createElement("i", {
+      className: "fa fa-map-marker"
+    })), React.createElement("small", null, item.location)))))), React.createElement("small", null, item.date.toLocaleDateString("en-US", dateOptions)), React.createElement("h2", {
       className: "sub-heading"
     }, item.title))));
   }))));
 };
-},{"react":"node_modules/react/index.js"}],"scripts/components/news-outline/index.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js"}],"images/activities/loa-signing-pics/featured.jpg":[function(require,module,exports) {
+module.exports = "/featured.64e31f38.jpg";
+},{}],"images/activities/uni-of-faisalabad-pics/featured.jpg":[function(require,module,exports) {
+module.exports = "/featured.d9cead8e.jpg";
+},{}],"images/activities/quetta-rtc-pics/featured.jpg":[function(require,module,exports) {
+module.exports = "/featured.8d28e562.jpg";
+},{}],"images/activities/pitb-pics/featured.jpg":[function(require,module,exports) {
+module.exports = "/featured.658515bf.jpg";
+},{}],"images/activities/karachi-seminar-pics/featured.jpg":[function(require,module,exports) {
+module.exports = "/featured.609e3955.jpg";
+},{}],"images/activities/abbottabad-lecture-pictures/featured.jpg":[function(require,module,exports) {
+module.exports = "/featured.602eb0ca.jpg";
+},{}],"images/activities/peshawar-rtc-pics/featured.jpg":[function(require,module,exports) {
+module.exports = "/featured.1d9c2763.jpg";
+},{}],"images/activities/media-visit-30th-April-pics/featured.jpeg":[function(require,module,exports) {
+module.exports = "/featured.55629833.jpeg";
+},{}],"images/activities/lahore-rtc-pics/featured.jpg":[function(require,module,exports) {
+module.exports = "/featured.0d5587a1.jpg";
+},{}],"config/data/activities.js":[function(require,module,exports) {
+/*
+ * Javascript `new Date("%s")`
+ * The formate for a date string %s is 2001/12/23, the structure is
+ * yyyy/mm/dd
+ *
+ **/
+var featured_activities = [[{
+  title: "LoA signed between Generating Global Environmental Benefits (GEB) and University of Peshawar",
+  date: new Date("2019/10/11"),
+  content: "",
+  category: "Research",
+  image: require("../../images/activities/loa-signing-pics/featured.jpg"),
+  location: "Peshawar, KPK"
+}, {
+  title: "Environmental Information & Management – The Case of Punjab",
+  date: new Date("2019/11/28"),
+  content: "",
+  category: "Lecture",
+  image: require("../../images/activities/uni-of-faisalabad-pics/featured.jpg"),
+  location: "Faisalabad, Punjab"
+}, {
+  title: "Roundtable Conference (RTC) - Environmental Information Management system and the World",
+  date: new Date("2019/11/21"),
+  content: "",
+  category: "Conference",
+  image: require("../../images/activities/quetta-rtc-pics/featured.jpg"),
+  location: "Quetta, Balochistan"
+}], [{
+  title: "Onsite briefing-EIMS & IT – Exploring the Role of Media and other stakeholders",
+  date: new Date(),
+  content: "",
+  category: "Research",
+  image: require("../../images/activities/pitb-pics/featured.jpg"),
+  location: "Lahore, Punjab"
+}, {
+  title: "Seminar-Environmental Information & Management – Global Examples & Lessons for Pakistan",
+  date: new Date("2019/09/18"),
+  content: "",
+  category: "Seminar",
+  image: require("../../images/activities/karachi-seminar-pics/featured.jpg"),
+  location: "Karachi, Sindh"
+}, {
+  title: "EIMS: Addressing Key Issues & Way Forward for Pakistan",
+  date: new Date("2019/08/06"),
+  content: "",
+  category: "Lecture",
+  image: require("../../images/activities/abbottabad-lecture-pictures/featured.jpg"),
+  location: "Abbottabad, KPK"
+}], [{
+  title: "Environmental Information & Management: Global Perspective and Way Forward for Khyber Pakhtunkhwa",
+  date: new Date("2019/06/17"),
+  content: "",
+  category: "Conference",
+  image: require("../../images/activities/peshawar-rtc-pics/featured.jpg"),
+  location: "Peshawar, KPK"
+}, {
+  title: "Media Visit - Exploring the role of Media for EIMS",
+  date: new Date("2019/04/30"),
+  content: "",
+  category: "Seminar",
+  image: require("../../images/activities/media-visit-30th-April-pics/featured.jpeg"),
+  location: "Lahore, Punjab"
+}, {
+  title: "Consultative Event - EIMS: Addressing Key Issues & Way Forward for Pakistan",
+  date: new Date("2019/04/18"),
+  content: "",
+  category: "Event",
+  image: require("../../images/activities/lahore-rtc-pics/featured.jpg"),
+  location: "Lahore, Punjab"
+}]];
+module.exports = {
+  featured_activities: featured_activities
+};
+},{"../../images/activities/loa-signing-pics/featured.jpg":"images/activities/loa-signing-pics/featured.jpg","../../images/activities/uni-of-faisalabad-pics/featured.jpg":"images/activities/uni-of-faisalabad-pics/featured.jpg","../../images/activities/quetta-rtc-pics/featured.jpg":"images/activities/quetta-rtc-pics/featured.jpg","../../images/activities/pitb-pics/featured.jpg":"images/activities/pitb-pics/featured.jpg","../../images/activities/karachi-seminar-pics/featured.jpg":"images/activities/karachi-seminar-pics/featured.jpg","../../images/activities/abbottabad-lecture-pictures/featured.jpg":"images/activities/abbottabad-lecture-pictures/featured.jpg","../../images/activities/peshawar-rtc-pics/featured.jpg":"images/activities/peshawar-rtc-pics/featured.jpg","../../images/activities/media-visit-30th-April-pics/featured.jpeg":"images/activities/media-visit-30th-April-pics/featured.jpeg","../../images/activities/lahore-rtc-pics/featured.jpg":"images/activities/lahore-rtc-pics/featured.jpg"}],"scripts/components/news-outline/index.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -38386,61 +38488,9 @@ var nuka_carousel_1 = __importDefault(require("nuka-carousel"));
 
 var news_item_1 = __importDefault(require("./news-item"));
 
-var data = [[{
-  title: "MOU signed with University of Peshawar  for EMIS research 1",
-  date: new Date(),
-  content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
-  category: "Event",
-  image: "//placeimg.com/440/240/nature?1"
-}, {
-  title: "MOU signed with University of Peshawar  for EMIS research 2",
-  date: new Date(),
-  content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
-  category: "Lecture",
-  image: "//placeimg.com/440/240/nature?2"
-}, {
-  title: "MOU signed with University of Peshawar  for EMIS research 3",
-  date: new Date(),
-  content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
-  category: "Seminar",
-  image: "//placeimg.com/440/240/nature?3"
-}], [{
-  title: "MOU signed with University of Peshawar  for EMIS research 4",
-  date: new Date(),
-  content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
-  category: "Conference",
-  image: "//placeimg.com/440/240/nature?3"
-}, {
-  title: "MOU signed with University of Peshawar  for EMIS research 4",
-  date: new Date(),
-  content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
-  category: "Conference",
-  image: "//placeimg.com/440/240/nature?2"
-}, {
-  title: "MOU signed with University of Peshawar  for EMIS research 5",
-  date: new Date(),
-  content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
-  category: "Event",
-  image: "//placeimg.com/440/240/nature?1"
-}], [{
-  title: "MOU signed with University of Peshawar  for EMIS research 4",
-  date: new Date(),
-  content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
-  category: "Conference",
-  image: "//placeimg.com/440/240/nature?2"
-}, {
-  title: "MOU signed with University of Peshawar  for EMIS research 4",
-  date: new Date(),
-  content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
-  category: "Conference",
-  image: "//placeimg.com/440/240/nature?1"
-}, {
-  title: "MOU signed with University of Peshawar  for EMIS research 5",
-  date: new Date(),
-  content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
-  category: "Event",
-  image: "//placeimg.com/440/240/nature?3"
-}]];
+var activities_js_1 = require("../../../config/data/activities.js");
+
+var data = activities_js_1.featured_activities;
 exports.default = React.createElement(nuka_carousel_1.default, {
   heightMode: 'max',
   autoplay: true,
@@ -38484,7 +38534,7 @@ exports.default = React.createElement(nuka_carousel_1.default, {
     key: idx
   });
 }));
-},{"react":"node_modules/react/index.js","nuka-carousel":"node_modules/nuka-carousel/es/index.js","./news-item":"scripts/components/news-outline/news-item.tsx"}],"node_modules/tslib/tslib.es6.js":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","nuka-carousel":"node_modules/nuka-carousel/es/index.js","./news-item":"scripts/components/news-outline/news-item.tsx","../../../config/data/activities.js":"config/data/activities.js"}],"node_modules/tslib/tslib.es6.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -38937,7 +38987,7 @@ if ("development" !== 'production') {
     }
   };
 }
-},{}],"../../../../.nvm/versions/node/v13.2.0/lib/node_modules/parcel/node_modules/process/browser.js":[function(require,module,exports) {
+},{}],"../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js":[function(require,module,exports) {
 
 // shim for using process in browser
 var process = module.exports = {}; // cached from whatever global is present so that test runners that stub it
@@ -39325,7 +39375,7 @@ var getFrameData = function () {
 exports.getFrameData = getFrameData;
 var _default = sync;
 exports.default = _default;
-},{"hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","process":"../../../../.nvm/versions/node/v13.2.0/lib/node_modules/parcel/node_modules/process/browser.js"}],"node_modules/style-value-types/dist/style-value-types.es.js":[function(require,module,exports) {
+},{"hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","process":"../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js"}],"node_modules/style-value-types/dist/style-value-types.es.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -43011,7 +43061,7 @@ var styler = function () {
 };
 
 exports.styler = styler;
-},{"tslib":"node_modules/tslib/tslib.es6.js","@popmotion/popcorn":"node_modules/@popmotion/popcorn/dist/popcorn.es.js","framesync":"node_modules/framesync/dist/framesync.es.js","style-value-types":"node_modules/style-value-types/dist/style-value-types.es.js","@popmotion/easing":"node_modules/@popmotion/easing/dist/easing.es.js","hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","process":"../../../../.nvm/versions/node/v13.2.0/lib/node_modules/parcel/node_modules/process/browser.js"}],"node_modules/@emotion/memoize/dist/memoize.browser.esm.js":[function(require,module,exports) {
+},{"tslib":"node_modules/tslib/tslib.es6.js","@popmotion/popcorn":"node_modules/@popmotion/popcorn/dist/popcorn.es.js","framesync":"node_modules/framesync/dist/framesync.es.js","style-value-types":"node_modules/style-value-types/dist/style-value-types.es.js","@popmotion/easing":"node_modules/@popmotion/easing/dist/easing.es.js","hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","process":"../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js"}],"node_modules/@emotion/memoize/dist/memoize.browser.esm.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -48596,8 +48646,8 @@ function useScroll(handler) {
 }
 
 exports.default = useScroll;
-},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/undp_pakistan_farmer.jpg":[function(require,module,exports) {
-module.exports = "/undp_pakistan_farmer.121a2a90.jpg";
+},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/slmp-undp-flickr.jpg":[function(require,module,exports) {
+module.exports = "/slmp-undp-flickr.1aeafb64.jpg";
 },{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48623,11 +48673,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importStar(require("react"));
 
-var undp_pakistan_farmer_jpg_1 = __importDefault(require("../../../images/undp_pakistan_farmer.jpg"));
+var slmp_undp_flickr_jpg_1 = __importDefault(require("../../../images/slmp-undp-flickr.jpg"));
 
 var AnimationInterval = 90000;
 var CloudsIdxs = [];
-var Backgrounds = [undp_pakistan_farmer_jpg_1.default];
+var Backgrounds = [slmp_undp_flickr_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48674,39 +48724,7 @@ exports.default = function () {
     });
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/undp_pakistan_farmer.jpg":"images/undp_pakistan_farmer.jpg"}],"scripts/components/hero/tagline.tsx":[function(require,module,exports) {
-"use strict";
-
-var __importStar = this && this.__importStar || function (mod) {
-  if (mod && mod.__esModule) return mod;
-  var result = {};
-  if (mod != null) for (var k in mod) {
-    if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-  }
-  result["default"] = mod;
-  return result;
-};
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var react_1 = __importStar(require("react"));
-
-exports.default = function () {
-  var _a = react_1.useState(false),
-      animeFinished = _a[0],
-      setAnimeFinished = _a[1];
-
-  return react_1.default.createElement("div", {
-    className: "hero-tagline"
-  }, react_1.default.createElement("div", {
-    className: "hero-tagline-content"
-  }, react_1.default.createElement("div", {
-    className: "tagline-desc " + (animeFinished ? '' : 'in-animation') + " animated fadeIn container "
-  }, "Strengthening National Capacities and improving living conditions through Environmental Management for Sustainable Development.")));
-};
-},{"react":"node_modules/react/index.js"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/slmp-undp-flickr.jpg":"images/slmp-undp-flickr.jpg"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
 module.exports = "/state-emblem-pk.f03983e3.svg";
 },{}],"images/undp-logo-30.svg":[function(require,module,exports) {
 module.exports = "/undp-logo-30.d146f0e5.svg";
@@ -48745,8 +48763,6 @@ var use_scroll_1 = __importDefault(require("../../lib/use-scroll"));
 
 var scene_1 = __importDefault(require("./scene"));
 
-var tagline_1 = __importDefault(require("./tagline"));
-
 var state_emblem_pk_svg_1 = __importDefault(require("./../../../images/state-emblem-pk.svg"));
 
 var undp_logo_30_svg_1 = __importDefault(require("../../../images/undp-logo-30.svg"));
@@ -48766,7 +48782,7 @@ exports.default = function () {
   return React.createElement("div", {
     id: "hero_homepage",
     className: "hero hero-homepage is-primary"
-  }, React.createElement(scene_1.default, null), React.createElement(tagline_1.default, null));
+  }, React.createElement(scene_1.default, null));
 };
 
 var AssociatedLogos = function AssociatedLogos(_a) {
@@ -48790,7 +48806,7 @@ var AssociatedLogos = function AssociatedLogos(_a) {
     src: gef_png_1.default
   })));
 };
-},{"react":"node_modules/react/index.js","framer-motion":"node_modules/framer-motion/dist/framer-motion.es.js","./logos-scroll":"scripts/components/hero/logos-scroll.tsx","../../lib/use-scroll":"scripts/lib/use-scroll.ts","./scene":"scripts/components/hero/scene.tsx","./tagline":"scripts/components/hero/tagline.tsx","./../../../images/state-emblem-pk.svg":"images/state-emblem-pk.svg","../../../images/undp-logo-30.svg":"images/undp-logo-30.svg","../../../images/gef.png":"images/gef.png"}],"scripts/index.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","framer-motion":"node_modules/framer-motion/dist/framer-motion.es.js","./logos-scroll":"scripts/components/hero/logos-scroll.tsx","../../lib/use-scroll":"scripts/lib/use-scroll.ts","./scene":"scripts/components/hero/scene.tsx","./../../../images/state-emblem-pk.svg":"images/state-emblem-pk.svg","../../../images/undp-logo-30.svg":"images/undp-logo-30.svg","../../../images/gef.png":"images/gef.png"}],"scripts/index.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -48843,7 +48859,7 @@ window.addEventListener('DOMContentLoaded', function (event) {
   console.log("inserting hero into the dom");
   ReactDOM.render(React.createElement(hero_1.default, null), document.getElementById("hero_app"));
 });
-},{"./lib/scroll":"scripts/lib/scroll.ts","react":"node_modules/react/index.js","react-dom":"node_modules/react-dom/index.js","./components/news-outline":"scripts/components/news-outline/index.tsx","./components/hero":"scripts/components/hero/index.tsx"}],"../../../../.nvm/versions/node/v13.2.0/lib/node_modules/parcel/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"./lib/scroll":"scripts/lib/scroll.ts","react":"node_modules/react/index.js","react-dom":"node_modules/react-dom/index.js","./components/news-outline":"scripts/components/news-outline/index.tsx","./components/hero":"scripts/components/hero/index.tsx"}],"../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -48871,7 +48887,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "39881" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36283" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
@@ -49047,5 +49063,5 @@ function hmrAcceptRun(bundle, id) {
     return true;
   }
 }
-},{}]},{},["../../../../.nvm/versions/node/v13.2.0/lib/node_modules/parcel/src/builtins/hmr-runtime.js","scripts/index.tsx"], null)
+},{}]},{},["../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js","scripts/index.tsx"], null)
 //# sourceMappingURL=/scripts.9da17dbf.js.map
