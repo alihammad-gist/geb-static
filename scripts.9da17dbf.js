@@ -38362,8 +38362,10 @@ exports.default = function (_a) {
       className: "icon"
     }, React.createElement("i", {
       className: "fa fa-map-marker"
-    })), React.createElement("small", null, item.location)))))), React.createElement("small", null, item.date.toLocaleDateString("en-US", dateOptions)), React.createElement("h2", {
-      className: "sub-heading"
+    })), React.createElement("small", null, item.location)))))), React.createElement("small", {
+      className: "news-outline-date"
+    }, item.date.toLocaleDateString("en-US", dateOptions)), React.createElement("h2", {
+      className: "sub-heading news-outline-heading"
     }, item.title))));
   }))));
 };
@@ -48887,7 +48889,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36283" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34043" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
