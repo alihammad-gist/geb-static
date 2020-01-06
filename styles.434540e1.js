@@ -122,7 +122,7 @@ var reloadCSS = require('_css_loader');
 
 module.hot.dispose(reloadCSS);
 module.hot.accept(reloadCSS);
-},{"./fonts/wwf/wwf-webfont.eot":[["wwf-webfont.184017c8.eot","styles/fonts/wwf/wwf-webfont.eot"],"styles/fonts/wwf/wwf-webfont.eot"],"./fonts/wwf/wwf-webfont.woff":[["wwf-webfont.edc4ca61.woff","styles/fonts/wwf/wwf-webfont.woff"],"styles/fonts/wwf/wwf-webfont.woff"],"./fonts/wwf/wwf-webfont.ttf":[["wwf-webfont.36a773f5.ttf","styles/fonts/wwf/wwf-webfont.ttf"],"styles/fonts/wwf/wwf-webfont.ttf"],"./../images/barley.jpg":[["barley.f9b7e2f2.jpg","images/barley.jpg"],"barley.f9b7e2f2.js","images/barley.jpg"],"./../images/clouds2.png":[["clouds2.48985ff1.png","images/clouds2.png"],"clouds2.48985ff1.js","images/clouds2.png"],"./../images/footer_lodyas.png":[["footer_lodyas.d1433b70.png","images/footer_lodyas.png"],"footer_lodyas.d1433b70.js","images/footer_lodyas.png"],"./../images/az-subtle.png":[["az-subtle.5adfac0e.png","images/az-subtle.png"],"az-subtle.5adfac0e.js","images/az-subtle.png"],"_css_loader":"../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/src/builtins/css-loader.js"}],"../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"./../images/barley.jpg":[["barley.f9b7e2f2.jpg","images/barley.jpg"],"barley.f9b7e2f2.js","images/barley.jpg"],"./../images/clouds2.png":[["clouds2.48985ff1.png","images/clouds2.png"],"clouds2.48985ff1.js","images/clouds2.png"],"./../images/footer_lodyas.png":[["footer_lodyas.d1433b70.png","images/footer_lodyas.png"],"footer_lodyas.d1433b70.js","images/footer_lodyas.png"],"./../images/az-subtle.png":[["az-subtle.5adfac0e.png","images/az-subtle.png"],"az-subtle.5adfac0e.js","images/az-subtle.png"],"_css_loader":"../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/src/builtins/css-loader.js"}],"../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -150,7 +150,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "35601" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "43781" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
