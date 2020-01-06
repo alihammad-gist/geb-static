@@ -117,8 +117,8 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   }
 
   return newRequire;
-})({"downloads/important-publications/Law-PEPA-1997.jpg":[function(require,module,exports) {
-module.exports = "/Law-PEPA-1997.08ac4499.jpg";
+})({"images/sec-khwaja1.jpg":[function(require,module,exports) {
+module.exports = "/sec-khwaja1.329c6433.jpg";
 },{}],"../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
@@ -324,4 +324,4 @@ function hmrAcceptRun(bundle, id) {
   }
 }
 },{}]},{},["../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js"], null)
-//# sourceMappingURL=/Law-PEPA-1997.08ac4499.js.map
+//# sourceMappingURL=/sec-khwaja1.329c6433.js.map

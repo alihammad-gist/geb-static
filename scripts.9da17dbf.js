@@ -48648,8 +48648,8 @@ function useScroll(handler) {
 }
 
 exports.default = useScroll;
-},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/slmp-undp-flickr.jpg":[function(require,module,exports) {
-module.exports = "/slmp-undp-flickr.1aeafb64.jpg";
+},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/resized_trees.jpg":[function(require,module,exports) {
+module.exports = "/resized_trees.beee3c9e.jpg";
 },{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48675,11 +48675,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importStar(require("react"));
 
-var slmp_undp_flickr_jpg_1 = __importDefault(require("../../../images/slmp-undp-flickr.jpg"));
+var resized_trees_jpg_1 = __importDefault(require("../../../images/resized_trees.jpg"));
 
 var AnimationInterval = 90000;
 var CloudsIdxs = [];
-var Backgrounds = [slmp_undp_flickr_jpg_1.default];
+var Backgrounds = [resized_trees_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48726,7 +48726,7 @@ exports.default = function () {
     });
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/slmp-undp-flickr.jpg":"images/slmp-undp-flickr.jpg"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/resized_trees.jpg":"images/resized_trees.jpg"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
 module.exports = "/state-emblem-pk.f03983e3.svg";
 },{}],"images/undp-logo-30.svg":[function(require,module,exports) {
 module.exports = "/undp-logo-30.d146f0e5.svg";
@@ -48889,7 +48889,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34043" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34255" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
