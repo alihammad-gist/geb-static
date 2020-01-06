@@ -48648,8 +48648,8 @@ function useScroll(handler) {
 }
 
 exports.default = useScroll;
-},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/resized_trees.jpg":[function(require,module,exports) {
-module.exports = "/resized_trees.beee3c9e.jpg";
+},{"react":"node_modules/react/index.js","../feature-detect/passive-event-listeners":"scripts/feature-detect/passive-event-listeners.ts"}],"images/resized_chinars.jpg":[function(require,module,exports) {
+module.exports = "/resized_chinars.fb5fc77f.jpg";
 },{}],"scripts/components/hero/scene.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48675,11 +48675,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importStar(require("react"));
 
-var resized_trees_jpg_1 = __importDefault(require("../../../images/resized_trees.jpg"));
+var resized_chinars_jpg_1 = __importDefault(require("../../../images/resized_chinars.jpg"));
 
 var AnimationInterval = 90000;
 var CloudsIdxs = [];
-var Backgrounds = [resized_trees_jpg_1.default];
+var Backgrounds = [resized_chinars_jpg_1.default];
 
 exports.default = function () {
   var _a = react_1.useState(0),
@@ -48726,7 +48726,7 @@ exports.default = function () {
     });
   })));
 };
-},{"react":"node_modules/react/index.js","../../../images/resized_trees.jpg":"images/resized_trees.jpg"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","../../../images/resized_chinars.jpg":"images/resized_chinars.jpg"}],"images/state-emblem-pk.svg":[function(require,module,exports) {
 module.exports = "/state-emblem-pk.f03983e3.svg";
 },{}],"images/undp-logo-30.svg":[function(require,module,exports) {
 module.exports = "/undp-logo-30.d146f0e5.svg";
@@ -48889,7 +48889,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34255" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "35601" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

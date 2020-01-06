@@ -8371,7 +8371,7 @@ ul.logo .logo-image {
   background-clip: border-box;
   background-repeat: no-repeat;
   background-position: top 0% left 0%;
-  min-height: 60vh;
+  min-height: 50vh;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
