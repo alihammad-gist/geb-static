@@ -8775,6 +8775,8 @@ div.navbar-item.has-dropdown:hover > .navbar-dropdown {
 }
 
 a.news-outline-item {
+  position: relative;
+  padding-bottom: 2rem;
   display: block;
   height: 500px;
   margin: 2.8rem 0;
@@ -8813,6 +8815,8 @@ a.news-outline-item figure img {
   min-width: 100%;
 }
 a.news-outline-item .news-outline-location {
+  position: absolute;
+  bottom: 1rem;
   font-size: 0.9rem;
   border-radius: 6px;
   padding: 0.1rem 0.3rem;

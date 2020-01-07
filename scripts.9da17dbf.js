@@ -38291,7 +38291,6 @@ Object.defineProperty(exports, "__esModule", {
 var React = __importStar(require("react"));
 
 var dateOptions = {
-  weekday: 'long',
   year: 'numeric',
   month: 'long',
   day: 'numeric'
@@ -38345,7 +38344,10 @@ exports.default = function (_a) {
     })), React.createElement("div", {
       className: "padded"
     }, React.createElement("div", {
-      className: "level"
+      className: "level",
+      style: {
+        borderBottom: "1px solid #ddd"
+      }
     }, React.createElement("div", {
       className: "level-left"
     }, React.createElement("div", {
@@ -38356,17 +38358,17 @@ exports.default = function (_a) {
       className: "level-right"
     }, React.createElement("div", {
       className: "level-item"
-    }, React.createElement("div", {
+    }, React.createElement("small", null, item.date.toLocaleDateString("en-US", dateOptions)))))), React.createElement("small", {
+      className: "news-outline-date"
+    }), React.createElement("h2", {
+      className: "sub-heading news-outline-heading"
+    }, item.title), React.createElement("div", {
       className: "news-outline-location"
     }, React.createElement("span", {
       className: "icon"
     }, React.createElement("i", {
       className: "fa fa-map-marker"
-    })), React.createElement("small", null, item.location)))))), React.createElement("small", {
-      className: "news-outline-date"
-    }, item.date.toLocaleDateString("en-US", dateOptions)), React.createElement("h2", {
-      className: "sub-heading news-outline-heading"
-    }, item.title))));
+    })), React.createElement("small", null, "Venue, ", item.location)))));
   }))));
 };
 },{"react":"node_modules/react/index.js"}],"images/activities/loa-signing-pics/featured.jpg":[function(require,module,exports) {
@@ -48889,7 +48891,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "44147" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "45911" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
