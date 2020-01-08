@@ -117,8 +117,8 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   }
 
   return newRequire;
-})({"favicons/apple-icon-120x120.png":[function(require,module,exports) {
-module.exports = "/apple-icon-120x120.a7bdcc8e.png";
+})({"images/world-environment-day.jpg":[function(require,module,exports) {
+module.exports = "/world-environment-day.d5105f3b.jpg";
 },{}],"../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
@@ -324,4 +324,4 @@ function hmrAcceptRun(bundle, id) {
   }
 }
 },{}]},{},["../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js"], null)
-//# sourceMappingURL=/apple-icon-120x120.a7bdcc8e.js.map
+//# sourceMappingURL=/world-environment-day.d5105f3b.js.map
