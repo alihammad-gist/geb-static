@@ -38303,7 +38303,7 @@ exports.old = function (_a) {
   }, React.createElement("div", {
     className: 'column news-outline-image',
     style: {
-      backgroundImage: "url(" + item.image + ")"
+      backgroundImage: "url(" + require(item.image) + ")"
     }
   }, React.createElement("span", {
     className: "tag is-link"
@@ -38368,7 +38368,7 @@ exports.default = function (_a) {
       className: "icon"
     }, React.createElement("i", {
       className: "fa fa-map-marker"
-    })), React.createElement("small", null, "Venue, ", item.location)))));
+    })), React.createElement("small", null, item.location)))));
   }))));
 };
 },{"react":"node_modules/react/index.js"}],"images/activities/loa-signing-pics/featured.jpg":[function(require,module,exports) {
@@ -38402,63 +38402,63 @@ var featured_activities = [[{
   content: "",
   category: "Research",
   image: require("../../images/activities/loa-signing-pics/featured.jpg"),
-  location: "Peshawar, KPK"
+  location: "University of Peshawar, Peshawar, KPK"
 }, {
   title: "Environmental Information & Management – The Case of Punjab",
   date: new Date("2019/11/28"),
   content: "",
   category: "Lecture",
   image: require("../../images/activities/uni-of-faisalabad-pics/featured.jpg"),
-  location: "Faisalabad, Punjab"
+  location: "University of Agriculture, Faisalabad, Punjab"
 }, {
   title: "Roundtable Conference (RTC) - Environmental Information Management system and the World",
   date: new Date("2019/11/21"),
   content: "",
   category: "Conference",
   image: require("../../images/activities/quetta-rtc-pics/featured.jpg"),
-  location: "Quetta, Balochistan"
+  location: "BUITEMS, Quetta, Balochistan"
 }], [{
   title: "Onsite briefing-EIMS & IT – Exploring the Role of Media and other stakeholders",
   date: new Date(),
   content: "",
   category: "Research",
   image: require("../../images/activities/pitb-pics/featured.jpg"),
-  location: "Lahore, Punjab"
+  location: "Punjab Information Technology Board, Lahore, Punjab"
 }, {
   title: "Seminar-Environmental Information & Management – Global Examples & Lessons for Pakistan",
   date: new Date("2019/09/18"),
   content: "",
   category: "Seminar",
   image: require("../../images/activities/karachi-seminar-pics/featured.jpg"),
-  location: "Karachi, Sindh"
+  location: "NED University, Karachi, Sindh"
 }, {
-  title: "EIMS: Addressing Key Issues & Way Forward for Pakistan",
+  title: "Environmental Information Management System: Addressing Key Issues & Way Forward for Pakistan",
   date: new Date("2019/08/06"),
   content: "",
   category: "Lecture",
   image: require("../../images/activities/abbottabad-lecture-pictures/featured.jpg"),
-  location: "Abbottabad, KPK"
+  location: "Office of Chief Conservator of Forest, ATD, KPK"
 }], [{
   title: "Environmental Information & Management: Global Perspective and Way Forward for Khyber Pakhtunkhwa",
   date: new Date("2019/06/17"),
   content: "",
   category: "Conference",
   image: require("../../images/activities/peshawar-rtc-pics/featured.jpg"),
-  location: "Peshawar, KPK"
+  location: "Environmental Protection Agency, Peshawar, KPK"
 }, {
-  title: "Media Visit - Exploring the role of Media for EIMS",
+  title: "Media Visit - Exploring the role of Media for Environmental Management Information System",
   date: new Date("2019/04/30"),
   content: "",
   category: "Seminar",
   image: require("../../images/activities/media-visit-30th-April-pics/featured.jpeg"),
-  location: "Lahore, Punjab"
+  location: "Morgah Biodiversity Park, Rawalpindi, Punjab"
 }, {
   title: "Consultative Event - EIMS: Addressing Key Issues & Way Forward for Pakistan",
   date: new Date("2019/04/18"),
   content: "",
   category: "Event",
   image: require("../../images/activities/lahore-rtc-pics/featured.jpg"),
-  location: "Lahore, Punjab"
+  location: "Forest Department, Lahore, Punjab"
 }]];
 module.exports = {
   featured_activities: featured_activities
@@ -48891,7 +48891,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "40369" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "46015" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

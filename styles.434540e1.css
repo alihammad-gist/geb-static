@@ -8220,19 +8220,19 @@ p.content {
   padding-left: 2rem !important;
 }
 
-.sub-heading {
+.sub-heading, .activities-month {
   font-size: 1.333em;
   font-weight: 600;
   margin-top: 1.5rem;
   margin-bottom: 1rem;
 }
-.team-member-homepage .sub-heading {
+.team-member-homepage .sub-heading, .team-member-homepage .activities-month {
   margin: 0;
 }
-.news-outline-item .sub-heading {
+.news-outline-item .sub-heading, .news-outline-item .activities-month {
   margin-top: 0;
 }
-.goal-outline-container .sub-heading {
+.goal-outline-container .sub-heading, .goal-outline-container .activities-month {
   margin-top: 0;
 }
 
@@ -8247,6 +8247,10 @@ p.content {
 
 .justified {
   text-align: justify;
+}
+
+.t-centered {
+  text-align: center;
 }
 
 a.offset {
@@ -8793,7 +8797,7 @@ a.news-outline-item {
   margin: 2.8rem 0;
   padding: 0;
   overflow: hidden;
-  background-color: #f2f5f3;
+  background-color: white;
   transition-property: box-shadow, transform;
   transition-duration: 500ms;
 }
@@ -9472,6 +9476,29 @@ a.news-outline-item .news-outline-date {
 .blog-content-container .m {
   background-color: white;
   padding: 1rem;
+}
+
+.activities-frontend {
+  min-height: 100vh;
+}
+
+.activities-month {
+  color: #747474;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.activities-list {
+  width: 80%;
+}
+.activities-list .activity {
+  background: #f2f5f3;
+  border-left: 4px solid #49824d;
+  transition-property: border-left;
+  transition-duration: 0.3s;
+}
+.activities-list .activity:hover {
+  border-left: 8px solid #49824d;
 }
 
 .section {
