@@ -8843,20 +8843,6 @@ a.news-outline-item .news-outline-date {
   font-size: 0.8rem;
 }
 
-#news_outline .paging-item .paging-dot {
-  width: 8px !important;
-  height: 8px !important;
-  background-color: #457c96 !important;
-  opacity: 0.5;
-}
-#news_outline .paging-item:hover .paging-dot {
-  opacity: 1;
-}
-#news_outline .paging-item.active .paging-dot {
-  transform: scale(1.2);
-  background: #457c96 !important;
-  opacity: 1;
-}
 #news_outline .slider-control-centerleft a, #news_outline .slider-control-centerright a {
   color: #f2f5f3;
   opacity: 0.5;

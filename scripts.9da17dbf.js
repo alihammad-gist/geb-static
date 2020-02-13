@@ -396,7 +396,7 @@ checkPropTypes.resetWarningCache = function () {
 
 module.exports = checkPropTypes;
 },{"./lib/ReactPropTypesSecret":"node_modules/prop-types/lib/ReactPropTypesSecret.js"}],"node_modules/react/cjs/react.development.js":[function(require,module,exports) {
-/** @license React v16.11.0
+/** @license React v16.12.0
  * react.development.js
  *
  * Copyright (c) Facebook, Inc. and its affiliates.
@@ -415,7 +415,7 @@ if ("development" !== "production") {
     var checkPropTypes = require('prop-types/checkPropTypes'); // TODO: this is special because it gets imported during build.
 
 
-    var ReactVersion = '16.11.0'; // The Symbol used to tag the ReactElement-like types. If there is no native Symbol
+    var ReactVersion = '16.12.0'; // The Symbol used to tag the ReactElement-like types. If there is no native Symbol
     // nor polyfill, then a plain number is used for performance.
 
     var hasSymbol = typeof Symbol === 'function' && Symbol.for;
@@ -2541,11 +2541,8 @@ if ("development" !== "production") {
         Object.freeze(scopeComponent);
       }
       return scopeComponent;
-    } // Helps identify side effects in begin-phase lifecycle hooks and setState reducers:
-    // In some cases, StrictMode should also double-render lifecycles.
-    // This can be confusing for tests though,
-    // And it can be bad for performance in production.
-    // This feature flag can be used to control the behavior:
+    } // Helps identify side effects in render-phase lifecycle hooks and setState
+    // reducers by double invoking them in Strict Mode.
     // To preserve the "Pause on caught exceptions" behavior of the debugger, we
     // replay the begin phase of a failed component inside invokeGuardedCallback.
     // Warn about deprecated, async-unsafe lifecycles; relates to RFC #6:
@@ -2570,7 +2567,7 @@ if ("development" !== "production") {
     var enableScopeAPI = false; // New API for JSX transforms to target - https://github.com/reactjs/rfcs/pull/107
 
     var enableJSXTransformAPI = false; // We will enforce mocking scheduler with scheduler/unstable_mock at some point. (v17?)
-    // Till then, we warn about the missing mock, but still fallback to a sync mode compatible version
+    // Till then, we warn about the missing mock, but still fallback to a legacy mode compatible version
     // For tests, we flush suspense fallbacks in an act scope;
     // *except* in some of our own tests, where we test incremental loading states.
     // Add a callback property to suspense to notify which promises are currently
@@ -2581,6 +2578,7 @@ if ("development" !== "production") {
     // Part of the simplification of React.createElement so we can eventually move
     // from React.createElement to React.jsx
     // https://github.com/reactjs/rfcs/blob/createlement-rfc/text/0000-create-element-changes.md
+    // Flag to turn event.target and event.currentTarget in ReactNative from a reactTag to a component instance
 
     var React = {
       Children: {
@@ -2670,7 +2668,7 @@ if ("development" === 'production') {
   module.exports = require('./cjs/react.development.js');
 }
 },{"./cjs/react.development.js":"node_modules/react/cjs/react.development.js"}],"node_modules/scheduler/cjs/scheduler.development.js":[function(require,module,exports) {
-/** @license React v0.16.2
+/** @license React v0.18.0
  * scheduler.development.js
  *
  * Copyright (c) Facebook, Inc. and its affiliates.
@@ -2689,14 +2687,7 @@ if ("development" !== "production") {
     });
     var enableSchedulerDebugging = false;
     var enableIsInputPending = false;
-    var enableMessageLoopImplementation = true;
-    var enableProfiling = true; // works by scheduling a requestAnimationFrame, storing the time for the start
-    // of the frame, then scheduling a postMessage which gets scheduled after paint.
-    // Within the postMessage handler do as much work as possible until time + frame
-    // rate. By separating the idle call into a separate event tick we ensure that
-    // layout, paint and other browser work is counted against the available time.
-    // The frame rate is dynamically adjusted.
-
+    var enableProfiling = true;
     var requestHostCallback;
     var requestHostTimeout;
     var cancelHostTimeout;
@@ -2763,11 +2754,14 @@ if ("development" !== "production") {
       var _Date = window.Date;
       var _setTimeout = window.setTimeout;
       var _clearTimeout = window.clearTimeout;
-      var requestAnimationFrame = window.requestAnimationFrame;
-      var cancelAnimationFrame = window.cancelAnimationFrame;
 
       if (typeof console !== 'undefined') {
-        // TODO: Remove fb.me link
+        // TODO: Scheduler no longer requires these methods to be polyfilled. But
+        // maybe we want to continue warning if they don't exist, to preserve the
+        // option to rely on it in the future?
+        var requestAnimationFrame = window.requestAnimationFrame;
+        var cancelAnimationFrame = window.cancelAnimationFrame; // TODO: Remove fb.me link
+
         if (typeof requestAnimationFrame !== 'function') {
           console.error("This browser doesn't support requestAnimationFrame. " + 'Make sure that you load a ' + 'polyfill in older browsers. https://fb.me/react-polyfills');
         }
@@ -2789,26 +2783,18 @@ if ("development" !== "production") {
         };
       }
 
-      var isRAFLoopRunning = false;
       var isMessageLoopRunning = false;
       var scheduledHostCallback = null;
-      var rAFTimeoutID = -1;
-      var taskTimeoutID = -1;
-      var frameLength = enableMessageLoopImplementation ? // We won't attempt to align with the vsync. Instead we'll yield multiple
-      // times per frame, often enough to keep it responsive even at really
-      // high frame rates > 120.
-      5 : // Use a heuristic to measure the frame rate and yield at the end of the
-      // frame. We start out assuming that we run at 30fps but then the
-      // heuristic tracking will adjust this value to a faster fps if we get
-      // more frequent animation frames.
-      33.33;
-      var prevRAFTime = -1;
-      var prevRAFInterval = -1;
-      var frameDeadline = 0;
-      var fpsLocked = false; // TODO: Make this configurable
+      var taskTimeoutID = -1; // Scheduler periodically yields in case there is other work on the main
+      // thread, like user events. By default, it yields multiple times per frame.
+      // It does not attempt to align with frame boundaries, since most tasks don't
+      // need to be frame aligned; for those that do, use requestAnimationFrame.
+
+      var yieldInterval = 5;
+      var deadline = 0; // TODO: Make this configurable
       // TODO: Adjust this based on priority?
 
-      var maxFrameLength = 300;
+      var maxYieldInterval = 300;
       var needsPaint = false;
 
       if (enableIsInputPending && navigator !== undefined && navigator.scheduling !== undefined && navigator.scheduling.isInputPending !== undefined) {
@@ -2817,23 +2803,23 @@ if ("development" !== "production") {
         shouldYieldToHost = function () {
           var currentTime = exports.unstable_now();
 
-          if (currentTime >= frameDeadline) {
-            // There's no time left in the frame. We may want to yield control of
-            // the main thread, so the browser can perform high priority tasks. The
-            // main ones are painting and user input. If there's a pending paint or
-            // a pending input, then we should yield. But if there's neither, then
-            // we can yield less often while remaining responsive. We'll eventually
-            // yield regardless, since there could be a pending paint that wasn't
+          if (currentTime >= deadline) {
+            // There's no time left. We may want to yield control of the main
+            // thread, so the browser can perform high priority tasks. The main ones
+            // are painting and user input. If there's a pending paint or a pending
+            // input, then we should yield. But if there's neither, then we can
+            // yield less often while remaining responsive. We'll eventually yield
+            // regardless, since there could be a pending paint that wasn't
             // accompanied by a call to `requestPaint`, or other main thread tasks
             // like network events.
             if (needsPaint || scheduling.isInputPending()) {
               // There is either a pending paint or a pending input.
               return true;
             } // There's no pending input. Only yield if we've reached the max
-            // frame length.
+            // yield interval.
 
 
-            return currentTime >= frameDeadline + maxFrameLength;
+            return currentTime >= maxYieldInterval;
           } else {
             // There's still time left in the frame.
             return false;
@@ -2847,7 +2833,7 @@ if ("development" !== "production") {
         // `isInputPending` is not available. Since we have no way of knowing if
         // there's pending input, always yield at the end of the frame.
         shouldYieldToHost = function () {
-          return exports.unstable_now() >= frameDeadline;
+          return exports.unstable_now() >= deadline;
         }; // Since we yield every frame regardless, `requestPaint` has no effect.
 
 
@@ -2861,166 +2847,58 @@ if ("development" !== "production") {
         }
 
         if (fps > 0) {
-          frameLength = Math.floor(1000 / fps);
-          fpsLocked = true;
+          yieldInterval = Math.floor(1000 / fps);
         } else {
           // reset the framerate
-          frameLength = 33.33;
-          fpsLocked = false;
+          yieldInterval = 5;
         }
       };
 
       var performWorkUntilDeadline = function () {
-        if (enableMessageLoopImplementation) {
-          if (scheduledHostCallback !== null) {
-            var currentTime = exports.unstable_now(); // Yield after `frameLength` ms, regardless of where we are in the vsync
-            // cycle. This means there's always time remaining at the beginning of
-            // the message event.
+        if (scheduledHostCallback !== null) {
+          var currentTime = exports.unstable_now(); // Yield after `yieldInterval` ms, regardless of where we are in the vsync
+          // cycle. This means there's always time remaining at the beginning of
+          // the message event.
 
-            frameDeadline = currentTime + frameLength;
-            var hasTimeRemaining = true;
+          deadline = currentTime + yieldInterval;
+          var hasTimeRemaining = true;
 
-            try {
-              var hasMoreWork = scheduledHostCallback(hasTimeRemaining, currentTime);
+          try {
+            var hasMoreWork = scheduledHostCallback(hasTimeRemaining, currentTime);
 
-              if (!hasMoreWork) {
-                isMessageLoopRunning = false;
-                scheduledHostCallback = null;
-              } else {
-                // If there's more work, schedule the next message event at the end
-                // of the preceding one.
-                port.postMessage(null);
-              }
-            } catch (error) {
-              // If a scheduler task throws, exit the current browser task so the
-              // error can be observed.
+            if (!hasMoreWork) {
+              isMessageLoopRunning = false;
+              scheduledHostCallback = null;
+            } else {
+              // If there's more work, schedule the next message event at the end
+              // of the preceding one.
               port.postMessage(null);
-              throw error;
             }
-          } else {
-            isMessageLoopRunning = false;
-          } // Yielding to the browser will give it a chance to paint, so we can
-          // reset this.
-
-
-          needsPaint = false;
+          } catch (error) {
+            // If a scheduler task throws, exit the current browser task so the
+            // error can be observed.
+            port.postMessage(null);
+            throw error;
+          }
         } else {
-          if (scheduledHostCallback !== null) {
-            var _currentTime = exports.unstable_now();
-
-            var _hasTimeRemaining = frameDeadline - _currentTime > 0;
-
-            try {
-              var _hasMoreWork = scheduledHostCallback(_hasTimeRemaining, _currentTime);
-
-              if (!_hasMoreWork) {
-                scheduledHostCallback = null;
-              }
-            } catch (error) {
-              // If a scheduler task throws, exit the current browser task so the
-              // error can be observed, and post a new task as soon as possible
-              // so we can continue where we left off.
-              port.postMessage(null);
-              throw error;
-            }
-          } // Yielding to the browser will give it a chance to paint, so we can
-          // reset this.
+          isMessageLoopRunning = false;
+        } // Yielding to the browser will give it a chance to paint, so we can
+        // reset this.
 
 
-          needsPaint = false;
-        }
+        needsPaint = false;
       };
 
       var channel = new MessageChannel();
       var port = channel.port2;
       channel.port1.onmessage = performWorkUntilDeadline;
 
-      var onAnimationFrame = function (rAFTime) {
-        if (scheduledHostCallback === null) {
-          // No scheduled work. Exit.
-          prevRAFTime = -1;
-          prevRAFInterval = -1;
-          isRAFLoopRunning = false;
-          return;
-        } // Eagerly schedule the next animation callback at the beginning of the
-        // frame. If the scheduler queue is not empty at the end of the frame, it
-        // will continue flushing inside that callback. If the queue *is* empty,
-        // then it will exit immediately. Posting the callback at the start of the
-        // frame ensures it's fired within the earliest possible frame. If we
-        // waited until the end of the frame to post the callback, we risk the
-        // browser skipping a frame and not firing the callback until the frame
-        // after that.
-
-
-        isRAFLoopRunning = true;
-        requestAnimationFrame(function (nextRAFTime) {
-          _clearTimeout(rAFTimeoutID);
-
-          onAnimationFrame(nextRAFTime);
-        }); // requestAnimationFrame is throttled when the tab is backgrounded. We
-        // don't want to stop working entirely. So we'll fallback to a timeout loop.
-        // TODO: Need a better heuristic for backgrounded work.
-
-        var onTimeout = function () {
-          frameDeadline = exports.unstable_now() + frameLength / 2;
-          performWorkUntilDeadline();
-          rAFTimeoutID = _setTimeout(onTimeout, frameLength * 3);
-        };
-
-        rAFTimeoutID = _setTimeout(onTimeout, frameLength * 3);
-
-        if (prevRAFTime !== -1 && // Make sure this rAF time is different from the previous one. This check
-        // could fail if two rAFs fire in the same frame.
-        rAFTime - prevRAFTime > 0.1) {
-          var rAFInterval = rAFTime - prevRAFTime;
-
-          if (!fpsLocked && prevRAFInterval !== -1) {
-            // We've observed two consecutive frame intervals. We'll use this to
-            // dynamically adjust the frame rate.
-            //
-            // If one frame goes long, then the next one can be short to catch up.
-            // If two frames are short in a row, then that's an indication that we
-            // actually have a higher frame rate than what we're currently
-            // optimizing. For example, if we're running on 120hz display or 90hz VR
-            // display. Take the max of the two in case one of them was an anomaly
-            // due to missed frame deadlines.
-            if (rAFInterval < frameLength && prevRAFInterval < frameLength) {
-              frameLength = rAFInterval < prevRAFInterval ? prevRAFInterval : rAFInterval;
-
-              if (frameLength < 8.33) {
-                // Defensive coding. We don't support higher frame rates than 120hz.
-                // If the calculated frame length gets lower than 8, it is probably
-                // a bug.
-                frameLength = 8.33;
-              }
-            }
-          }
-
-          prevRAFInterval = rAFInterval;
-        }
-
-        prevRAFTime = rAFTime;
-        frameDeadline = rAFTime + frameLength; // We use the postMessage trick to defer idle work until after the repaint.
-
-        port.postMessage(null);
-      };
-
       requestHostCallback = function (callback) {
         scheduledHostCallback = callback;
 
-        if (enableMessageLoopImplementation) {
-          if (!isMessageLoopRunning) {
-            isMessageLoopRunning = true;
-            port.postMessage(null);
-          }
-        } else {
-          if (!isRAFLoopRunning) {
-            // Start a rAF loop.
-            isRAFLoopRunning = true;
-            requestAnimationFrame(function (rAFTime) {
-              onAnimationFrame(rAFTime);
-            });
-          }
+        if (!isMessageLoopRunning) {
+          isMessageLoopRunning = true;
+          port.postMessage(null);
         }
       };
 
@@ -3207,51 +3085,54 @@ if ("development" !== "production") {
       return buffer;
     }
 
-    function markTaskStart(task, time) {
+    function markTaskStart(task, ms) {
       if (enableProfiling) {
         profilingState[QUEUE_SIZE]++;
 
         if (eventLog !== null) {
-          logEvent([TaskStartEvent, time, task.id, task.priorityLevel]);
+          // performance.now returns a float, representing milliseconds. When the
+          // event is logged, it's coerced to an int. Convert to microseconds to
+          // maintain extra degrees of precision.
+          logEvent([TaskStartEvent, ms * 1000, task.id, task.priorityLevel]);
         }
       }
     }
 
-    function markTaskCompleted(task, time) {
+    function markTaskCompleted(task, ms) {
       if (enableProfiling) {
         profilingState[PRIORITY] = NoPriority;
         profilingState[CURRENT_TASK_ID] = 0;
         profilingState[QUEUE_SIZE]--;
 
         if (eventLog !== null) {
-          logEvent([TaskCompleteEvent, time, task.id]);
+          logEvent([TaskCompleteEvent, ms * 1000, task.id]);
         }
       }
     }
 
-    function markTaskCanceled(task, time) {
+    function markTaskCanceled(task, ms) {
       if (enableProfiling) {
         profilingState[QUEUE_SIZE]--;
 
         if (eventLog !== null) {
-          logEvent([TaskCancelEvent, time, task.id]);
+          logEvent([TaskCancelEvent, ms * 1000, task.id]);
         }
       }
     }
 
-    function markTaskErrored(task, time) {
+    function markTaskErrored(task, ms) {
       if (enableProfiling) {
         profilingState[PRIORITY] = NoPriority;
         profilingState[CURRENT_TASK_ID] = 0;
         profilingState[QUEUE_SIZE]--;
 
         if (eventLog !== null) {
-          logEvent([TaskErrorEvent, time, task.id]);
+          logEvent([TaskErrorEvent, ms * 1000, task.id]);
         }
       }
     }
 
-    function markTaskRun(task, time) {
+    function markTaskRun(task, ms) {
       if (enableProfiling) {
         runIdCounter++;
         profilingState[PRIORITY] = task.priorityLevel;
@@ -3259,37 +3140,37 @@ if ("development" !== "production") {
         profilingState[CURRENT_RUN_ID] = runIdCounter;
 
         if (eventLog !== null) {
-          logEvent([TaskRunEvent, time, task.id, runIdCounter]);
+          logEvent([TaskRunEvent, ms * 1000, task.id, runIdCounter]);
         }
       }
     }
 
-    function markTaskYield(task, time) {
+    function markTaskYield(task, ms) {
       if (enableProfiling) {
         profilingState[PRIORITY] = NoPriority;
         profilingState[CURRENT_TASK_ID] = 0;
         profilingState[CURRENT_RUN_ID] = 0;
 
         if (eventLog !== null) {
-          logEvent([TaskYieldEvent, time, task.id, runIdCounter]);
+          logEvent([TaskYieldEvent, ms * 1000, task.id, runIdCounter]);
         }
       }
     }
 
-    function markSchedulerSuspended(time) {
+    function markSchedulerSuspended(ms) {
       if (enableProfiling) {
         mainThreadIdCounter++;
 
         if (eventLog !== null) {
-          logEvent([SchedulerSuspendEvent, time, mainThreadIdCounter]);
+          logEvent([SchedulerSuspendEvent, ms * 1000, mainThreadIdCounter]);
         }
       }
     }
 
-    function markSchedulerUnsuspended(time) {
+    function markSchedulerUnsuspended(ms) {
       if (enableProfiling) {
         if (eventLog !== null) {
-          logEvent([SchedulerResumeEvent, time, mainThreadIdCounter]);
+          logEvent([SchedulerResumeEvent, ms * 1000, mainThreadIdCounter]);
         }
       }
     }
@@ -3703,7 +3584,7 @@ if ("development" === 'production') {
   module.exports = require('./cjs/scheduler.development.js');
 }
 },{"./cjs/scheduler.development.js":"node_modules/scheduler/cjs/scheduler.development.js"}],"node_modules/scheduler/cjs/scheduler-tracing.development.js":[function(require,module,exports) {
-/** @license React v0.16.2
+/** @license React v0.18.0
  * scheduler-tracing.development.js
  *
  * Copyright (c) Facebook, Inc. and its affiliates.
@@ -3719,19 +3600,15 @@ if ("development" !== "production") {
 
     Object.defineProperty(exports, '__esModule', {
       value: true
-    }); // Helps identify side effects in begin-phase lifecycle hooks and setState reducers:
-    // In some cases, StrictMode should also double-render lifecycles.
-    // This can be confusing for tests though,
-    // And it can be bad for performance in production.
-    // This feature flag can be used to control the behavior:
+    }); // Helps identify side effects in render-phase lifecycle hooks and setState
+    // reducers by double invoking them in Strict Mode.
     // To preserve the "Pause on caught exceptions" behavior of the debugger, we
     // replay the begin phase of a failed component inside invokeGuardedCallback.
     // Warn about deprecated, async-unsafe lifecycles; relates to RFC #6:
     // Gather advanced timing metrics for Profiler subtrees.
     // Trace which interactions trigger each commit.
 
-    var enableSchedulerTracing = true; // Only used in www builds.
-    // TODO: true? Here it might just be false.
+    var enableSchedulerTracing = true; // SSR experiments
     // Only used in www builds.
     // Only used in www builds.
     // Disable javascript: URL strings in href for XSS protection.
@@ -3739,19 +3616,14 @@ if ("development" !== "production") {
     // with their related DOM properties
     // These APIs will no longer be "unstable" in the upcoming 16.7 release,
     // Control this behavior with a flag to support 16.6 minor releases in the meanwhile.
-    // See https://github.com/react-native-community/discussions-and-proposals/issues/72 for more information
-    // This is a flag so we can fix warnings in RN core before turning it on
     // Experimental React Flare event system and event components support.
     // Experimental Host Component support.
     // Experimental Scope support.
     // New API for JSX transforms to target - https://github.com/reactjs/rfcs/pull/107
     // We will enforce mocking scheduler with scheduler/unstable_mock at some point. (v17?)
-    // Till then, we warn about the missing mock, but still fallback to a sync mode compatible version
+    // Till then, we warn about the missing mock, but still fallback to a legacy mode compatible version
     // For tests, we flush suspense fallbacks in an act scope;
     // *except* in some of our own tests, where we test incremental loading states.
-    // Changes priority of some events like mousemove to user-blocking priority,
-    // but without making them discrete. The flag exists in case it causes
-    // starvation problems.
     // Add a callback property to suspense to notify which promises are currently
     // in the update queue. This allows reporting and tracing of what is causing
     // the user to see a loading state.
@@ -3760,6 +3632,7 @@ if ("development" !== "production") {
     // Part of the simplification of React.createElement so we can eventually move
     // from React.createElement to React.jsx
     // https://github.com/reactjs/rfcs/blob/createlement-rfc/text/0000-create-element-changes.md
+    // Flag to turn event.target and event.currentTarget in ReactNative from a reactTag to a component instance
 
     var DEFAULT_THREAD_ID = 0; // Counters used to generate unique IDs.
 
@@ -4121,7 +3994,7 @@ if ("development" === 'production') {
   module.exports = require('./cjs/scheduler-tracing.development.js');
 }
 },{"./cjs/scheduler-tracing.development.js":"node_modules/scheduler/cjs/scheduler-tracing.development.js"}],"node_modules/react-dom/cjs/react-dom.development.js":[function(require,module,exports) {
-/** @license React v16.10.2
+/** @license React v16.12.0
  * react-dom.development.js
  *
  * Copyright (c) Facebook, Inc. and its affiliates.
@@ -4144,17 +4017,9 @@ if ("development" !== "production") {
     var checkPropTypes = require('prop-types/checkPropTypes');
 
     var tracing = require('scheduler/tracing'); // Do not require this module directly! Use normal `invariant` calls with
-    // template literal strings. The messages will be converted to ReactError during
-    // build, and in production they will be minified.
-    // Do not require this module directly! Use normal `invariant` calls with
-    // template literal strings. The messages will be converted to ReactError during
-    // build, and in production they will be minified.
+    // template literal strings. The messages will be replaced with error codes
+    // during build.
 
-
-    function ReactError(error) {
-      error.name = 'Invariant Violation';
-      return error;
-    }
     /**
      * Use invariant() to assert state which your program assumes to be true.
      *
@@ -4167,13 +4032,11 @@ if ("development" !== "production") {
      */
 
 
-    (function () {
-      if (!React) {
-        {
-          throw ReactError(Error("ReactDOM was loaded before React. Make sure you load the React package before loading ReactDOM."));
-        }
+    if (!React) {
+      {
+        throw Error("ReactDOM was loaded before React. Make sure you load the React package before loading ReactDOM.");
       }
-    })();
+    }
     /**
      * Injectable ordering of event plugins.
      */
@@ -4201,37 +4064,31 @@ if ("development" !== "production") {
         var pluginModule = namesToPlugins[pluginName];
         var pluginIndex = eventPluginOrder.indexOf(pluginName);
 
-        (function () {
-          if (!(pluginIndex > -1)) {
-            {
-              throw ReactError(Error("EventPluginRegistry: Cannot inject event plugins that do not exist in the plugin ordering, `" + pluginName + "`."));
-            }
+        if (!(pluginIndex > -1)) {
+          {
+            throw Error("EventPluginRegistry: Cannot inject event plugins that do not exist in the plugin ordering, `" + pluginName + "`.");
           }
-        })();
+        }
 
         if (plugins[pluginIndex]) {
           continue;
         }
 
-        (function () {
-          if (!pluginModule.extractEvents) {
-            {
-              throw ReactError(Error("EventPluginRegistry: Event plugins must implement an `extractEvents` method, but `" + pluginName + "` does not."));
-            }
+        if (!pluginModule.extractEvents) {
+          {
+            throw Error("EventPluginRegistry: Event plugins must implement an `extractEvents` method, but `" + pluginName + "` does not.");
           }
-        })();
+        }
 
         plugins[pluginIndex] = pluginModule;
         var publishedEvents = pluginModule.eventTypes;
 
         for (var eventName in publishedEvents) {
-          (function () {
-            if (!publishEventForPlugin(publishedEvents[eventName], pluginModule, eventName)) {
-              {
-                throw ReactError(Error("EventPluginRegistry: Failed to publish event `" + eventName + "` for plugin `" + pluginName + "`."));
-              }
+          if (!publishEventForPlugin(publishedEvents[eventName], pluginModule, eventName)) {
+            {
+              throw Error("EventPluginRegistry: Failed to publish event `" + eventName + "` for plugin `" + pluginName + "`.");
             }
-          })();
+          }
         }
       }
     }
@@ -4246,13 +4103,11 @@ if ("development" !== "production") {
 
 
     function publishEventForPlugin(dispatchConfig, pluginModule, eventName) {
-      (function () {
-        if (!!eventNameDispatchConfigs.hasOwnProperty(eventName)) {
-          {
-            throw ReactError(Error("EventPluginHub: More than one plugin attempted to publish the same event name, `" + eventName + "`."));
-          }
+      if (!!eventNameDispatchConfigs.hasOwnProperty(eventName)) {
+        {
+          throw Error("EventPluginHub: More than one plugin attempted to publish the same event name, `" + eventName + "`.");
         }
-      })();
+      }
 
       eventNameDispatchConfigs[eventName] = dispatchConfig;
       var phasedRegistrationNames = dispatchConfig.phasedRegistrationNames;
@@ -4283,13 +4138,11 @@ if ("development" !== "production") {
 
 
     function publishRegistrationName(registrationName, pluginModule, eventName) {
-      (function () {
-        if (!!registrationNameModules[registrationName]) {
-          {
-            throw ReactError(Error("EventPluginHub: More than one plugin attempted to publish the same registration name, `" + registrationName + "`."));
-          }
+      if (!!registrationNameModules[registrationName]) {
+        {
+          throw Error("EventPluginHub: More than one plugin attempted to publish the same registration name, `" + registrationName + "`.");
         }
-      })();
+      }
 
       registrationNameModules[registrationName] = pluginModule;
       registrationNameDependencies[registrationName] = pluginModule.eventTypes[eventName].dependencies;
@@ -4349,13 +4202,11 @@ if ("development" !== "production") {
      */
 
     function injectEventPluginOrder(injectedEventPluginOrder) {
-      (function () {
-        if (!!eventPluginOrder) {
-          {
-            throw ReactError(Error("EventPluginRegistry: Cannot inject event plugin ordering more than once. You are likely trying to load more than one copy of React."));
-          }
+      if (!!eventPluginOrder) {
+        {
+          throw Error("EventPluginRegistry: Cannot inject event plugin ordering more than once. You are likely trying to load more than one copy of React.");
         }
-      })(); // Clone the ordering so it cannot be dynamically mutated.
+      } // Clone the ordering so it cannot be dynamically mutated.
 
 
       eventPluginOrder = Array.prototype.slice.call(injectedEventPluginOrder);
@@ -4384,13 +4235,11 @@ if ("development" !== "production") {
         var pluginModule = injectedNamesToPlugins[pluginName];
 
         if (!namesToPlugins.hasOwnProperty(pluginName) || namesToPlugins[pluginName] !== pluginModule) {
-          (function () {
-            if (!!namesToPlugins[pluginName]) {
-              {
-                throw ReactError(Error("EventPluginRegistry: Cannot inject two different event plugins using the same name, `" + pluginName + "`."));
-              }
+          if (!!namesToPlugins[pluginName]) {
+            {
+              throw Error("EventPluginRegistry: Cannot inject two different event plugins using the same name, `" + pluginName + "`.");
             }
-          })();
+          }
 
           namesToPlugins[pluginName] = pluginModule;
           isOrderingDirty = true;
@@ -4441,13 +4290,11 @@ if ("development" !== "production") {
           // when we call document.createEvent(). However this can cause confusing
           // errors: https://github.com/facebookincubator/create-react-app/issues/3482
           // So we preemptively throw with a better message instead.
-          (function () {
-            if (!(typeof document !== 'undefined')) {
-              {
-                throw ReactError(Error("The `document` global was defined when React was initialized, but is not defined anymore. This can happen in a test environment if a component schedules an update from an asynchronous callback, but the test has already finished running. To solve this, you can either unmount the component at the end of your test (and ensure that any asynchronous operations get canceled in `componentWillUnmount`), or you can change the test itself to be asynchronous."));
-              }
+          if (!(typeof document !== 'undefined')) {
+            {
+              throw Error("The `document` global was defined when React was initialized, but is not defined anymore. This can happen in a test environment if a component schedules an update from an asynchronous callback, but the test has already finished running. To solve this, you can either unmount the component at the end of your test (and ensure that any asynchronous operations get canceled in `componentWillUnmount`), or you can change the test itself to be asynchronous.");
             }
-          })();
+          }
 
           var evt = document.createEvent('Event'); // Keeps track of whether the user-provided callback threw an error. We
           // set this to true at the beginning, then set it to false right after
@@ -4637,13 +4484,11 @@ if ("development" !== "production") {
         caughtError = null;
         return error;
       } else {
-        (function () {
+        {
           {
-            {
-              throw ReactError(Error("clearCaughtError was called but no error was captured. This error is likely caused by a bug in React. Please file an issue."));
-            }
+            throw Error("clearCaughtError was called but no error was captured. This error is likely caused by a bug in React. Please file an issue.");
           }
-        })();
+        }
       }
     }
     /**
@@ -4798,13 +4643,11 @@ if ("development" !== "production") {
 
 
     function accumulateInto(current, next) {
-      (function () {
-        if (!(next != null)) {
-          {
-            throw ReactError(Error("accumulateInto(...): Accumulated items must not be null or undefined."));
-          }
+      if (!(next != null)) {
+        {
+          throw Error("accumulateInto(...): Accumulated items must not be null or undefined.");
         }
-      })();
+      }
 
       if (current == null) {
         return next;
@@ -4891,13 +4734,11 @@ if ("development" !== "production") {
 
       forEachAccumulated(processingEventQueue, executeDispatchesAndReleaseTopLevel);
 
-      (function () {
-        if (!!eventQueue) {
-          {
-            throw ReactError(Error("processEventQueue(): Additional events were enqueued while processing an event queue. Support for this has not yet been implemented."));
-          }
+      if (!!eventQueue) {
+        {
+          throw Error("processEventQueue(): Additional events were enqueued while processing an event queue. Support for this has not yet been implemented.");
         }
-      })(); // This would be a good time to rethrow if any of the event handlers threw.
+      } // This would be a good time to rethrow if any of the event handlers threw.
 
 
       rethrowCaughtError();
@@ -4995,13 +4836,11 @@ if ("development" !== "production") {
         return null;
       }
 
-      (function () {
-        if (!(!listener || typeof listener === 'function')) {
-          {
-            throw ReactError(Error("Expected `" + registrationName + "` listener to be a function, instead got a value of `" + typeof listener + "` type."));
-          }
+      if (!(!listener || typeof listener === 'function')) {
+        {
+          throw Error("Expected `" + registrationName + "` listener to be a function, instead got a value of `" + typeof listener + "` type.");
         }
-      })();
+      }
 
       return listener;
     }
@@ -5403,13 +5242,11 @@ if ("development" !== "production") {
         return;
       }
 
-      (function () {
-        if (!(typeof restoreImpl === 'function')) {
-          {
-            throw ReactError(Error("setRestoreImplementation() needs to be called to handle a target for controlled events. This error is likely caused by a bug in React. Please file an issue."));
-          }
+      if (!(typeof restoreImpl === 'function')) {
+        {
+          throw Error("setRestoreImplementation() needs to be called to handle a target for controlled events. This error is likely caused by a bug in React. Please file an issue.");
         }
-      })();
+      }
 
       var props = getFiberCurrentPropsFromNode(internalInstance.stateNode);
       restoreImpl(internalInstance.stateNode, internalInstance.type, props);
@@ -5453,12 +5290,8 @@ if ("development" !== "production") {
       }
     }
 
-    var enableUserTimingAPI = true; // Helps identify side effects in begin-phase lifecycle hooks and setState reducers:
-
-    var debugRenderPhaseSideEffects = false; // In some cases, StrictMode should also double-render lifecycles.
-    // This can be confusing for tests though,
-    // And it can be bad for performance in production.
-    // This feature flag can be used to control the behavior:
+    var enableUserTimingAPI = true; // Helps identify side effects in render-phase lifecycle hooks and setState
+    // reducers by double invoking them in Strict Mode.
 
     var debugRenderPhaseSideEffectsForStrictMode = true; // To preserve the "Pause on caught exceptions" behavior of the debugger, we
     // replay the begin phase of a failed component inside invokeGuardedCallback.
@@ -5469,10 +5302,9 @@ if ("development" !== "production") {
 
     var enableProfilerTimer = true; // Trace which interactions trigger each commit.
 
-    var enableSchedulerTracing = true; // Only used in www builds.
+    var enableSchedulerTracing = true; // SSR experiments
 
-    var enableSuspenseServerRenderer = false; // TODO: true? Here it might just be false.
-
+    var enableSuspenseServerRenderer = false;
     var enableSelectiveHydration = false; // Only used in www builds.
     // Only used in www builds.
     // Disable javascript: URL strings in href for XSS protection.
@@ -5483,10 +5315,8 @@ if ("development" !== "production") {
     var disableInputAttributeSyncing = false; // These APIs will no longer be "unstable" in the upcoming 16.7 release,
     // Control this behavior with a flag to support 16.6 minor releases in the meanwhile.
 
-    var enableStableConcurrentModeAPIs = false;
-    var warnAboutShorthandPropertyCollision = false; // See https://github.com/react-native-community/discussions-and-proposals/issues/72 for more information
-    // This is a flag so we can fix warnings in RN core before turning it on
-    // Experimental React Flare event system and event components support.
+    var exposeConcurrentModeAPIs = false;
+    var warnAboutShorthandPropertyCollision = false; // Experimental React Flare event system and event components support.
 
     var enableFlareAPI = false; // Experimental Host Component support.
 
@@ -5494,16 +5324,12 @@ if ("development" !== "production") {
 
     var enableScopeAPI = false; // New API for JSX transforms to target - https://github.com/reactjs/rfcs/pull/107
     // We will enforce mocking scheduler with scheduler/unstable_mock at some point. (v17?)
-    // Till then, we warn about the missing mock, but still fallback to a sync mode compatible version
+    // Till then, we warn about the missing mock, but still fallback to a legacy mode compatible version
 
     var warnAboutUnmockedScheduler = false; // For tests, we flush suspense fallbacks in an act scope;
     // *except* in some of our own tests, where we test incremental loading states.
 
-    var flushSuspenseFallbacksInTests = true; // Changes priority of some events like mousemove to user-blocking priority,
-    // but without making them discrete. The flag exists in case it causes
-    // starvation problems.
-
-    var enableUserBlockingEvents = false; // Add a callback property to suspense to notify which promises are currently
+    var flushSuspenseFallbacksInTests = true; // Add a callback property to suspense to notify which promises are currently
     // in the update queue. This allows reporting and tracing of what is causing
     // the user to see a loading state.
     // Also allows hydration callbacks to fire when a dehydrated boundary gets
@@ -5517,7 +5343,8 @@ if ("development" !== "production") {
     var warnAboutStringRefs = false;
     var disableLegacyContext = false;
     var disableSchedulerTimeoutBasedOnReactExpirationTime = false;
-    var enableTrustedTypesIntegration = false; // the renderer. Such as when we're dispatching events or if third party
+    var enableTrustedTypesIntegration = false; // Flag to turn event.target and event.currentTarget in ReactNative from a reactTag to a component instance
+    // the renderer. Such as when we're dispatching events or if third party
     // libraries need to call batchedUpdates. Eventually, this API will go away when
     // everything is batched by default. We'll then have a similar API to opt-out of
     // scheduled work and instead do synchronous work.
@@ -5655,14 +5482,11 @@ if ("development" !== "production") {
       listenToResponderEventTypesImpl = _listenToResponderEventTypesImpl;
     }
 
-    var activeTimeouts = new Map();
     var rootEventTypesToEventResponderInstances = new Map();
     var DoNotPropagateToNextResponder = 0;
     var PropagateToNextResponder = 1;
     var currentTimeStamp = 0;
-    var currentTimers = new Map();
     var currentInstance = null;
-    var currentTimerIDCounter = 0;
     var currentDocument = null;
     var currentPropagationBehavior = DoNotPropagateToNextResponder;
     var eventResponderContext = {
@@ -5682,14 +5506,9 @@ if ("development" !== "production") {
 
           case UserBlockingEvent:
             {
-              if (enableUserBlockingEvents) {
-                runWithPriority(UserBlockingPriority, function () {
-                  return executeUserEventHandler(eventListener, eventValue);
-                });
-              } else {
-                executeUserEventHandler(eventListener, eventValue);
-              }
-
+              runWithPriority(UserBlockingPriority, function () {
+                return executeUserEventHandler(eventListener, eventValue);
+              });
               break;
             }
 
@@ -5792,50 +5611,6 @@ if ("development" !== "production") {
           }
         }
       },
-      setTimeout: function (func, delay) {
-        validateResponderContext();
-
-        if (currentTimers === null) {
-          currentTimers = new Map();
-        }
-
-        var timeout = currentTimers.get(delay);
-        var timerId = currentTimerIDCounter++;
-
-        if (timeout === undefined) {
-          var timers = new Map();
-          var id = setTimeout(function () {
-            processTimers(timers, delay);
-          }, delay);
-          timeout = {
-            id: id,
-            timers: timers
-          };
-          currentTimers.set(delay, timeout);
-        }
-
-        timeout.timers.set(timerId, {
-          instance: currentInstance,
-          func: func,
-          id: timerId,
-          timeStamp: currentTimeStamp
-        });
-        activeTimeouts.set(timerId, timeout);
-        return timerId;
-      },
-      clearTimeout: function (timerId) {
-        validateResponderContext();
-        var timeout = activeTimeouts.get(timerId);
-
-        if (timeout !== undefined) {
-          var timers = timeout.timers;
-          timers.delete(timerId);
-
-          if (timers.size === 0) {
-            clearTimeout(timeout.id);
-          }
-        }
-      },
       getActiveDocument: getActiveDocument,
       objectAssign: _assign,
       getTimeStamp: function () {
@@ -5931,36 +5706,6 @@ if ("development" !== "production") {
 
     function getActiveDocument() {
       return currentDocument;
-    }
-
-    function processTimers(timers, delay) {
-      var timersArr = Array.from(timers.values());
-      var previousInstance = currentInstance;
-      var previousTimers = currentTimers;
-
-      try {
-        batchedEventUpdates(function () {
-          for (var i = 0; i < timersArr.length; i++) {
-            var _timersArr$i = timersArr[i],
-                instance = _timersArr$i.instance,
-                func = _timersArr$i.func,
-                id = _timersArr$i.id,
-                timeStamp = _timersArr$i.timeStamp;
-            currentInstance = instance;
-            currentTimeStamp = timeStamp + delay;
-
-            try {
-              func();
-            } finally {
-              activeTimeouts.delete(id);
-            }
-          }
-        });
-      } finally {
-        currentTimers = previousTimers;
-        currentInstance = previousInstance;
-        currentTimeStamp = 0;
-      }
     }
 
     function createDOMResponderEvent(topLevelType, nativeEvent, nativeEventTarget, passive, passiveSupported) {
@@ -6088,7 +5833,6 @@ if ("development" !== "production") {
 
       if (onMount !== null) {
         var previousInstance = currentInstance;
-        var previousTimers = currentTimers;
         currentInstance = responderInstance;
 
         try {
@@ -6097,7 +5841,6 @@ if ("development" !== "production") {
           });
         } finally {
           currentInstance = previousInstance;
-          currentTimers = previousTimers;
         }
       }
     }
@@ -6110,7 +5853,6 @@ if ("development" !== "production") {
         var props = responderInstance.props,
             state = responderInstance.state;
         var previousInstance = currentInstance;
-        var previousTimers = currentTimers;
         currentInstance = responderInstance;
 
         try {
@@ -6119,7 +5861,6 @@ if ("development" !== "production") {
           });
         } finally {
           currentInstance = previousInstance;
-          currentTimers = previousTimers;
         }
       }
 
@@ -6140,24 +5881,20 @@ if ("development" !== "production") {
     }
 
     function validateResponderContext() {
-      (function () {
-        if (!(currentInstance !== null)) {
-          {
-            throw ReactError(Error("An event responder context was used outside of an event cycle. Use context.setTimeout() to use asynchronous responder context outside of event cycle ."));
-          }
+      if (!(currentInstance !== null)) {
+        {
+          throw Error("An event responder context was used outside of an event cycle.");
         }
-      })();
+      }
     }
 
     function dispatchEventForResponderEventSystem(topLevelType, targetFiber, nativeEvent, nativeEventTarget, eventSystemFlags) {
       if (enableFlareAPI) {
         var previousInstance = currentInstance;
-        var previousTimers = currentTimers;
         var previousTimeStamp = currentTimeStamp;
         var previousDocument = currentDocument;
         var previousPropagationBehavior = currentPropagationBehavior;
-        currentPropagationBehavior = DoNotPropagateToNextResponder;
-        currentTimers = null; // nodeType 9 is DOCUMENT_NODE
+        currentPropagationBehavior = DoNotPropagateToNextResponder; // nodeType 9 is DOCUMENT_NODE
 
         currentDocument = nativeEventTarget.nodeType === 9 ? nativeEventTarget : nativeEventTarget.ownerDocument; // We might want to control timeStamp another way here
 
@@ -6168,7 +5905,6 @@ if ("development" !== "production") {
             traverseAndHandleEventResponderInstances(topLevelType, targetFiber, nativeEvent, nativeEventTarget, eventSystemFlags);
           });
         } finally {
-          currentTimers = previousTimers;
           currentInstance = previousInstance;
           currentTimeStamp = previousTimeStamp;
           currentDocument = previousDocument;
@@ -6198,13 +5934,11 @@ if ("development" !== "production") {
         rootEventTypesSet = eventResponderInstance.rootEventTypes = new Set();
       }
 
-      (function () {
-        if (!!rootEventTypesSet.has(rootEventType)) {
-          {
-            throw ReactError(Error("addRootEventTypes() found a duplicate root event type of \"" + rootEventType + "\". This might be because the event type exists in the event responder \"rootEventTypes\" array or because of a previous addRootEventTypes() using this root event type."));
-          }
+      if (!!rootEventTypesSet.has(rootEventType)) {
+        {
+          throw Error("addRootEventTypes() found a duplicate root event type of \"" + rootEventType + "\". This might be because the event type exists in the event responder \"rootEventTypes\" array or because of a previous addRootEventTypes() using this root event type.");
         }
-      })();
+      }
 
       rootEventTypesSet.add(rootEventType);
       rootEventResponderInstances.add(eventResponderInstance);
@@ -6515,13 +6249,11 @@ if ("development" !== "production") {
 
     function sanitizeURL(url) {
       if (disableJavaScriptURLs) {
-        (function () {
-          if (!!isJavaScriptProtocol.test(url)) {
-            {
-              throw ReactError(Error("React has blocked a javascript: URL as a security precaution." + ReactDebugCurrentFrame$1.getStackAddendum()));
-            }
+        if (!!isJavaScriptProtocol.test(url)) {
+          {
+            throw Error("React has blocked a javascript: URL as a security precaution." + ReactDebugCurrentFrame$1.getStackAddendum());
           }
-        })();
+        }
       } else if (true && !didWarn && isJavaScriptProtocol.test(url)) {
         didWarn = true;
         warning$1(false, 'A future version of React will block javascript: URLs as a security precaution. ' + 'Use event handlers instead if you can. If you need to generate unsafe HTML try ' + 'using dangerouslySetInnerHTML instead. React was passed %s.', JSON.stringify(url));
@@ -6563,16 +6295,10 @@ if ("development" !== "production") {
     var toStringOrTrustedType = toString;
 
     if (enableTrustedTypesIntegration && typeof trustedTypes !== 'undefined') {
-      var isHTML = trustedTypes.isHTML;
-      var isScript = trustedTypes.isScript;
-      var isScriptURL = trustedTypes.isScriptURL; // TrustedURLs are deprecated and will be removed soon: https://github.com/WICG/trusted-types/pull/204
-
-      var isURL = trustedTypes.isURL ? trustedTypes.isURL : function (value) {
-        return false;
-      };
-
       toStringOrTrustedType = function (value) {
-        if (typeof value === 'object' && (isHTML(value) || isScript(value) || isScriptURL(value) || isURL(value))) {
+        if (typeof value === 'object' && (trustedTypes.isHTML(value) || trustedTypes.isScript(value) || trustedTypes.isScriptURL(value) ||
+        /* TrustedURLs are deprecated and will be removed soon: https://github.com/WICG/trusted-types/pull/204 */
+        trustedTypes.isURL && trustedTypes.isURL(value))) {
           // Pass Trusted Types through.
           return value;
         }
@@ -7220,13 +6946,11 @@ if ("development" !== "production") {
 
           var otherProps = getFiberCurrentPropsFromNode$1(otherNode);
 
-          (function () {
-            if (!otherProps) {
-              {
-                throw ReactError(Error("ReactDOMInput: Mixing React and non-React radio inputs with the same `name` is not supported."));
-              }
+          if (!otherProps) {
+            {
+              throw Error("ReactDOMInput: Mixing React and non-React radio inputs with the same `name` is not supported.");
             }
-          })(); // We need update the tracked value on the named cousin since the value
+          } // We need update the tracked value on the named cousin since the value
           // was changed but the input saw no event or value set
 
 
@@ -7531,13 +7255,11 @@ if ("development" !== "production") {
     function getHostProps$3(element, props) {
       var node = element;
 
-      (function () {
-        if (!(props.dangerouslySetInnerHTML == null)) {
-          {
-            throw ReactError(Error("`dangerouslySetInnerHTML` does not make sense on <textarea>."));
-          }
+      if (!(props.dangerouslySetInnerHTML == null)) {
+        {
+          throw Error("`dangerouslySetInnerHTML` does not make sense on <textarea>.");
         }
-      })(); // Always set children to the same thing. In IE9, the selection range will
+      } // Always set children to the same thing. In IE9, the selection range will
       // get reset if `textContent` is mutated.  We could add a check in setTextContent
       // to only set the value if/when the value differs from the node value (which would
       // completely solve this IE9 bug), but Sebastian+Sophie seemed to like this
@@ -7576,22 +7298,18 @@ if ("development" !== "production") {
             warning$1(false, 'Use the `defaultValue` or `value` props instead of setting ' + 'children on <textarea>.');
           }
 
-          (function () {
-            if (!(defaultValue == null)) {
-              {
-                throw ReactError(Error("If you supply `defaultValue` on a <textarea>, do not pass children."));
-              }
+          if (!(defaultValue == null)) {
+            {
+              throw Error("If you supply `defaultValue` on a <textarea>, do not pass children.");
             }
-          })();
+          }
 
           if (Array.isArray(children)) {
-            (function () {
-              if (!(children.length <= 1)) {
-                {
-                  throw ReactError(Error("<textarea> can only have at most one child."));
-                }
+            if (!(children.length <= 1)) {
+              {
+                throw Error("<textarea> can only have at most one child.");
               }
-            })();
+            }
 
             children = children[0];
           }
@@ -7974,11 +7692,462 @@ if ("development" !== "production") {
     function getRawEventName(topLevelType) {
       return unsafeCastDOMTopLevelTypeToString(topLevelType);
     }
+    /**
+     * `ReactInstanceMap` maintains a mapping from a public facing stateful
+     * instance (key) and the internal representation (value). This allows public
+     * methods to accept the user facing instance as an argument and map them back
+     * to internal methods.
+     *
+     * Note that this module is currently shared and assumed to be stateless.
+     * If this becomes an actual Map, that will break.
+     */
+
+    /**
+     * This API should be called `delete` but we'd have to make sure to always
+     * transform these to strings for IE support. When this transform is fully
+     * supported we can rename it.
+     */
+
+
+    function get(key) {
+      return key._reactInternalFiber;
+    }
+
+    function has(key) {
+      return key._reactInternalFiber !== undefined;
+    }
+
+    function set(key, value) {
+      key._reactInternalFiber = value;
+    } // Don't change these two values. They're used by React Dev Tools.
+
+
+    var NoEffect =
+    /*              */
+    0;
+    var PerformedWork =
+    /*         */
+    1; // You can change the rest (and add more).
+
+    var Placement =
+    /*             */
+    2;
+    var Update =
+    /*                */
+    4;
+    var PlacementAndUpdate =
+    /*    */
+    6;
+    var Deletion =
+    /*              */
+    8;
+    var ContentReset =
+    /*          */
+    16;
+    var Callback =
+    /*              */
+    32;
+    var DidCapture =
+    /*            */
+    64;
+    var Ref =
+    /*                   */
+    128;
+    var Snapshot =
+    /*              */
+    256;
+    var Passive =
+    /*               */
+    512;
+    var Hydrating =
+    /*             */
+    1024;
+    var HydratingAndUpdate =
+    /*    */
+    1028; // Passive & Update & Callback & Ref & Snapshot
+
+    var LifecycleEffectMask =
+    /*   */
+    932; // Union of all host effects
+
+    var HostEffectMask =
+    /*        */
+    2047;
+    var Incomplete =
+    /*            */
+    2048;
+    var ShouldCapture =
+    /*         */
+    4096;
+    var ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
+
+    function getNearestMountedFiber(fiber) {
+      var node = fiber;
+      var nearestMounted = fiber;
+
+      if (!fiber.alternate) {
+        // If there is no alternate, this might be a new tree that isn't inserted
+        // yet. If it is, then it will have a pending insertion effect on it.
+        var nextNode = node;
+
+        do {
+          node = nextNode;
+
+          if ((node.effectTag & (Placement | Hydrating)) !== NoEffect) {
+            // This is an insertion or in-progress hydration. The nearest possible
+            // mounted fiber is the parent but we need to continue to figure out
+            // if that one is still mounted.
+            nearestMounted = node.return;
+          }
+
+          nextNode = node.return;
+        } while (nextNode);
+      } else {
+        while (node.return) {
+          node = node.return;
+        }
+      }
+
+      if (node.tag === HostRoot) {
+        // TODO: Check if this was a nested HostRoot when used with
+        // renderContainerIntoSubtree.
+        return nearestMounted;
+      } // If we didn't hit the root, that means that we're in an disconnected tree
+      // that has been unmounted.
+
+
+      return null;
+    }
+
+    function getSuspenseInstanceFromFiber(fiber) {
+      if (fiber.tag === SuspenseComponent) {
+        var suspenseState = fiber.memoizedState;
+
+        if (suspenseState === null) {
+          var current = fiber.alternate;
+
+          if (current !== null) {
+            suspenseState = current.memoizedState;
+          }
+        }
+
+        if (suspenseState !== null) {
+          return suspenseState.dehydrated;
+        }
+      }
+
+      return null;
+    }
+
+    function getContainerFromFiber(fiber) {
+      return fiber.tag === HostRoot ? fiber.stateNode.containerInfo : null;
+    }
+
+    function isFiberMounted(fiber) {
+      return getNearestMountedFiber(fiber) === fiber;
+    }
+
+    function isMounted(component) {
+      {
+        var owner = ReactCurrentOwner.current;
+
+        if (owner !== null && owner.tag === ClassComponent) {
+          var ownerFiber = owner;
+          var instance = ownerFiber.stateNode;
+          !instance._warnedAboutRefsInRender ? warningWithoutStack$1(false, '%s is accessing isMounted inside its render() function. ' + 'render() should be a pure function of props and state. It should ' + 'never access something that requires stale data from the previous ' + 'render, such as refs. Move this logic to componentDidMount and ' + 'componentDidUpdate instead.', getComponentName(ownerFiber.type) || 'A component') : void 0;
+          instance._warnedAboutRefsInRender = true;
+        }
+      }
+      var fiber = get(component);
+
+      if (!fiber) {
+        return false;
+      }
+
+      return getNearestMountedFiber(fiber) === fiber;
+    }
+
+    function assertIsMounted(fiber) {
+      if (!(getNearestMountedFiber(fiber) === fiber)) {
+        {
+          throw Error("Unable to find node on an unmounted component.");
+        }
+      }
+    }
+
+    function findCurrentFiberUsingSlowPath(fiber) {
+      var alternate = fiber.alternate;
+
+      if (!alternate) {
+        // If there is no alternate, then we only need to check if it is mounted.
+        var nearestMounted = getNearestMountedFiber(fiber);
+
+        if (!(nearestMounted !== null)) {
+          {
+            throw Error("Unable to find node on an unmounted component.");
+          }
+        }
+
+        if (nearestMounted !== fiber) {
+          return null;
+        }
+
+        return fiber;
+      } // If we have two possible branches, we'll walk backwards up to the root
+      // to see what path the root points to. On the way we may hit one of the
+      // special cases and we'll deal with them.
+
+
+      var a = fiber;
+      var b = alternate;
+
+      while (true) {
+        var parentA = a.return;
+
+        if (parentA === null) {
+          // We're at the root.
+          break;
+        }
+
+        var parentB = parentA.alternate;
+
+        if (parentB === null) {
+          // There is no alternate. This is an unusual case. Currently, it only
+          // happens when a Suspense component is hidden. An extra fragment fiber
+          // is inserted in between the Suspense fiber and its children. Skip
+          // over this extra fragment fiber and proceed to the next parent.
+          var nextParent = parentA.return;
+
+          if (nextParent !== null) {
+            a = b = nextParent;
+            continue;
+          } // If there's no parent, we're at the root.
+
+
+          break;
+        } // If both copies of the parent fiber point to the same child, we can
+        // assume that the child is current. This happens when we bailout on low
+        // priority: the bailed out fiber's child reuses the current child.
+
+
+        if (parentA.child === parentB.child) {
+          var child = parentA.child;
+
+          while (child) {
+            if (child === a) {
+              // We've determined that A is the current branch.
+              assertIsMounted(parentA);
+              return fiber;
+            }
+
+            if (child === b) {
+              // We've determined that B is the current branch.
+              assertIsMounted(parentA);
+              return alternate;
+            }
+
+            child = child.sibling;
+          } // We should never have an alternate for any mounting node. So the only
+          // way this could possibly happen is if this was unmounted, if at all.
+
+
+          {
+            {
+              throw Error("Unable to find node on an unmounted component.");
+            }
+          }
+        }
+
+        if (a.return !== b.return) {
+          // The return pointer of A and the return pointer of B point to different
+          // fibers. We assume that return pointers never criss-cross, so A must
+          // belong to the child set of A.return, and B must belong to the child
+          // set of B.return.
+          a = parentA;
+          b = parentB;
+        } else {
+          // The return pointers point to the same fiber. We'll have to use the
+          // default, slow path: scan the child sets of each parent alternate to see
+          // which child belongs to which set.
+          //
+          // Search parent A's child set
+          var didFindChild = false;
+          var _child = parentA.child;
+
+          while (_child) {
+            if (_child === a) {
+              didFindChild = true;
+              a = parentA;
+              b = parentB;
+              break;
+            }
+
+            if (_child === b) {
+              didFindChild = true;
+              b = parentA;
+              a = parentB;
+              break;
+            }
+
+            _child = _child.sibling;
+          }
+
+          if (!didFindChild) {
+            // Search parent B's child set
+            _child = parentB.child;
+
+            while (_child) {
+              if (_child === a) {
+                didFindChild = true;
+                a = parentB;
+                b = parentA;
+                break;
+              }
+
+              if (_child === b) {
+                didFindChild = true;
+                b = parentB;
+                a = parentA;
+                break;
+              }
+
+              _child = _child.sibling;
+            }
+
+            if (!didFindChild) {
+              {
+                throw Error("Child was not found in either parent set. This indicates a bug in React related to the return pointer. Please file an issue.");
+              }
+            }
+          }
+        }
+
+        if (!(a.alternate === b)) {
+          {
+            throw Error("Return fibers should always be each others' alternates. This error is likely caused by a bug in React. Please file an issue.");
+          }
+        }
+      } // If the root is not a host container, we're in a disconnected tree. I.e.
+      // unmounted.
+
+
+      if (!(a.tag === HostRoot)) {
+        {
+          throw Error("Unable to find node on an unmounted component.");
+        }
+      }
+
+      if (a.stateNode.current === a) {
+        // We've determined that A is the current branch.
+        return fiber;
+      } // Otherwise B has to be current branch.
+
+
+      return alternate;
+    }
+
+    function findCurrentHostFiber(parent) {
+      var currentParent = findCurrentFiberUsingSlowPath(parent);
+
+      if (!currentParent) {
+        return null;
+      } // Next we'll drill down this component to find the first HostComponent/Text.
+
+
+      var node = currentParent;
+
+      while (true) {
+        if (node.tag === HostComponent || node.tag === HostText) {
+          return node;
+        } else if (node.child) {
+          node.child.return = node;
+          node = node.child;
+          continue;
+        }
+
+        if (node === currentParent) {
+          return null;
+        }
+
+        while (!node.sibling) {
+          if (!node.return || node.return === currentParent) {
+            return null;
+          }
+
+          node = node.return;
+        }
+
+        node.sibling.return = node.return;
+        node = node.sibling;
+      } // Flow needs the return null here, but ESLint complains about it.
+      // eslint-disable-next-line no-unreachable
+
+
+      return null;
+    }
+
+    function findCurrentHostFiberWithNoPortals(parent) {
+      var currentParent = findCurrentFiberUsingSlowPath(parent);
+
+      if (!currentParent) {
+        return null;
+      } // Next we'll drill down this component to find the first HostComponent/Text.
+
+
+      var node = currentParent;
+
+      while (true) {
+        if (node.tag === HostComponent || node.tag === HostText || enableFundamentalAPI && node.tag === FundamentalComponent) {
+          return node;
+        } else if (node.child && node.tag !== HostPortal) {
+          node.child.return = node;
+          node = node.child;
+          continue;
+        }
+
+        if (node === currentParent) {
+          return null;
+        }
+
+        while (!node.sibling) {
+          if (!node.return || node.return === currentParent) {
+            return null;
+          }
+
+          node = node.return;
+        }
+
+        node.sibling.return = node.return;
+        node = node.sibling;
+      } // Flow needs the return null here, but ESLint complains about it.
+      // eslint-disable-next-line no-unreachable
+
+
+      return null;
+    }
 
     var attemptSynchronousHydration;
 
     function setAttemptSynchronousHydration(fn) {
       attemptSynchronousHydration = fn;
+    }
+
+    var attemptUserBlockingHydration;
+
+    function setAttemptUserBlockingHydration(fn) {
+      attemptUserBlockingHydration = fn;
+    }
+
+    var attemptContinuousHydration;
+
+    function setAttemptContinuousHydration(fn) {
+      attemptContinuousHydration = fn;
+    }
+
+    var attemptHydrationAtCurrentPriority;
+
+    function setAttemptHydrationAtCurrentPriority(fn) {
+      attemptHydrationAtCurrentPriority = fn;
     } // TODO: Upgrade this definition once we're on a newer version of Flow that
     // has this definition built-in.
 
@@ -7994,6 +8163,8 @@ if ("development" !== "production") {
 
     var queuedPointers = new Map();
     var queuedPointerCaptures = new Map(); // We could consider replaying selectionchange and touchmoves too.
+
+    var queuedExplicitHydrationTargets = [];
 
     function hasQueuedDiscreteEvents() {
       return queuedDiscreteEvents.length > 0;
@@ -8123,9 +8294,20 @@ if ("development" !== "production") {
       }
     }
 
-    function accumulateOrCreateQueuedReplayableEvent(existingQueuedEvent, blockedOn, topLevelType, eventSystemFlags, nativeEvent) {
+    function accumulateOrCreateContinuousQueuedReplayableEvent(existingQueuedEvent, blockedOn, topLevelType, eventSystemFlags, nativeEvent) {
       if (existingQueuedEvent === null || existingQueuedEvent.nativeEvent !== nativeEvent) {
-        return createQueuedReplayableEvent(blockedOn, topLevelType, eventSystemFlags, nativeEvent);
+        var queuedEvent = createQueuedReplayableEvent(blockedOn, topLevelType, eventSystemFlags, nativeEvent);
+
+        if (blockedOn !== null) {
+          var _fiber2 = getInstanceFromNode$1(blockedOn);
+
+          if (_fiber2 !== null) {
+            // Attempt to increase the priority of this target.
+            attemptContinuousHydration(_fiber2);
+          }
+        }
+
+        return queuedEvent;
       } // If we have already queued this exact event, then it's because
       // the different event systems have different DOM event listeners.
       // We can accumulate the flags and store a single event to be
@@ -8144,21 +8326,21 @@ if ("development" !== "production") {
         case TOP_FOCUS:
           {
             var focusEvent = nativeEvent;
-            queuedFocus = accumulateOrCreateQueuedReplayableEvent(queuedFocus, blockedOn, topLevelType, eventSystemFlags, focusEvent);
+            queuedFocus = accumulateOrCreateContinuousQueuedReplayableEvent(queuedFocus, blockedOn, topLevelType, eventSystemFlags, focusEvent);
             return true;
           }
 
         case TOP_DRAG_ENTER:
           {
             var dragEvent = nativeEvent;
-            queuedDrag = accumulateOrCreateQueuedReplayableEvent(queuedDrag, blockedOn, topLevelType, eventSystemFlags, dragEvent);
+            queuedDrag = accumulateOrCreateContinuousQueuedReplayableEvent(queuedDrag, blockedOn, topLevelType, eventSystemFlags, dragEvent);
             return true;
           }
 
         case TOP_MOUSE_OVER:
           {
             var mouseEvent = nativeEvent;
-            queuedMouse = accumulateOrCreateQueuedReplayableEvent(queuedMouse, blockedOn, topLevelType, eventSystemFlags, mouseEvent);
+            queuedMouse = accumulateOrCreateContinuousQueuedReplayableEvent(queuedMouse, blockedOn, topLevelType, eventSystemFlags, mouseEvent);
             return true;
           }
 
@@ -8166,7 +8348,7 @@ if ("development" !== "production") {
           {
             var pointerEvent = nativeEvent;
             var pointerId = pointerEvent.pointerId;
-            queuedPointers.set(pointerId, accumulateOrCreateQueuedReplayableEvent(queuedPointers.get(pointerId) || null, blockedOn, topLevelType, eventSystemFlags, pointerEvent));
+            queuedPointers.set(pointerId, accumulateOrCreateContinuousQueuedReplayableEvent(queuedPointers.get(pointerId) || null, blockedOn, topLevelType, eventSystemFlags, pointerEvent));
             return true;
           }
 
@@ -8174,15 +8356,80 @@ if ("development" !== "production") {
           {
             var _pointerEvent = nativeEvent;
             var _pointerId2 = _pointerEvent.pointerId;
-            queuedPointerCaptures.set(_pointerId2, accumulateOrCreateQueuedReplayableEvent(queuedPointerCaptures.get(_pointerId2) || null, blockedOn, topLevelType, eventSystemFlags, _pointerEvent));
+            queuedPointerCaptures.set(_pointerId2, accumulateOrCreateContinuousQueuedReplayableEvent(queuedPointerCaptures.get(_pointerId2) || null, blockedOn, topLevelType, eventSystemFlags, _pointerEvent));
             return true;
           }
       }
 
       return false;
+    } // Check if this target is unblocked. Returns true if it's unblocked.
+
+
+    function attemptExplicitHydrationTarget(queuedTarget) {
+      // TODO: This function shares a lot of logic with attemptToDispatchEvent.
+      // Try to unify them. It's a bit tricky since it would require two return
+      // values.
+      var targetInst = getClosestInstanceFromNode(queuedTarget.target);
+
+      if (targetInst !== null) {
+        var nearestMounted = getNearestMountedFiber(targetInst);
+
+        if (nearestMounted !== null) {
+          var tag = nearestMounted.tag;
+
+          if (tag === SuspenseComponent) {
+            var instance = getSuspenseInstanceFromFiber(nearestMounted);
+
+            if (instance !== null) {
+              // We're blocked on hydrating this boundary.
+              // Increase its priority.
+              queuedTarget.blockedOn = instance;
+              Scheduler.unstable_runWithPriority(queuedTarget.priority, function () {
+                attemptHydrationAtCurrentPriority(nearestMounted);
+              });
+              return;
+            }
+          } else if (tag === HostRoot) {
+            var root = nearestMounted.stateNode;
+
+            if (root.hydrate) {
+              queuedTarget.blockedOn = getContainerFromFiber(nearestMounted); // We don't currently have a way to increase the priority of
+              // a root other than sync.
+
+              return;
+            }
+          }
+        }
+      }
+
+      queuedTarget.blockedOn = null;
     }
 
-    function attemptReplayQueuedEvent(queuedEvent) {
+    function queueExplicitHydrationTarget(target) {
+      if (enableSelectiveHydration) {
+        var priority = Scheduler.unstable_getCurrentPriorityLevel();
+        var queuedTarget = {
+          blockedOn: null,
+          target: target,
+          priority: priority
+        };
+        var i = 0;
+
+        for (; i < queuedExplicitHydrationTargets.length; i++) {
+          if (priority <= queuedExplicitHydrationTargets[i].priority) {
+            break;
+          }
+        }
+
+        queuedExplicitHydrationTargets.splice(i, 0, queuedTarget);
+
+        if (i === 0) {
+          attemptExplicitHydrationTarget(queuedTarget);
+        }
+      }
+    }
+
+    function attemptReplayContinuousQueuedEvent(queuedEvent) {
       if (queuedEvent.blockedOn !== null) {
         return false;
       }
@@ -8191,6 +8438,12 @@ if ("development" !== "production") {
 
       if (nextBlockedOn !== null) {
         // We're still blocked. Try again later.
+        var _fiber3 = getInstanceFromNode$1(nextBlockedOn);
+
+        if (_fiber3 !== null) {
+          attemptContinuousHydration(_fiber3);
+        }
+
         queuedEvent.blockedOn = nextBlockedOn;
         return false;
       }
@@ -8198,8 +8451,8 @@ if ("development" !== "production") {
       return true;
     }
 
-    function attemptReplayQueuedEventInMap(queuedEvent, key, map) {
-      if (attemptReplayQueuedEvent(queuedEvent)) {
+    function attemptReplayContinuousQueuedEventInMap(queuedEvent, key, map) {
+      if (attemptReplayContinuousQueuedEvent(queuedEvent)) {
         map.delete(key);
       }
     }
@@ -8212,6 +8465,14 @@ if ("development" !== "production") {
 
         if (nextDiscreteEvent.blockedOn !== null) {
           // We're still blocked.
+          // Increase the priority of this boundary to unblock
+          // the next discrete event.
+          var _fiber4 = getInstanceFromNode$1(nextDiscreteEvent.blockedOn);
+
+          if (_fiber4 !== null) {
+            attemptUserBlockingHydration(_fiber4);
+          }
+
           break;
         }
 
@@ -8227,20 +8488,20 @@ if ("development" !== "production") {
       } // Next replay any continuous events.
 
 
-      if (queuedFocus !== null && attemptReplayQueuedEvent(queuedFocus)) {
+      if (queuedFocus !== null && attemptReplayContinuousQueuedEvent(queuedFocus)) {
         queuedFocus = null;
       }
 
-      if (queuedDrag !== null && attemptReplayQueuedEvent(queuedDrag)) {
+      if (queuedDrag !== null && attemptReplayContinuousQueuedEvent(queuedDrag)) {
         queuedDrag = null;
       }
 
-      if (queuedMouse !== null && attemptReplayQueuedEvent(queuedMouse)) {
+      if (queuedMouse !== null && attemptReplayContinuousQueuedEvent(queuedMouse)) {
         queuedMouse = null;
       }
 
-      queuedPointers.forEach(attemptReplayQueuedEventInMap);
-      queuedPointerCaptures.forEach(attemptReplayQueuedEventInMap);
+      queuedPointers.forEach(attemptReplayContinuousQueuedEventInMap);
+      queuedPointerCaptures.forEach(attemptReplayContinuousQueuedEventInMap);
     }
 
     function scheduleCallbackIfUnblocked(queuedEvent, unblocked) {
@@ -8292,451 +8553,30 @@ if ("development" !== "production") {
 
       queuedPointers.forEach(unblock);
       queuedPointerCaptures.forEach(unblock);
-    }
-    /**
-     * `ReactInstanceMap` maintains a mapping from a public facing stateful
-     * instance (key) and the internal representation (value). This allows public
-     * methods to accept the user facing instance as an argument and map them back
-     * to internal methods.
-     *
-     * Note that this module is currently shared and assumed to be stateless.
-     * If this becomes an actual Map, that will break.
-     */
 
-    /**
-     * This API should be called `delete` but we'd have to make sure to always
-     * transform these to strings for IE support. When this transform is fully
-     * supported we can rename it.
-     */
+      for (var _i = 0; _i < queuedExplicitHydrationTargets.length; _i++) {
+        var queuedTarget = queuedExplicitHydrationTargets[_i];
 
-
-    function get(key) {
-      return key._reactInternalFiber;
-    }
-
-    function has(key) {
-      return key._reactInternalFiber !== undefined;
-    }
-
-    function set(key, value) {
-      key._reactInternalFiber = value;
-    } // Don't change these two values. They're used by React Dev Tools.
-
-
-    var NoEffect =
-    /*              */
-    0;
-    var PerformedWork =
-    /*         */
-    1; // You can change the rest (and add more).
-
-    var Placement =
-    /*             */
-    2;
-    var Update =
-    /*                */
-    4;
-    var PlacementAndUpdate =
-    /*    */
-    6;
-    var Deletion =
-    /*              */
-    8;
-    var ContentReset =
-    /*          */
-    16;
-    var Callback =
-    /*              */
-    32;
-    var DidCapture =
-    /*            */
-    64;
-    var Ref =
-    /*                   */
-    128;
-    var Snapshot =
-    /*              */
-    256;
-    var Passive =
-    /*               */
-    512;
-    var Hydrating =
-    /*             */
-    1024;
-    var HydratingAndUpdate =
-    /*    */
-    1028; // Passive & Update & Callback & Ref & Snapshot
-
-    var LifecycleEffectMask =
-    /*   */
-    932; // Union of all host effects
-
-    var HostEffectMask =
-    /*        */
-    2047;
-    var Incomplete =
-    /*            */
-    2048;
-    var ShouldCapture =
-    /*         */
-    4096;
-    var ReactCurrentOwner$1 = ReactSharedInternals.ReactCurrentOwner;
-
-    function getNearestMountedFiber(fiber) {
-      var node = fiber;
-      var nearestMounted = fiber;
-
-      if (!fiber.alternate) {
-        // If there is no alternate, this might be a new tree that isn't inserted
-        // yet. If it is, then it will have a pending insertion effect on it.
-        var nextNode = node;
-
-        do {
-          node = nextNode;
-
-          if ((node.effectTag & (Placement | Hydrating)) !== NoEffect) {
-            // This is an insertion or in-progress hydration. The nearest possible
-            // mounted fiber is the parent but we need to continue to figure out
-            // if that one is still mounted.
-            nearestMounted = node.return;
-          }
-
-          nextNode = node.return;
-        } while (nextNode);
-      } else {
-        while (node.return) {
-          node = node.return;
+        if (queuedTarget.blockedOn === unblocked) {
+          queuedTarget.blockedOn = null;
         }
       }
 
-      if (node.tag === HostRoot) {
-        // TODO: Check if this was a nested HostRoot when used with
-        // renderContainerIntoSubtree.
-        return nearestMounted;
-      } // If we didn't hit the root, that means that we're in an disconnected tree
-      // that has been unmounted.
+      while (queuedExplicitHydrationTargets.length > 0) {
+        var nextExplicitTarget = queuedExplicitHydrationTargets[0];
 
-
-      return null;
-    }
-
-    function getSuspenseInstanceFromFiber(fiber) {
-      if (fiber.tag === SuspenseComponent) {
-        var suspenseState = fiber.memoizedState;
-
-        if (suspenseState === null) {
-          var current = fiber.alternate;
-
-          if (current !== null) {
-            suspenseState = current.memoizedState;
-          }
-        }
-
-        if (suspenseState !== null) {
-          return suspenseState.dehydrated;
-        }
-      }
-
-      return null;
-    }
-
-    function getContainerFromFiber(fiber) {
-      return fiber.tag === HostRoot ? fiber.stateNode.containerInfo : null;
-    }
-
-    function isFiberMounted(fiber) {
-      return getNearestMountedFiber(fiber) === fiber;
-    }
-
-    function isMounted(component) {
-      {
-        var owner = ReactCurrentOwner$1.current;
-
-        if (owner !== null && owner.tag === ClassComponent) {
-          var ownerFiber = owner;
-          var instance = ownerFiber.stateNode;
-          !instance._warnedAboutRefsInRender ? warningWithoutStack$1(false, '%s is accessing isMounted inside its render() function. ' + 'render() should be a pure function of props and state. It should ' + 'never access something that requires stale data from the previous ' + 'render, such as refs. Move this logic to componentDidMount and ' + 'componentDidUpdate instead.', getComponentName(ownerFiber.type) || 'A component') : void 0;
-          instance._warnedAboutRefsInRender = true;
-        }
-      }
-      var fiber = get(component);
-
-      if (!fiber) {
-        return false;
-      }
-
-      return getNearestMountedFiber(fiber) === fiber;
-    }
-
-    function assertIsMounted(fiber) {
-      (function () {
-        if (!(getNearestMountedFiber(fiber) === fiber)) {
-          {
-            throw ReactError(Error("Unable to find node on an unmounted component."));
-          }
-        }
-      })();
-    }
-
-    function findCurrentFiberUsingSlowPath(fiber) {
-      var alternate = fiber.alternate;
-
-      if (!alternate) {
-        // If there is no alternate, then we only need to check if it is mounted.
-        var nearestMounted = getNearestMountedFiber(fiber);
-
-        (function () {
-          if (!(nearestMounted !== null)) {
-            {
-              throw ReactError(Error("Unable to find node on an unmounted component."));
-            }
-          }
-        })();
-
-        if (nearestMounted !== fiber) {
-          return null;
-        }
-
-        return fiber;
-      } // If we have two possible branches, we'll walk backwards up to the root
-      // to see what path the root points to. On the way we may hit one of the
-      // special cases and we'll deal with them.
-
-
-      var a = fiber;
-      var b = alternate;
-
-      while (true) {
-        var parentA = a.return;
-
-        if (parentA === null) {
-          // We're at the root.
+        if (nextExplicitTarget.blockedOn !== null) {
+          // We're still blocked.
           break;
-        }
-
-        var parentB = parentA.alternate;
-
-        if (parentB === null) {
-          // There is no alternate. This is an unusual case. Currently, it only
-          // happens when a Suspense component is hidden. An extra fragment fiber
-          // is inserted in between the Suspense fiber and its children. Skip
-          // over this extra fragment fiber and proceed to the next parent.
-          var nextParent = parentA.return;
-
-          if (nextParent !== null) {
-            a = b = nextParent;
-            continue;
-          } // If there's no parent, we're at the root.
-
-
-          break;
-        } // If both copies of the parent fiber point to the same child, we can
-        // assume that the child is current. This happens when we bailout on low
-        // priority: the bailed out fiber's child reuses the current child.
-
-
-        if (parentA.child === parentB.child) {
-          var child = parentA.child;
-
-          while (child) {
-            if (child === a) {
-              // We've determined that A is the current branch.
-              assertIsMounted(parentA);
-              return fiber;
-            }
-
-            if (child === b) {
-              // We've determined that B is the current branch.
-              assertIsMounted(parentA);
-              return alternate;
-            }
-
-            child = child.sibling;
-          } // We should never have an alternate for any mounting node. So the only
-          // way this could possibly happen is if this was unmounted, if at all.
-
-
-          (function () {
-            {
-              {
-                throw ReactError(Error("Unable to find node on an unmounted component."));
-              }
-            }
-          })();
-        }
-
-        if (a.return !== b.return) {
-          // The return pointer of A and the return pointer of B point to different
-          // fibers. We assume that return pointers never criss-cross, so A must
-          // belong to the child set of A.return, and B must belong to the child
-          // set of B.return.
-          a = parentA;
-          b = parentB;
         } else {
-          // The return pointers point to the same fiber. We'll have to use the
-          // default, slow path: scan the child sets of each parent alternate to see
-          // which child belongs to which set.
-          //
-          // Search parent A's child set
-          var didFindChild = false;
-          var _child = parentA.child;
+          attemptExplicitHydrationTarget(nextExplicitTarget);
 
-          while (_child) {
-            if (_child === a) {
-              didFindChild = true;
-              a = parentA;
-              b = parentB;
-              break;
-            }
-
-            if (_child === b) {
-              didFindChild = true;
-              b = parentA;
-              a = parentB;
-              break;
-            }
-
-            _child = _child.sibling;
-          }
-
-          if (!didFindChild) {
-            // Search parent B's child set
-            _child = parentB.child;
-
-            while (_child) {
-              if (_child === a) {
-                didFindChild = true;
-                a = parentB;
-                b = parentA;
-                break;
-              }
-
-              if (_child === b) {
-                didFindChild = true;
-                b = parentB;
-                a = parentA;
-                break;
-              }
-
-              _child = _child.sibling;
-            }
-
-            (function () {
-              if (!didFindChild) {
-                {
-                  throw ReactError(Error("Child was not found in either parent set. This indicates a bug in React related to the return pointer. Please file an issue."));
-                }
-              }
-            })();
+          if (nextExplicitTarget.blockedOn === null) {
+            // We're unblocked.
+            queuedExplicitHydrationTargets.shift();
           }
         }
-
-        (function () {
-          if (!(a.alternate === b)) {
-            {
-              throw ReactError(Error("Return fibers should always be each others' alternates. This error is likely caused by a bug in React. Please file an issue."));
-            }
-          }
-        })();
-      } // If the root is not a host container, we're in a disconnected tree. I.e.
-      // unmounted.
-
-
-      (function () {
-        if (!(a.tag === HostRoot)) {
-          {
-            throw ReactError(Error("Unable to find node on an unmounted component."));
-          }
-        }
-      })();
-
-      if (a.stateNode.current === a) {
-        // We've determined that A is the current branch.
-        return fiber;
-      } // Otherwise B has to be current branch.
-
-
-      return alternate;
-    }
-
-    function findCurrentHostFiber(parent) {
-      var currentParent = findCurrentFiberUsingSlowPath(parent);
-
-      if (!currentParent) {
-        return null;
-      } // Next we'll drill down this component to find the first HostComponent/Text.
-
-
-      var node = currentParent;
-
-      while (true) {
-        if (node.tag === HostComponent || node.tag === HostText) {
-          return node;
-        } else if (node.child) {
-          node.child.return = node;
-          node = node.child;
-          continue;
-        }
-
-        if (node === currentParent) {
-          return null;
-        }
-
-        while (!node.sibling) {
-          if (!node.return || node.return === currentParent) {
-            return null;
-          }
-
-          node = node.return;
-        }
-
-        node.sibling.return = node.return;
-        node = node.sibling;
-      } // Flow needs the return null here, but ESLint complains about it.
-      // eslint-disable-next-line no-unreachable
-
-
-      return null;
-    }
-
-    function findCurrentHostFiberWithNoPortals(parent) {
-      var currentParent = findCurrentFiberUsingSlowPath(parent);
-
-      if (!currentParent) {
-        return null;
-      } // Next we'll drill down this component to find the first HostComponent/Text.
-
-
-      var node = currentParent;
-
-      while (true) {
-        if (node.tag === HostComponent || node.tag === HostText || enableFundamentalAPI && node.tag === FundamentalComponent) {
-          return node;
-        } else if (node.child && node.tag !== HostPortal) {
-          node.child.return = node;
-          node = node.child;
-          continue;
-        }
-
-        if (node === currentParent) {
-          return null;
-        }
-
-        while (!node.sibling) {
-          if (!node.return || node.return === currentParent) {
-            return null;
-          }
-
-          node = node.return;
-        }
-
-        node.sibling.return = node.return;
-        node = node.sibling;
-      } // Flow needs the return null here, but ESLint complains about it.
-      // eslint-disable-next-line no-unreachable
-
-
-      return null;
+      }
     }
 
     function addEventBubbleListener(element, eventType, listener) {
@@ -9284,13 +9124,11 @@ if ("development" !== "production") {
     function releasePooledEvent(event) {
       var EventConstructor = this;
 
-      (function () {
-        if (!(event instanceof EventConstructor)) {
-          {
-            throw ReactError(Error("Trying to release an event instance into a pool of a different type."));
-          }
+      if (!(event instanceof EventConstructor)) {
+        {
+          throw Error("Trying to release an event instance into a pool of a different type.");
         }
-      })();
+      }
 
       event.destructor();
 
@@ -10073,11 +9911,7 @@ if ("development" !== "production") {
     }
 
     function dispatchUserBlockingUpdate(topLevelType, eventSystemFlags, nativeEvent) {
-      if (enableUserBlockingEvents) {
-        runWithPriority$1(UserBlockingPriority$1, dispatchEvent.bind(null, topLevelType, eventSystemFlags, nativeEvent));
-      } else {
-        dispatchEvent(topLevelType, eventSystemFlags, nativeEvent);
-      }
+      runWithPriority$1(UserBlockingPriority$1, dispatchEvent.bind(null, topLevelType, eventSystemFlags, nativeEvent));
     }
 
     function dispatchEventForPluginEventSystem(topLevelType, eventSystemFlags, nativeEvent, targetInst) {
@@ -10852,44 +10686,36 @@ if ("development" !== "production") {
 
 
       if (voidElementTags[tag]) {
-        (function () {
-          if (!(props.children == null && props.dangerouslySetInnerHTML == null)) {
-            {
-              throw ReactError(Error(tag + " is a void element tag and must neither have `children` nor use `dangerouslySetInnerHTML`." + ReactDebugCurrentFrame$3.getStackAddendum()));
-            }
+        if (!(props.children == null && props.dangerouslySetInnerHTML == null)) {
+          {
+            throw Error(tag + " is a void element tag and must neither have `children` nor use `dangerouslySetInnerHTML`." + ReactDebugCurrentFrame$3.getStackAddendum());
           }
-        })();
+        }
       }
 
       if (props.dangerouslySetInnerHTML != null) {
-        (function () {
-          if (!(props.children == null)) {
-            {
-              throw ReactError(Error("Can only set one of `children` or `props.dangerouslySetInnerHTML`."));
-            }
+        if (!(props.children == null)) {
+          {
+            throw Error("Can only set one of `children` or `props.dangerouslySetInnerHTML`.");
           }
-        })();
+        }
 
-        (function () {
-          if (!(typeof props.dangerouslySetInnerHTML === 'object' && HTML$1 in props.dangerouslySetInnerHTML)) {
-            {
-              throw ReactError(Error("`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. Please visit https://fb.me/react-invariant-dangerously-set-inner-html for more information."));
-            }
+        if (!(typeof props.dangerouslySetInnerHTML === 'object' && HTML$1 in props.dangerouslySetInnerHTML)) {
+          {
+            throw Error("`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. Please visit https://fb.me/react-invariant-dangerously-set-inner-html for more information.");
           }
-        })();
+        }
       }
 
       {
         !(props.suppressContentEditableWarning || !props.contentEditable || props.children == null) ? warning$1(false, 'A component is `contentEditable` and contains `children` managed by ' + 'React. It is now your responsibility to guarantee that none of ' + 'those nodes are unexpectedly modified or duplicated. This is ' + 'probably not intentional.') : void 0;
       }
 
-      (function () {
-        if (!(props.style == null || typeof props.style === 'object')) {
-          {
-            throw ReactError(Error("The `style` prop expects a mapping from style properties to values, not a string. For example, style={{marginRight: spacing + 'em'}} when using JSX." + ReactDebugCurrentFrame$3.getStackAddendum()));
-          }
+      if (!(props.style == null || typeof props.style === 'object')) {
+        {
+          throw Error("The `style` prop expects a mapping from style properties to values, not a string. For example, style={{marginRight: spacing + 'em'}} when using JSX." + ReactDebugCurrentFrame$3.getStackAddendum());
         }
-      })();
+      }
     }
 
     function isCustomComponent(tagName, props) {
@@ -13543,13 +13369,11 @@ if ("development" !== "production") {
     } // can re-export everything from this module.
 
     function shim() {
-      (function () {
+      {
         {
-          {
-            throw ReactError(Error("The current renderer does not support persistence. This error is likely caused by a bug in React. Please file an issue."));
-          }
+          throw Error("The current renderer does not support persistence. This error is likely caused by a bug in React. Please file an issue.");
         }
-      })();
+      }
     } // Persistence (when unsupported)
 
 
@@ -13796,9 +13620,25 @@ if ("development" !== "production") {
       } else {
         container.insertBefore(child, beforeChild);
       }
+    } // This is a specific event for the React Flare
+    // event system, so event responders can act
+    // accordingly to a DOM node being unmounted that
+    // previously had active document focus.
+
+
+    function dispatchDetachedVisibleNodeEvent(child) {
+      if (enableFlareAPI && selectionInformation && child === selectionInformation.focusedElem) {
+        var targetFiber = getClosestInstanceFromNode(child); // Simlulate a blur event to the React Flare responder system.
+
+        dispatchEventForResponderEventSystem('detachedvisiblenode', targetFiber, {
+          target: child,
+          timeStamp: Date.now()
+        }, child, RESPONDER_EVENT_SYSTEM | IS_PASSIVE);
+      }
     }
 
     function removeChild(parentInstance, child) {
+      dispatchDetachedVisibleNodeEvent(child);
       parentInstance.removeChild(child);
     }
 
@@ -13806,6 +13646,7 @@ if ("development" !== "production") {
       if (container.nodeType === COMMENT_NODE) {
         container.parentNode.removeChild(child);
       } else {
+        dispatchDetachedVisibleNodeEvent(child);
         container.removeChild(child);
       }
     }
@@ -14219,6 +14060,10 @@ if ("development" !== "production") {
       }
     }
 
+    function getInstanceFromNode$2(node) {
+      return getClosestInstanceFromNode(node) || null;
+    }
+
     var randomKey = Math.random().toString(36).slice(2);
     var internalInstanceKey = '__reactInternalInstance$' + randomKey;
     var internalEventHandlersKey = '__reactEventHandlers$' + randomKey;
@@ -14230,11 +14075,19 @@ if ("development" !== "production") {
 
     function markContainerAsRoot(hostRoot, node) {
       node[internalContainerInstanceKey] = hostRoot;
+    }
+
+    function unmarkContainerAsRoot(node) {
+      node[internalContainerInstanceKey] = null;
+    }
+
+    function isContainerMarkedAsRoot(node) {
+      return !!node[internalContainerInstanceKey];
     } // Given a DOM node, return the closest HostComponent or HostText fiber ancestor.
     // If the target node is part of a hydrated or not yet rendered subtree, then
     // this may also return a SuspenseComponent or HostRoot to indicate that.
     // Conceptually the HostRoot fiber is a child of the Container node. So if you
-    // pass the Container node as the targetNode, you wiill not actually get the
+    // pass the Container node as the targetNode, you will not actually get the
     // HostRoot back. To get to the HostRoot, you need to pass a child of it.
     // The same thing applies to Suspense boundaries.
 
@@ -14351,13 +14204,11 @@ if ("development" !== "production") {
       // invariant for a missing parent, which is super confusing.
 
 
-      (function () {
+      {
         {
-          {
-            throw ReactError(Error("getNodeFromInstance: Invalid argument."));
-          }
+          throw Error("getNodeFromInstance: Invalid argument.");
         }
-      })();
+      }
     }
 
     function getFiberCurrentPropsFromNode$1(node) {
@@ -15166,7 +15017,12 @@ if ("development" !== "production") {
         registrationName: 'onPointerLeave',
         dependencies: [TOP_POINTER_OUT, TOP_POINTER_OVER]
       }
-    };
+    }; // We track the lastNativeEvent to ensure that when we encounter
+    // cases where we process the same nativeEvent multiple times,
+    // which can happen when have multiple ancestors, that we don't
+    // duplicate enter
+
+    var lastNativeEvent;
     var EnterLeaveEventPlugin = {
       eventTypes: eventTypes$3,
 
@@ -15261,6 +15117,13 @@ if ("development" !== "production") {
         enter.target = toNode;
         enter.relatedTarget = fromNode;
         accumulateEnterLeaveDispatches(leave, enter, from, to);
+
+        if (nativeEvent === lastNativeEvent) {
+          lastNativeEvent = null;
+          return [leave];
+        }
+
+        lastNativeEvent = nativeEvent;
         return [leave, enter];
       }
     };
@@ -16094,13 +15957,11 @@ if ("development" !== "production") {
       if (disableLegacyContext) {
         return;
       } else {
-        (function () {
-          if (!(contextStackCursor.current === emptyContextObject)) {
-            {
-              throw ReactError(Error("Unexpected context found on stack. This error is likely caused by a bug in React. Please file an issue."));
-            }
+        if (!(contextStackCursor.current === emptyContextObject)) {
+          {
+            throw Error("Unexpected context found on stack. This error is likely caused by a bug in React. Please file an issue.");
           }
-        })();
+        }
 
         push(contextStackCursor, context, fiber);
         push(didPerformWorkStackCursor, didChange, fiber);
@@ -16139,13 +16000,11 @@ if ("development" !== "production") {
         }
 
         for (var contextKey in childContext) {
-          (function () {
-            if (!(contextKey in childContextTypes)) {
-              {
-                throw ReactError(Error((getComponentName(type) || 'Unknown') + ".getChildContext(): key \"" + contextKey + "\" is not defined in childContextTypes."));
-              }
+          if (!(contextKey in childContextTypes)) {
+            {
+              throw Error((getComponentName(type) || 'Unknown') + ".getChildContext(): key \"" + contextKey + "\" is not defined in childContextTypes.");
             }
-          })();
+          }
         }
 
         {
@@ -16185,13 +16044,11 @@ if ("development" !== "production") {
       } else {
         var instance = workInProgress.stateNode;
 
-        (function () {
-          if (!instance) {
-            {
-              throw ReactError(Error("Expected to have an instance by this point. This error is likely caused by a bug in React. Please file an issue."));
-            }
+        if (!instance) {
+          {
+            throw Error("Expected to have an instance by this point. This error is likely caused by a bug in React. Please file an issue.");
           }
-        })();
+        }
 
         if (didChange) {
           // Merge parent and own context.
@@ -16219,13 +16076,11 @@ if ("development" !== "production") {
       } else {
         // Currently this is only used with renderSubtreeIntoContainer; not sure if it
         // makes sense elsewhere
-        (function () {
-          if (!(isFiberMounted(fiber) && fiber.tag === ClassComponent)) {
-            {
-              throw ReactError(Error("Expected subtree parent to be a mounted class component. This error is likely caused by a bug in React. Please file an issue."));
-            }
+        if (!(isFiberMounted(fiber) && fiber.tag === ClassComponent)) {
+          {
+            throw Error("Expected subtree parent to be a mounted class component. This error is likely caused by a bug in React. Please file an issue.");
           }
-        })();
+        }
 
         var node = fiber;
 
@@ -16249,18 +16104,16 @@ if ("development" !== "production") {
           node = node.return;
         } while (node !== null);
 
-        (function () {
+        {
           {
-            {
-              throw ReactError(Error("Found unexpected detached subtree parent. This error is likely caused by a bug in React. Please file an issue."));
-            }
+            throw Error("Found unexpected detached subtree parent. This error is likely caused by a bug in React. Please file an issue.");
           }
-        })();
+        }
       }
     }
 
     var LegacyRoot = 0;
-    var BatchedRoot = 1;
+    var BlockingRoot = 1;
     var ConcurrentRoot = 2; // Intentionally not named imports because Rollup would use dynamic dispatch for
     // CommonJS interop named imports.
 
@@ -16281,13 +16134,11 @@ if ("development" !== "production") {
       // Provide explicit error message when production+profiling bundle of e.g.
       // react-dom is used with production (non-profiling) bundle of
       // scheduler/tracing
-      (function () {
-        if (!(tracing.__interactionsRef != null && tracing.__interactionsRef.current != null)) {
-          {
-            throw ReactError(Error("It is not supported to run the profiling version of a renderer (for example, `react-dom/profiling`) without also replacing the `scheduler/tracing` module with `scheduler/tracing-profiling`. Your bundler might have a setting for aliasing both modules. Learn more at http://fb.me/react-profiling"));
-          }
+      if (!(tracing.__interactionsRef != null && tracing.__interactionsRef.current != null)) {
+        {
+          throw Error("It is not supported to run the profiling version of a renderer (for example, `react-dom/profiling`) without also replacing the `scheduler/tracing` module with `scheduler/tracing-profiling`. Your bundler might have a setting for aliasing both modules. Learn more at http://fb.me/react-profiling");
         }
-      })();
+      }
     }
 
     var fakeCallbackNode = {}; // Except for NoPriority, these correspond to Scheduler priorities. We use
@@ -16337,14 +16188,11 @@ if ("development" !== "production") {
           return IdlePriority;
 
         default:
-          (function () {
+          {
             {
-              {
-                throw ReactError(Error("Unknown priority level."));
-              }
+              throw Error("Unknown priority level.");
             }
-          })();
-
+          }
       }
     }
 
@@ -16366,14 +16214,11 @@ if ("development" !== "production") {
           return Scheduler_IdlePriority;
 
         default:
-          (function () {
+          {
             {
-              {
-                throw ReactError(Error("Unknown priority level."));
-              }
+              throw Error("Unknown priority level.");
             }
-          })();
-
+          }
       }
     }
 
@@ -16454,10 +16299,10 @@ if ("development" !== "production") {
     }
 
     var NoMode = 0;
-    var StrictMode = 1; // TODO: Remove BatchedMode and ConcurrentMode by reading from the root
+    var StrictMode = 1; // TODO: Remove BlockingMode and ConcurrentMode by reading from the root
     // tag instead
 
-    var BatchedMode = 2;
+    var BlockingMode = 2;
     var ConcurrentMode = 4;
     var ProfileMode = 8; // Max 31 bit integer. The max integer size in V8 for 32-bit systems.
     // Math.pow(2, 30) - 1
@@ -16475,7 +16320,11 @@ if ("development" !== "production") {
     var Never = 1; // Idle is slightly higher priority than Never. It must completely finish in
     // order to be consistent.
 
-    var Idle = 2;
+    var Idle = 2; // Continuous Hydration is a moving priority. It is slightly higher than Idle
+    // and is used to increase priority of hover targets. It is increasing with
+    // each usage so that last always wins.
+
+    var ContinuousHydration = 3;
     var Sync = MAX_SIGNED_31_BIT_INT;
     var Batched = Sync - 1;
     var UNIT_SIZE = 10;
@@ -16528,6 +16377,13 @@ if ("development" !== "production") {
 
     function computeInteractiveExpiration(currentTime) {
       return computeExpirationBucket(currentTime, HIGH_PRIORITY_EXPIRATION, HIGH_PRIORITY_BATCH_SIZE);
+    }
+
+    function computeContinuousHydrationExpiration(currentTime) {
+      // Each time we ask for a new one of these we increase the priority.
+      // This ensures that the last one always wins since we can't deprioritize
+      // once we've scheduled work already.
+      return ContinuousHydration++;
     }
 
     function inferPriorityFromExpirationTime(currentTime, expirationTime) {
@@ -17038,7 +16894,9 @@ if ("development" !== "production") {
         }
 
         flushPassiveEffects();
-        updateContainerAtExpirationTime(element, root, null, Sync, null);
+        syncUpdates(function () {
+          updateContainer(element, root, null, null);
+        });
       }
     };
 
@@ -17441,13 +17299,11 @@ if ("development" !== "production") {
           // mark it as having updates.
           var parentSuspense = fiber.return;
 
-          (function () {
-            if (!(parentSuspense !== null)) {
-              {
-                throw ReactError(Error("We just came from a parent so we must have had a parent. This is a bug in React."));
-              }
+          if (!(parentSuspense !== null)) {
+            {
+              throw Error("We just came from a parent so we must have had a parent. This is a bug in React.");
             }
-          })();
+          }
 
           if (parentSuspense.expirationTime < renderExpirationTime) {
             parentSuspense.expirationTime = renderExpirationTime;
@@ -17550,13 +17406,11 @@ if ("development" !== "production") {
         };
 
         if (lastContextDependency === null) {
-          (function () {
-            if (!(currentlyRenderingFiber !== null)) {
-              {
-                throw ReactError(Error("Context can only be read while React is rendering. In classes, you can read it in the render method or getDerivedStateFromProps. In function components, you can read it directly in the function body, but not inside Hooks like useReducer() or useMemo()."));
-              }
+          if (!(currentlyRenderingFiber !== null)) {
+            {
+              throw Error("Context can only be read while React is rendering. In classes, you can read it in the render method or getDerivedStateFromProps. In function components, you can read it directly in the function body, but not inside Hooks like useReducer() or useMemo().");
             }
-          })(); // This is the first dependency for this component. Create a new list.
+          } // This is the first dependency for this component. Create a new list.
 
 
           lastContextDependency = contextItem;
@@ -17838,7 +17692,7 @@ if ("development" !== "production") {
               {
                 enterDisallowedContextReadInDEV();
 
-                if (debugRenderPhaseSideEffects || debugRenderPhaseSideEffectsForStrictMode && workInProgress.mode & StrictMode) {
+                if (debugRenderPhaseSideEffectsForStrictMode && workInProgress.mode & StrictMode) {
                   payload.call(instance, prevState, nextProps);
                 }
               }
@@ -17869,7 +17723,7 @@ if ("development" !== "production") {
               {
                 enterDisallowedContextReadInDEV();
 
-                if (debugRenderPhaseSideEffects || debugRenderPhaseSideEffectsForStrictMode && workInProgress.mode & StrictMode) {
+                if (debugRenderPhaseSideEffectsForStrictMode && workInProgress.mode & StrictMode) {
                   _payload.call(instance, prevState, nextProps);
                 }
               }
@@ -18048,13 +17902,11 @@ if ("development" !== "production") {
     }
 
     function callCallback(callback, context) {
-      (function () {
-        if (!(typeof callback === 'function')) {
-          {
-            throw ReactError(Error("Invalid argument passed as callback. Expected a function. Instead received: " + callback));
-          }
+      if (!(typeof callback === 'function')) {
+        {
+          throw Error("Invalid argument passed as callback. Expected a function. Instead received: " + callback);
         }
-      })();
+      }
 
       callback.call(context);
     }
@@ -18167,13 +18019,11 @@ if ("development" !== "production") {
       Object.defineProperty(fakeInternalInstance, '_processChildContext', {
         enumerable: false,
         value: function () {
-          (function () {
+          {
             {
-              {
-                throw ReactError(Error("_processChildContext is not available in React 16+. This likely means you have multiple copies of React and are attempting to nest a React 15 tree inside a React 16 tree using unstable_renderSubtreeIntoContainer, which isn't supported. Try to make sure you have only one copy of React (and ideally, switch to ReactDOM.createPortal)."));
-              }
+              throw Error("_processChildContext is not available in React 16+. This likely means you have multiple copies of React and are attempting to nest a React 15 tree inside a React 16 tree using unstable_renderSubtreeIntoContainer, which isn't supported. Try to make sure you have only one copy of React (and ideally, switch to ReactDOM.createPortal).");
             }
-          })();
+          }
         }
       });
       Object.freeze(fakeInternalInstance);
@@ -18182,7 +18032,7 @@ if ("development" !== "production") {
     function applyDerivedStateFromProps(workInProgress, ctor, getDerivedStateFromProps, nextProps) {
       var prevState = workInProgress.memoizedState;
       {
-        if (debugRenderPhaseSideEffects || debugRenderPhaseSideEffectsForStrictMode && workInProgress.mode & StrictMode) {
+        if (debugRenderPhaseSideEffectsForStrictMode && workInProgress.mode & StrictMode) {
           // Invoke the function an extra time to help detect side-effects.
           getDerivedStateFromProps(nextProps, prevState);
         }
@@ -18207,7 +18057,7 @@ if ("development" !== "production") {
       isMounted: isMounted,
       enqueueSetState: function (inst, payload, callback) {
         var fiber = get(inst);
-        var currentTime = requestCurrentTime();
+        var currentTime = requestCurrentTimeForUpdate();
         var suspenseConfig = requestCurrentSuspenseConfig();
         var expirationTime = computeExpirationForFiber(currentTime, fiber, suspenseConfig);
         var update = createUpdate(expirationTime, suspenseConfig);
@@ -18225,7 +18075,7 @@ if ("development" !== "production") {
       },
       enqueueReplaceState: function (inst, payload, callback) {
         var fiber = get(inst);
-        var currentTime = requestCurrentTime();
+        var currentTime = requestCurrentTimeForUpdate();
         var suspenseConfig = requestCurrentSuspenseConfig();
         var expirationTime = computeExpirationForFiber(currentTime, fiber, suspenseConfig);
         var update = createUpdate(expirationTime, suspenseConfig);
@@ -18244,7 +18094,7 @@ if ("development" !== "production") {
       },
       enqueueForceUpdate: function (inst, callback) {
         var fiber = get(inst);
-        var currentTime = requestCurrentTime();
+        var currentTime = requestCurrentTimeForUpdate();
         var suspenseConfig = requestCurrentSuspenseConfig();
         var expirationTime = computeExpirationForFiber(currentTime, fiber, suspenseConfig);
         var update = createUpdate(expirationTime, suspenseConfig);
@@ -18419,7 +18269,7 @@ if ("development" !== "production") {
 
 
       {
-        if (debugRenderPhaseSideEffects || debugRenderPhaseSideEffectsForStrictMode && workInProgress.mode & StrictMode) {
+        if (debugRenderPhaseSideEffectsForStrictMode && workInProgress.mode & StrictMode) {
           new ctor(props, context); // eslint-disable-line no-new
         }
       }
@@ -18846,13 +18696,11 @@ if ("development" !== "production") {
           return;
         }
 
-        (function () {
-          if (!(typeof child._store === 'object')) {
-            {
-              throw ReactError(Error("React Component in warnForMissingKey should have a _store. This error is likely caused by a bug in React. Please file an issue."));
-            }
+        if (!(typeof child._store === 'object')) {
+          {
+            throw Error("React Component in warnForMissingKey should have a _store. This error is likely caused by a bug in React. Please file an issue.");
           }
-        })();
+        }
 
         child._store.validated = true;
         var currentComponentErrorInfo = 'Each child in a list should have a unique ' + '"key" prop. See https://fb.me/react-warning-keys for ' + 'more information.' + getCurrentFiberStackInDev();
@@ -18896,24 +18744,20 @@ if ("development" !== "production") {
           if (owner) {
             var ownerFiber = owner;
 
-            (function () {
-              if (!(ownerFiber.tag === ClassComponent)) {
-                {
-                  throw ReactError(Error("Function components cannot have refs. Did you mean to use React.forwardRef()?"));
-                }
+            if (!(ownerFiber.tag === ClassComponent)) {
+              {
+                throw Error("Function components cannot have refs. Did you mean to use React.forwardRef()?");
               }
-            })();
+            }
 
             inst = ownerFiber.stateNode;
           }
 
-          (function () {
-            if (!inst) {
-              {
-                throw ReactError(Error("Missing owner for string ref " + mixedRef + ". This error is likely caused by a bug in React. Please file an issue."));
-              }
+          if (!inst) {
+            {
+              throw Error("Missing owner for string ref " + mixedRef + ". This error is likely caused by a bug in React. Please file an issue.");
             }
-          })();
+          }
 
           var stringRef = '' + mixedRef; // Check if previous string ref matches new string ref
 
@@ -18939,21 +18783,17 @@ if ("development" !== "production") {
           ref._stringRef = stringRef;
           return ref;
         } else {
-          (function () {
-            if (!(typeof mixedRef === 'string')) {
-              {
-                throw ReactError(Error("Expected ref to be a function, a string, an object returned by React.createRef(), or null."));
-              }
+          if (!(typeof mixedRef === 'string')) {
+            {
+              throw Error("Expected ref to be a function, a string, an object returned by React.createRef(), or null.");
             }
-          })();
+          }
 
-          (function () {
-            if (!element._owner) {
-              {
-                throw ReactError(Error("Element ref was specified as a string (" + mixedRef + ") but no owner was set. This could happen for one of the following reasons:\n1. You may be adding a ref to a function component\n2. You may be adding a ref to a component that was not created inside a component's render method\n3. You have multiple copies of React loaded\nSee https://fb.me/react-refs-must-have-owner for more information."));
-              }
+          if (!element._owner) {
+            {
+              throw Error("Element ref was specified as a string (" + mixedRef + ") but no owner was set. This could happen for one of the following reasons:\n1. You may be adding a ref to a function component\n2. You may be adding a ref to a component that was not created inside a component's render method\n3. You have multiple copies of React loaded\nSee https://fb.me/react-refs-must-have-owner for more information.");
             }
-          })();
+          }
         }
       }
 
@@ -18966,14 +18806,11 @@ if ("development" !== "production") {
         {
           addendum = ' If you meant to render a collection of children, use an array ' + 'instead.' + getCurrentFiberStackInDev();
         }
-
-        (function () {
+        {
           {
-            {
-              throw ReactError(Error("Objects are not valid as a React child (found: " + (Object.prototype.toString.call(newChild) === '[object Object]' ? 'object with keys {' + Object.keys(newChild).join(', ') + '}' : newChild) + ")." + addendum));
-            }
+            throw Error("Objects are not valid as a React child (found: " + (Object.prototype.toString.call(newChild) === '[object Object]' ? 'object with keys {' + Object.keys(newChild).join(', ') + '}' : newChild) + ")." + addendum);
           }
-        })();
+        }
       }
     }
 
@@ -19514,13 +19351,11 @@ if ("development" !== "production") {
         // but using the iterator instead.
         var iteratorFn = getIteratorFn(newChildrenIterable);
 
-        (function () {
-          if (!(typeof iteratorFn === 'function')) {
-            {
-              throw ReactError(Error("An object is not an iterable. This error is likely caused by a bug in React. Please file an issue."));
-            }
+        if (!(typeof iteratorFn === 'function')) {
+          {
+            throw Error("An object is not an iterable. This error is likely caused by a bug in React. Please file an issue.");
           }
-        })();
+        }
 
         {
           // We don't support rendering Generators because it's a mutation.
@@ -19554,13 +19389,11 @@ if ("development" !== "production") {
         }
         var newChildren = iteratorFn.call(newChildrenIterable);
 
-        (function () {
-          if (!(newChildren != null)) {
-            {
-              throw ReactError(Error("An iterable object provided no iterator."));
-            }
+        if (!(newChildren != null)) {
+          {
+            throw Error("An iterable object provided no iterator.");
           }
-        })();
+        }
 
         var resultingFirstChild = null;
         var previousNewFiber = null;
@@ -19855,14 +19688,11 @@ if ("development" !== "production") {
             case FunctionComponent:
               {
                 var Component = returnFiber.type;
-
-                (function () {
+                {
                   {
-                    {
-                      throw ReactError(Error((Component.displayName || Component.name || 'Component') + "(...): Nothing was returned from render. This usually means a return statement is missing. Or, to render nothing, return null."));
-                    }
+                    throw Error((Component.displayName || Component.name || 'Component') + "(...): Nothing was returned from render. This usually means a return statement is missing. Or, to render nothing, return null.");
                   }
-                })();
+                }
               }
           }
         } // Remaining cases are all treated as empty.
@@ -19878,13 +19708,11 @@ if ("development" !== "production") {
     var mountChildFibers = ChildReconciler(false);
 
     function cloneChildFibers(current$$1, workInProgress) {
-      (function () {
-        if (!(current$$1 === null || workInProgress.child === current$$1.child)) {
-          {
-            throw ReactError(Error("Resuming work not yet implemented."));
-          }
+      if (!(current$$1 === null || workInProgress.child === current$$1.child)) {
+        {
+          throw Error("Resuming work not yet implemented.");
         }
-      })();
+      }
 
       if (workInProgress.child === null) {
         return;
@@ -19920,13 +19748,11 @@ if ("development" !== "production") {
     var rootInstanceStackCursor = createCursor(NO_CONTEXT);
 
     function requiredContext(c) {
-      (function () {
-        if (!(c !== NO_CONTEXT)) {
-          {
-            throw ReactError(Error("Expected host context to exist. This error is likely caused by a bug in React. Please file an issue."));
-          }
+      if (!(c !== NO_CONTEXT)) {
+        {
+          throw Error("Expected host context to exist. This error is likely caused by a bug in React. Please file an issue.");
         }
-      })();
+      }
 
       return c;
     }
@@ -20172,13 +19998,11 @@ if ("development" !== "production") {
         props = listener.props;
       }
 
-      (function () {
-        if (!(responder && responder.$$typeof === REACT_RESPONDER_TYPE)) {
-          {
-            throw ReactError(Error("An invalid value was used as an event listener. Expect one or many event listeners created via React.unstable_useResponder()."));
-          }
+      if (!(responder && responder.$$typeof === REACT_RESPONDER_TYPE)) {
+        {
+          throw Error("An invalid value was used as an event listener. Expect one or many event listeners created via React.unstable_useResponder().");
         }
-      })();
+      }
 
       var listenerProps = props;
 
@@ -20290,6 +20114,7 @@ if ("development" !== "production") {
     /*       */
     128;
     var ReactCurrentDispatcher$1 = ReactSharedInternals.ReactCurrentDispatcher;
+    var ReactCurrentBatchConfig$1 = ReactSharedInternals.ReactCurrentBatchConfig;
     var didWarnAboutMismatchedHooksForComponent;
     {
       didWarnAboutMismatchedHooksForComponent = new Set();
@@ -20405,13 +20230,11 @@ if ("development" !== "production") {
     }
 
     function throwInvalidHookError() {
-      (function () {
+      {
         {
-          {
-            throw ReactError(Error("Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:\n1. You might have mismatching versions of React and the renderer (such as React DOM)\n2. You might be breaking the Rules of Hooks\n3. You might have more than one copy of React in the same app\nSee https://fb.me/react-invalid-hook-call for tips about how to debug and fix this problem."));
-          }
+          throw Error("Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:\n1. You might have mismatching versions of React and the renderer (such as React DOM)\n2. You might be breaking the Rules of Hooks\n3. You might have more than one copy of React in the same app\nSee https://fb.me/react-invalid-hook-call for tips about how to debug and fix this problem.");
         }
-      })();
+      }
     }
 
     function areHookInputsEqual(nextDeps, prevDeps) {
@@ -20549,13 +20372,11 @@ if ("development" !== "production") {
       // renderPhaseUpdates = null;
       // numberOfReRenders = 0;
 
-      (function () {
-        if (!!didRenderTooFewHooks) {
-          {
-            throw ReactError(Error("Rendered fewer hooks than expected. This may be caused by an accidental early return statement."));
-          }
+      if (!!didRenderTooFewHooks) {
+        {
+          throw Error("Rendered fewer hooks than expected. This may be caused by an accidental early return statement.");
         }
-      })();
+      }
 
       return children;
     }
@@ -20630,13 +20451,11 @@ if ("development" !== "production") {
         nextCurrentHook = currentHook !== null ? currentHook.next : null;
       } else {
         // Clone from the current hook.
-        (function () {
-          if (!(nextCurrentHook !== null)) {
-            {
-              throw ReactError(Error("Rendered more hooks than during the previous render."));
-            }
+        if (!(nextCurrentHook !== null)) {
+          {
+            throw Error("Rendered more hooks than during the previous render.");
           }
-        })();
+        }
 
         currentHook = nextCurrentHook;
         var newHook = {
@@ -20697,13 +20516,11 @@ if ("development" !== "production") {
       var hook = updateWorkInProgressHook();
       var queue = hook.queue;
 
-      (function () {
-        if (!(queue !== null)) {
-          {
-            throw ReactError(Error("Should have a queue. This is likely a bug in React. Please file an issue."));
-          }
+      if (!(queue !== null)) {
+        {
+          throw Error("Should have a queue. This is likely a bug in React. Please file an issue.");
         }
-      })();
+      }
 
       queue.lastRenderedReducer = reducer;
 
@@ -21077,14 +20894,96 @@ if ("development" !== "production") {
       return nextValue;
     }
 
-    function dispatchAction(fiber, queue, action) {
-      (function () {
-        if (!(numberOfReRenders < RE_RENDER_LIMIT)) {
-          {
-            throw ReactError(Error("Too many re-renders. React limits the number of renders to prevent an infinite loop."));
+    function mountDeferredValue(value, config) {
+      var _mountState = mountState(value),
+          prevValue = _mountState[0],
+          setValue = _mountState[1];
+
+      mountEffect(function () {
+        Scheduler.unstable_next(function () {
+          var previousConfig = ReactCurrentBatchConfig$1.suspense;
+          ReactCurrentBatchConfig$1.suspense = config === undefined ? null : config;
+
+          try {
+            setValue(value);
+          } finally {
+            ReactCurrentBatchConfig$1.suspense = previousConfig;
           }
+        });
+      }, [value, config]);
+      return prevValue;
+    }
+
+    function updateDeferredValue(value, config) {
+      var _updateState = updateState(value),
+          prevValue = _updateState[0],
+          setValue = _updateState[1];
+
+      updateEffect(function () {
+        Scheduler.unstable_next(function () {
+          var previousConfig = ReactCurrentBatchConfig$1.suspense;
+          ReactCurrentBatchConfig$1.suspense = config === undefined ? null : config;
+
+          try {
+            setValue(value);
+          } finally {
+            ReactCurrentBatchConfig$1.suspense = previousConfig;
+          }
+        });
+      }, [value, config]);
+      return prevValue;
+    }
+
+    function mountTransition(config) {
+      var _mountState2 = mountState(false),
+          isPending = _mountState2[0],
+          setPending = _mountState2[1];
+
+      var startTransition = mountCallback(function (callback) {
+        setPending(true);
+        Scheduler.unstable_next(function () {
+          var previousConfig = ReactCurrentBatchConfig$1.suspense;
+          ReactCurrentBatchConfig$1.suspense = config === undefined ? null : config;
+
+          try {
+            setPending(false);
+            callback();
+          } finally {
+            ReactCurrentBatchConfig$1.suspense = previousConfig;
+          }
+        });
+      }, [config, isPending]);
+      return [startTransition, isPending];
+    }
+
+    function updateTransition(config) {
+      var _updateState2 = updateState(false),
+          isPending = _updateState2[0],
+          setPending = _updateState2[1];
+
+      var startTransition = updateCallback(function (callback) {
+        setPending(true);
+        Scheduler.unstable_next(function () {
+          var previousConfig = ReactCurrentBatchConfig$1.suspense;
+          ReactCurrentBatchConfig$1.suspense = config === undefined ? null : config;
+
+          try {
+            setPending(false);
+            callback();
+          } finally {
+            ReactCurrentBatchConfig$1.suspense = previousConfig;
+          }
+        });
+      }, [config, isPending]);
+      return [startTransition, isPending];
+    }
+
+    function dispatchAction(fiber, queue, action) {
+      if (!(numberOfReRenders < RE_RENDER_LIMIT)) {
+        {
+          throw Error("Too many re-renders. React limits the number of renders to prevent an infinite loop.");
         }
-      })();
+      }
 
       {
         !(typeof arguments[3] !== 'function') ? warning$1(false, "State updates from the useState() and useReducer() Hooks don't support the " + 'second callback argument. To execute a side effect after ' + 'rendering, declare it in the component body with useEffect().') : void 0;
@@ -21127,7 +21026,7 @@ if ("development" !== "production") {
           lastRenderPhaseUpdate.next = update;
         }
       } else {
-        var currentTime = requestCurrentTime();
+        var currentTime = requestCurrentTimeForUpdate();
         var suspenseConfig = requestCurrentSuspenseConfig();
         var expirationTime = computeExpirationForFiber(currentTime, fiber, suspenseConfig);
         var _update2 = {
@@ -21222,7 +21121,9 @@ if ("development" !== "production") {
       useRef: throwInvalidHookError,
       useState: throwInvalidHookError,
       useDebugValue: throwInvalidHookError,
-      useResponder: throwInvalidHookError
+      useResponder: throwInvalidHookError,
+      useDeferredValue: throwInvalidHookError,
+      useTransition: throwInvalidHookError
     };
     var HooksDispatcherOnMountInDEV = null;
     var HooksDispatcherOnMountWithHookTypesInDEV = null;
@@ -21322,6 +21223,16 @@ if ("development" !== "production") {
           currentHookNameInDev = 'useResponder';
           mountHookTypesDev();
           return createResponderListener(responder, props);
+        },
+        useDeferredValue: function (value, config) {
+          currentHookNameInDev = 'useDeferredValue';
+          mountHookTypesDev();
+          return mountDeferredValue(value, config);
+        },
+        useTransition: function (config) {
+          currentHookNameInDev = 'useTransition';
+          mountHookTypesDev();
+          return mountTransition(config);
         }
       };
       HooksDispatcherOnMountWithHookTypesInDEV = {
@@ -21403,6 +21314,16 @@ if ("development" !== "production") {
           currentHookNameInDev = 'useResponder';
           updateHookTypesDev();
           return createResponderListener(responder, props);
+        },
+        useDeferredValue: function (value, config) {
+          currentHookNameInDev = 'useDeferredValue';
+          updateHookTypesDev();
+          return mountDeferredValue(value, config);
+        },
+        useTransition: function (config) {
+          currentHookNameInDev = 'useTransition';
+          updateHookTypesDev();
+          return mountTransition(config);
         }
       };
       HooksDispatcherOnUpdateInDEV = {
@@ -21484,6 +21405,16 @@ if ("development" !== "production") {
           currentHookNameInDev = 'useResponder';
           updateHookTypesDev();
           return createResponderListener(responder, props);
+        },
+        useDeferredValue: function (value, config) {
+          currentHookNameInDev = 'useDeferredValue';
+          updateHookTypesDev();
+          return updateDeferredValue(value, config);
+        },
+        useTransition: function (config) {
+          currentHookNameInDev = 'useTransition';
+          updateHookTypesDev();
+          return updateTransition(config);
         }
       };
       InvalidNestedHooksDispatcherOnMountInDEV = {
@@ -21577,6 +21508,18 @@ if ("development" !== "production") {
           warnInvalidHookAccess();
           mountHookTypesDev();
           return createResponderListener(responder, props);
+        },
+        useDeferredValue: function (value, config) {
+          currentHookNameInDev = 'useDeferredValue';
+          warnInvalidHookAccess();
+          mountHookTypesDev();
+          return mountDeferredValue(value, config);
+        },
+        useTransition: function (config) {
+          currentHookNameInDev = 'useTransition';
+          warnInvalidHookAccess();
+          mountHookTypesDev();
+          return mountTransition(config);
         }
       };
       InvalidNestedHooksDispatcherOnUpdateInDEV = {
@@ -21670,6 +21613,18 @@ if ("development" !== "production") {
           warnInvalidHookAccess();
           updateHookTypesDev();
           return createResponderListener(responder, props);
+        },
+        useDeferredValue: function (value, config) {
+          currentHookNameInDev = 'useDeferredValue';
+          warnInvalidHookAccess();
+          updateHookTypesDev();
+          return updateDeferredValue(value, config);
+        },
+        useTransition: function (config) {
+          currentHookNameInDev = 'useTransition';
+          warnInvalidHookAccess();
+          updateHookTypesDev();
+          return updateTransition(config);
         }
       };
     } // CommonJS interop named imports.
@@ -21952,13 +21907,11 @@ if ("development" !== "production") {
 
     function prepareToHydrateHostInstance(fiber, rootContainerInstance, hostContext) {
       if (!supportsHydration) {
-        (function () {
+        {
           {
-            {
-              throw ReactError(Error("Expected prepareToHydrateHostInstance() to never be called. This error is likely caused by a bug in React. Please file an issue."));
-            }
+            throw Error("Expected prepareToHydrateHostInstance() to never be called. This error is likely caused by a bug in React. Please file an issue.");
           }
-        })();
+        }
       }
 
       var instance = fiber.stateNode;
@@ -21976,13 +21929,11 @@ if ("development" !== "production") {
 
     function prepareToHydrateHostTextInstance(fiber) {
       if (!supportsHydration) {
-        (function () {
+        {
           {
-            {
-              throw ReactError(Error("Expected prepareToHydrateHostTextInstance() to never be called. This error is likely caused by a bug in React. Please file an issue."));
-            }
+            throw Error("Expected prepareToHydrateHostTextInstance() to never be called. This error is likely caused by a bug in React. Please file an issue.");
           }
-        })();
+        }
       }
 
       var textInstance = fiber.stateNode;
@@ -22020,46 +21971,41 @@ if ("development" !== "production") {
 
     function prepareToHydrateHostSuspenseInstance(fiber) {
       if (!supportsHydration) {
-        (function () {
+        {
           {
-            {
-              throw ReactError(Error("Expected prepareToHydrateHostSuspenseInstance() to never be called. This error is likely caused by a bug in React. Please file an issue."));
-            }
+            throw Error("Expected prepareToHydrateHostSuspenseInstance() to never be called. This error is likely caused by a bug in React. Please file an issue.");
           }
-        })();
+        }
       }
 
       var suspenseState = fiber.memoizedState;
       var suspenseInstance = suspenseState !== null ? suspenseState.dehydrated : null;
 
-      (function () {
-        if (!suspenseInstance) {
-          {
-            throw ReactError(Error("Expected to have a hydrated suspense instance. This error is likely caused by a bug in React. Please file an issue."));
-          }
+      if (!suspenseInstance) {
+        {
+          throw Error("Expected to have a hydrated suspense instance. This error is likely caused by a bug in React. Please file an issue.");
         }
-      })();
+      }
 
       hydrateSuspenseInstance(suspenseInstance, fiber);
     }
 
     function skipPastDehydratedSuspenseInstance(fiber) {
       if (!supportsHydration) {
-        (function () {
+        {
           {
-            {
-              throw ReactError(Error("Expected skipPastDehydratedSuspenseInstance() to never be called. This error is likely caused by a bug in React. Please file an issue."));
-            }
+            throw Error("Expected skipPastDehydratedSuspenseInstance() to never be called. This error is likely caused by a bug in React. Please file an issue.");
           }
-        })();
+        }
       }
 
       var suspenseState = fiber.memoizedState;
       var suspenseInstance = suspenseState !== null ? suspenseState.dehydrated : null;
 
-      if (suspenseInstance === null) {
-        // This Suspense boundary was hydrated without a match.
-        return nextHydratableInstance;
+      if (!suspenseInstance) {
+        {
+          throw Error("Expected to have a hydrated suspense instance. This error is likely caused by a bug in React. Please file an issue.");
+        }
       }
 
       return getNextHydratableInstanceAfterSuspenseInstance(suspenseInstance);
@@ -22216,7 +22162,7 @@ if ("development" !== "production") {
         setCurrentPhase('render');
         nextChildren = renderWithHooks(current$$1, workInProgress, render, nextProps, ref, renderExpirationTime);
 
-        if (debugRenderPhaseSideEffects || debugRenderPhaseSideEffectsForStrictMode && workInProgress.mode & StrictMode) {
+        if (debugRenderPhaseSideEffectsForStrictMode && workInProgress.mode & StrictMode) {
           // Only double-render components with Hooks
           if (workInProgress.memoizedState !== null) {
             nextChildren = renderWithHooks(current$$1, workInProgress, render, nextProps, ref, renderExpirationTime);
@@ -22412,7 +22358,7 @@ if ("development" !== "production") {
         setCurrentPhase('render');
         nextChildren = renderWithHooks(current$$1, workInProgress, Component, nextProps, context, renderExpirationTime);
 
-        if (debugRenderPhaseSideEffects || debugRenderPhaseSideEffectsForStrictMode && workInProgress.mode & StrictMode) {
+        if (debugRenderPhaseSideEffectsForStrictMode && workInProgress.mode & StrictMode) {
           // Only double-render components with Hooks
           if (workInProgress.memoizedState !== null) {
             nextChildren = renderWithHooks(current$$1, workInProgress, Component, nextProps, context, renderExpirationTime);
@@ -22532,7 +22478,7 @@ if ("development" !== "production") {
           setCurrentPhase('render');
           nextChildren = instance.render();
 
-          if (debugRenderPhaseSideEffects || debugRenderPhaseSideEffectsForStrictMode && workInProgress.mode & StrictMode) {
+          if (debugRenderPhaseSideEffectsForStrictMode && workInProgress.mode & StrictMode) {
             instance.render();
           }
 
@@ -22581,13 +22527,11 @@ if ("development" !== "production") {
       pushHostRootContext(workInProgress);
       var updateQueue = workInProgress.updateQueue;
 
-      (function () {
-        if (!(updateQueue !== null)) {
-          {
-            throw ReactError(Error("If the root does not have an updateQueue, we should have already bailed out. This error is likely caused by a bug in React. Please file an issue."));
-          }
+      if (!(updateQueue !== null)) {
+        {
+          throw Error("If the root does not have an updateQueue, we should have already bailed out. This error is likely caused by a bug in React. Please file an issue.");
         }
-      })();
+      }
 
       var nextProps = workInProgress.pendingProps;
       var prevState = workInProgress.memoizedState;
@@ -22768,13 +22712,11 @@ if ("development" !== "production") {
             // because the fact that it's a separate type of work is an
             // implementation detail.
 
-            (function () {
+            {
               {
-                {
-                  throw ReactError(Error("Element type is invalid. Received a promise that resolves to: " + Component + ". Lazy element type must resolve to a class or function." + hint));
-                }
+                throw Error("Element type is invalid. Received a promise that resolves to: " + Component + ". Lazy element type must resolve to a class or function." + hint);
               }
-            })();
+            }
           }
       }
 
@@ -22899,7 +22841,7 @@ if ("development" !== "production") {
             warningWithoutStack$1(false, '%s uses the legacy contextTypes API which is no longer supported. ' + 'Use React.createContext() with React.useContext() instead.', getComponentName(Component) || 'Unknown');
           }
 
-          if (debugRenderPhaseSideEffects || debugRenderPhaseSideEffectsForStrictMode && workInProgress.mode & StrictMode) {
+          if (debugRenderPhaseSideEffectsForStrictMode && workInProgress.mode & StrictMode) {
             // Only double-render components with Hooks
             if (workInProgress.memoizedState !== null) {
               value = renderWithHooks(null, workInProgress, Component, props, context, renderExpirationTime);
@@ -22970,7 +22912,7 @@ if ("development" !== "production") {
 
     var SUSPENDED_MARKER = {
       dehydrated: null,
-      retryTime: Never
+      retryTime: NoWork
     };
 
     function shouldRemainOnFallback(suspenseContext, current$$1, workInProgress) {
@@ -23043,12 +22985,12 @@ if ("development" !== "production") {
       // children. It's essentially a very basic form of re-parenting.
 
       if (current$$1 === null) {
-        if (enableSuspenseServerRenderer) {
-          // If we're currently hydrating, try to hydrate this boundary.
-          // But only if this has a fallback.
-          if (nextProps.fallback !== undefined) {
-            tryToClaimNextHydratableInstance(workInProgress); // This could've been a dehydrated suspense component.
+        // If we're currently hydrating, try to hydrate this boundary.
+        // But only if this has a fallback.
+        if (nextProps.fallback !== undefined) {
+          tryToClaimNextHydratableInstance(workInProgress); // This could've been a dehydrated suspense component.
 
+          if (enableSuspenseServerRenderer) {
             var suspenseState = workInProgress.memoizedState;
 
             if (suspenseState !== null) {
@@ -23069,8 +23011,8 @@ if ("development" !== "production") {
           var primaryChildFragment = createFiberFromFragment(null, mode, NoWork, null);
           primaryChildFragment.return = workInProgress;
 
-          if ((workInProgress.mode & BatchedMode) === NoMode) {
-            // Outside of batched mode, we commit the effects from the
+          if ((workInProgress.mode & BlockingMode) === NoMode) {
+            // Outside of blocking mode, we commit the effects from the
             // partially completed, timed-out tree, too.
             var progressedState = workInProgress.memoizedState;
             var progressedPrimaryChild = progressedState !== null ? workInProgress.child.child : workInProgress.child;
@@ -23133,8 +23075,8 @@ if ("development" !== "production") {
 
                 _primaryChildFragment.child = null;
 
-                if ((workInProgress.mode & BatchedMode) === NoMode) {
-                  // Outside of batched mode, we commit the effects from the
+                if ((workInProgress.mode & BlockingMode) === NoMode) {
+                  // Outside of blocking mode, we commit the effects from the
                   // partially completed, timed-out tree, too.
                   var _progressedChild = _primaryChildFragment.child = workInProgress.child;
 
@@ -23193,8 +23135,8 @@ if ("development" !== "production") {
 
             _primaryChildFragment2.return = workInProgress;
 
-            if ((workInProgress.mode & BatchedMode) === NoMode) {
-              // Outside of batched mode, we commit the effects from the
+            if ((workInProgress.mode & BlockingMode) === NoMode) {
+              // Outside of blocking mode, we commit the effects from the
               // partially completed, timed-out tree, too.
               var _progressedState = workInProgress.memoizedState;
 
@@ -23278,8 +23220,8 @@ if ("development" !== "production") {
             // primaryChildFragment.effectTag |= Placement;
 
 
-            if ((workInProgress.mode & BatchedMode) === NoMode) {
-              // Outside of batched mode, we commit the effects from the
+            if ((workInProgress.mode & BlockingMode) === NoMode) {
+              // Outside of blocking mode, we commit the effects from the
               // partially completed, timed-out tree, too.
               var _progressedState2 = workInProgress.memoizedState;
 
@@ -23348,9 +23290,9 @@ if ("development" !== "production") {
     function mountDehydratedSuspenseComponent(workInProgress, suspenseInstance, renderExpirationTime) {
       // During the first pass, we'll bail out and not drill into the children.
       // Instead, we'll leave the content in place and try to hydrate it later.
-      if ((workInProgress.mode & BatchedMode) === NoMode) {
+      if ((workInProgress.mode & BlockingMode) === NoMode) {
         {
-          warning$1(false, 'Cannot hydrate Suspense in legacy mode. Switch from ' + 'ReactDOM.hydrate(element, container) to ' + 'ReactDOM.unstable_createSyncRoot(container, { hydrate: true })' + '.render(element) or remove the Suspense components from ' + 'the server rendered components.');
+          warning$1(false, 'Cannot hydrate Suspense in legacy mode. Switch from ' + 'ReactDOM.hydrate(element, container) to ' + 'ReactDOM.createBlockingRoot(container, { hydrate: true })' + '.render(element) or remove the Suspense components from ' + 'the server rendered components.');
         }
         workInProgress.expirationTime = Sync;
       } else if (isSuspenseInstanceFallback(suspenseInstance)) {
@@ -23364,7 +23306,7 @@ if ("development" !== "production") {
         // a protocol to transfer that time, we'll just estimate it by using the current
         // time. This will mean that Suspense timeouts are slightly shifted to later than
         // they should be.
-        var serverDisplayTime = requestCurrentTime(); // Schedule a normal pri update to render this content.
+        var serverDisplayTime = requestCurrentTimeForUpdate(); // Schedule a normal pri update to render this content.
 
         var newExpirationTime = computeAsyncExpiration(serverDisplayTime);
 
@@ -23391,7 +23333,7 @@ if ("development" !== "production") {
       // but after we've already committed once.
       warnIfHydrating();
 
-      if ((workInProgress.mode & BatchedMode) === NoMode) {
+      if ((workInProgress.mode & BlockingMode) === NoMode) {
         return retrySuspenseComponentWithoutHydrating(current$$1, workInProgress, renderExpirationTime);
       }
 
@@ -23473,6 +23415,20 @@ if ("development" !== "production") {
       }
     }
 
+    function scheduleWorkOnFiber(fiber, renderExpirationTime) {
+      if (fiber.expirationTime < renderExpirationTime) {
+        fiber.expirationTime = renderExpirationTime;
+      }
+
+      var alternate = fiber.alternate;
+
+      if (alternate !== null && alternate.expirationTime < renderExpirationTime) {
+        alternate.expirationTime = renderExpirationTime;
+      }
+
+      scheduleWorkOnParentPath(fiber.return, renderExpirationTime);
+    }
+
     function propagateSuspenseContextChange(workInProgress, firstChild, renderExpirationTime) {
       // Mark any Suspense boundaries with fallbacks as having work to do.
       // If they were previously forced into fallbacks, they may now be able
@@ -23484,18 +23440,15 @@ if ("development" !== "production") {
           var state = node.memoizedState;
 
           if (state !== null) {
-            if (node.expirationTime < renderExpirationTime) {
-              node.expirationTime = renderExpirationTime;
-            }
-
-            var alternate = node.alternate;
-
-            if (alternate !== null && alternate.expirationTime < renderExpirationTime) {
-              alternate.expirationTime = renderExpirationTime;
-            }
-
-            scheduleWorkOnParentPath(node.return, renderExpirationTime);
+            scheduleWorkOnFiber(node, renderExpirationTime);
           }
+        } else if (node.tag === SuspenseListComponent) {
+          // If the tail is hidden there might not be an Suspense boundaries
+          // to schedule work on. In this case we have to schedule it on the
+          // list itself.
+          // We don't have to traverse to the children of the list since
+          // the list will propagate the change when it rerenders.
+          scheduleWorkOnFiber(node, renderExpirationTime);
         } else if (node.child !== null) {
           node.child.return = node;
           node = node.child;
@@ -23639,7 +23592,7 @@ if ("development" !== "production") {
       }
     }
 
-    function initSuspenseListRenderState(workInProgress, isBackwards, tail, lastContentRow, tailMode) {
+    function initSuspenseListRenderState(workInProgress, isBackwards, tail, lastContentRow, tailMode, lastEffectBeforeRendering) {
       var renderState = workInProgress.memoizedState;
 
       if (renderState === null) {
@@ -23649,7 +23602,8 @@ if ("development" !== "production") {
           last: lastContentRow,
           tail: tail,
           tailExpiration: 0,
-          tailMode: tailMode
+          tailMode: tailMode,
+          lastEffect: lastEffectBeforeRendering
         };
       } else {
         // We can reuse the existing object from previous renders.
@@ -23659,6 +23613,7 @@ if ("development" !== "production") {
         renderState.tail = tail;
         renderState.tailExpiration = 0;
         renderState.tailMode = tailMode;
+        renderState.lastEffect = lastEffectBeforeRendering;
       }
     } // This can end up rendering this component multiple passes.
     // The first pass splits the children fibers into two sets. A head and tail.
@@ -23699,8 +23654,8 @@ if ("development" !== "production") {
 
       pushSuspenseContext(workInProgress, suspenseContext);
 
-      if ((workInProgress.mode & BatchedMode) === NoMode) {
-        // Outside of batched mode, SuspenseList doesn't work so we just
+      if ((workInProgress.mode & BlockingMode) === NoMode) {
+        // Outside of blocking mode, SuspenseList doesn't work so we just
         // use make it a noop by treating it as the default revealOrder.
         workInProgress.memoizedState = null;
       } else {
@@ -23723,7 +23678,7 @@ if ("development" !== "production") {
               }
 
               initSuspenseListRenderState(workInProgress, false, // isBackwards
-              tail, lastContentRow, tailMode);
+              tail, lastContentRow, tailMode, workInProgress.lastEffect);
               break;
             }
 
@@ -23755,7 +23710,7 @@ if ("development" !== "production") {
 
               initSuspenseListRenderState(workInProgress, true, // isBackwards
               _tail, null, // last
-              tailMode);
+              tailMode, workInProgress.lastEffect);
               break;
             }
 
@@ -23764,7 +23719,7 @@ if ("development" !== "production") {
               initSuspenseListRenderState(workInProgress, false, // isBackwards
               null, // tail
               null, // last
-              undefined);
+              undefined, workInProgress.lastEffect);
               break;
             }
 
@@ -24064,7 +24019,12 @@ if ("development" !== "production") {
 
             case Profiler:
               if (enableProfilerTimer) {
-                workInProgress.effectTag |= Update;
+                // Profiler should only call onRender when one of its descendants actually rendered.
+                var hasChildWork = workInProgress.childExpirationTime >= renderExpirationTime;
+
+                if (hasChildWork) {
+                  workInProgress.effectTag |= Update;
+                }
               }
 
               break;
@@ -24120,10 +24080,11 @@ if ("development" !== "production") {
             case SuspenseListComponent:
               {
                 var didSuspendBefore = (current$$1.effectTag & DidCapture) !== NoEffect;
-                var hasChildWork = workInProgress.childExpirationTime >= renderExpirationTime;
+
+                var _hasChildWork = workInProgress.childExpirationTime >= renderExpirationTime;
 
                 if (didSuspendBefore) {
-                  if (hasChildWork) {
+                  if (_hasChildWork) {
                     // If something was in fallback state last time, and we have all the
                     // same children then we're still in progressive loading state.
                     // Something might get unblocked by state updates or retries in the
@@ -24152,7 +24113,7 @@ if ("development" !== "production") {
 
                 pushSuspenseContext(workInProgress, suspenseStackCursor.current);
 
-                if (hasChildWork) {
+                if (_hasChildWork) {
                   break;
                 } else {
                   // If none of the children had any work, that means that none of
@@ -24308,13 +24269,11 @@ if ("development" !== "production") {
           }
       }
 
-      (function () {
+      {
         {
-          {
-            throw ReactError(Error("Unknown unit of work tag (" + workInProgress.tag + "). This error is likely caused by a bug in React. Please file an issue."));
-          }
+          throw Error("Unknown unit of work tag (" + workInProgress.tag + "). This error is likely caused by a bug in React. Please file an issue.");
         }
-      })();
+      }
     }
 
     function createFundamentalStateInstance(currentFiber, props, impl, state) {
@@ -24336,14 +24295,19 @@ if ("development" !== "production") {
       return fiber.child.sibling.child;
     }
 
+    var emptyObject$1 = {};
+
     function collectScopedNodes(node, fn, scopedNodes) {
       if (enableScopeAPI) {
         if (node.tag === HostComponent) {
           var _type = node.type,
-              memoizedProps = node.memoizedProps;
+              memoizedProps = node.memoizedProps,
+              stateNode = node.stateNode;
 
-          if (fn(_type, memoizedProps) === true) {
-            scopedNodes.push(getPublicInstance(node.stateNode));
+          var _instance = getPublicInstance(stateNode);
+
+          if (_instance !== null && fn(_type, memoizedProps || emptyObject$1, _instance) === true) {
+            scopedNodes.push(_instance);
           }
         }
 
@@ -24359,6 +24323,34 @@ if ("development" !== "production") {
       }
     }
 
+    function collectFirstScopedNode(node, fn) {
+      if (enableScopeAPI) {
+        if (node.tag === HostComponent) {
+          var _type2 = node.type,
+              memoizedProps = node.memoizedProps,
+              stateNode = node.stateNode;
+
+          var _instance2 = getPublicInstance(stateNode);
+
+          if (_instance2 !== null && fn(_type2, memoizedProps, _instance2) === true) {
+            return _instance2;
+          }
+        }
+
+        var child = node.child;
+
+        if (isFiberSuspenseAndTimedOut(node)) {
+          child = getSuspenseFallbackChild(node);
+        }
+
+        if (child !== null) {
+          return collectFirstScopedNodeFromChildren(child, fn);
+        }
+      }
+
+      return null;
+    }
+
     function collectScopedNodesFromChildren(startingChild, fn, scopedNodes) {
       var child = startingChild;
 
@@ -24366,6 +24358,22 @@ if ("development" !== "production") {
         collectScopedNodes(child, fn, scopedNodes);
         child = child.sibling;
       }
+    }
+
+    function collectFirstScopedNodeFromChildren(startingChild, fn) {
+      var child = startingChild;
+
+      while (child !== null) {
+        var scopedNode = collectFirstScopedNode(child, fn);
+
+        if (scopedNode !== null) {
+          return scopedNode;
+        }
+
+        child = child.sibling;
+      }
+
+      return null;
     }
 
     function collectNearestScopeMethods(node, scope, childrenScopes) {
@@ -24394,11 +24402,10 @@ if ("development" !== "production") {
     }
 
     function isValidScopeNode(node, scope) {
-      return node.tag === ScopeComponent && node.type === scope;
+      return node.tag === ScopeComponent && node.type === scope && node.stateNode !== null;
     }
 
     function createScopeMethods(scope, instance) {
-      var fn = scope.fn;
       return {
         getChildren: function () {
           var currentFiber = instance.fiber;
@@ -24450,7 +24457,7 @@ if ("development" !== "production") {
           var currentFiber = instance.fiber;
           return currentFiber.memoizedProps;
         },
-        getScopedNodes: function () {
+        queryAllNodes: function (fn) {
           var currentFiber = instance.fiber;
           var child = currentFiber.child;
           var scopedNodes = [];
@@ -24460,6 +24467,29 @@ if ("development" !== "production") {
           }
 
           return scopedNodes.length === 0 ? null : scopedNodes;
+        },
+        queryFirstNode: function (fn) {
+          var currentFiber = instance.fiber;
+          var child = currentFiber.child;
+
+          if (child !== null) {
+            return collectFirstScopedNodeFromChildren(child, fn);
+          }
+
+          return null;
+        },
+        containsNode: function (node) {
+          var fiber = getInstanceFromNode$2(node);
+
+          while (fiber !== null) {
+            if (fiber.tag === ScopeComponent && fiber.type === scope && fiber.stateNode === instance) {
+              return true;
+            }
+
+            fiber = fiber.return;
+          }
+
+          return false;
         }
       };
     }
@@ -24994,13 +25024,11 @@ if ("development" !== "production") {
               }
             } else {
               if (!newProps) {
-                (function () {
-                  if (!(workInProgress.stateNode !== null)) {
-                    {
-                      throw ReactError(Error("We must have new props for new mounts. This error is likely caused by a bug in React. Please file an issue."));
-                    }
+                if (!(workInProgress.stateNode !== null)) {
+                  {
+                    throw Error("We must have new props for new mounts. This error is likely caused by a bug in React. Please file an issue.");
                   }
-                })(); // This can happen when we abort work.
+                } // This can happen when we abort work.
 
 
                 break;
@@ -25071,13 +25099,11 @@ if ("development" !== "production") {
               updateHostText$1(current, workInProgress, oldText, newText);
             } else {
               if (typeof newText !== 'string') {
-                (function () {
-                  if (!(workInProgress.stateNode !== null)) {
-                    {
-                      throw ReactError(Error("We must have new props for new mounts. This error is likely caused by a bug in React. Please file an issue."));
-                    }
+                if (!(workInProgress.stateNode !== null)) {
+                  {
+                    throw Error("We must have new props for new mounts. This error is likely caused by a bug in React. Please file an issue.");
                   }
-                })(); // This can happen when we abort work.
+                } // This can happen when we abort work.
 
               }
 
@@ -25112,13 +25138,11 @@ if ("development" !== "production") {
                 if (current === null) {
                   var _wasHydrated3 = popHydrationState(workInProgress);
 
-                  (function () {
-                    if (!_wasHydrated3) {
-                      {
-                        throw ReactError(Error("A dehydrated suspense component was completed without a hydrated node. This is probably a bug in React."));
-                      }
+                  if (!_wasHydrated3) {
+                    {
+                      throw Error("A dehydrated suspense component was completed without a hydrated node. This is probably a bug in React.");
                     }
-                  })();
+                  }
 
                   prepareToHydrateHostSuspenseInstance(workInProgress);
 
@@ -25161,10 +25185,9 @@ if ("development" !== "production") {
             var prevDidTimeout = false;
 
             if (current === null) {
-              // In cases where we didn't find a suitable hydration boundary we never
-              // put this in dehydrated mode, but we still need to pop the hydration
-              // state since we might be inside the insertion tree.
-              popHydrationState(workInProgress);
+              if (workInProgress.memoizedProps.fallback !== undefined) {
+                popHydrationState(workInProgress);
+              }
             } else {
               var prevState = current.memoizedState;
               prevDidTimeout = prevState !== null;
@@ -25194,12 +25217,12 @@ if ("development" !== "production") {
             }
 
             if (nextDidTimeout && !prevDidTimeout) {
-              // If this subtreee is running in batched mode we can suspend,
+              // If this subtreee is running in blocking mode we can suspend,
               // otherwise we won't suspend.
               // TODO: This will still suspend a synchronous tree if anything
               // in the concurrent tree already suspended during this render.
               // This is a known bug.
-              if ((workInProgress.mode & BatchedMode) !== NoMode) {
+              if ((workInProgress.mode & BlockingMode) !== NoMode) {
                 // TODO: Move this back to throwException because this is too late
                 // if this is a large tree which is common for initial loads. We
                 // don't know if we should restart a render or not until we get
@@ -25349,7 +25372,11 @@ if ("development" !== "production") {
                       // Reset the effect list before doing the second pass since that's now invalid.
 
 
-                      workInProgress.firstEffect = workInProgress.lastEffect = null; // Reset the child fibers to their original state.
+                      if (renderState.lastEffect === null) {
+                        workInProgress.firstEffect = null;
+                      }
+
+                      workInProgress.lastEffect = renderState.lastEffect; // Reset the child fibers to their original state.
 
                       resetChildFibers(workInProgress, renderExpirationTime); // Set up the Suspense Context to force suspense and immediately
                       // rerender the children.
@@ -25372,21 +25399,22 @@ if ("development" !== "production") {
 
                 if (_suspended !== null) {
                   workInProgress.effectTag |= DidCapture;
-                  didSuspendAlready = true;
+                  didSuspendAlready = true; // Ensure we transfer the update queue to the parent so that it doesn't
+                  // get lost if this row ends up dropped during a second pass.
+
+                  var _newThennables = _suspended.updateQueue;
+
+                  if (_newThennables !== null) {
+                    workInProgress.updateQueue = _newThennables;
+                    workInProgress.effectTag |= Update;
+                  }
+
                   cutOffTailIfNeeded(renderState, true); // This might have been modified.
 
-                  if (renderState.tail === null && renderState.tailMode === 'hidden') {
+                  if (renderState.tail === null && renderState.tailMode === 'hidden' && !renderedTail.alternate) {
                     // We need to delete the row we just rendered.
-                    // Ensure we transfer the update queue to the parent.
-                    var _newThennables = _suspended.updateQueue;
-
-                    if (_newThennables !== null) {
-                      workInProgress.updateQueue = _newThennables;
-                      workInProgress.effectTag |= Update;
-                    } // Reset the effect list to what it w as before we rendered this
+                    // Reset the effect list to what it was before we rendered this
                     // child. The nested children have already appended themselves.
-
-
                     var lastEffect = workInProgress.lastEffect = renderState.lastEffect; // Remove any effects that were appended after this point.
 
                     if (lastEffect !== null) {
@@ -25573,14 +25601,11 @@ if ("development" !== "production") {
           }
 
         default:
-          (function () {
+          {
             {
-              {
-                throw ReactError(Error("Unknown unit of work tag (" + workInProgress.tag + "). This error is likely caused by a bug in React. Please file an issue."));
-              }
+              throw Error("Unknown unit of work tag (" + workInProgress.tag + "). This error is likely caused by a bug in React. Please file an issue.");
             }
-          })();
-
+          }
       }
 
       return null;
@@ -25612,13 +25637,11 @@ if ("development" !== "production") {
             popTopLevelContextObject(workInProgress);
             var _effectTag = workInProgress.effectTag;
 
-            (function () {
-              if (!((_effectTag & DidCapture) === NoEffect)) {
-                {
-                  throw ReactError(Error("The root failed to unmount after an error. This is likely a bug in React. Please file an issue."));
-                }
+            if (!((_effectTag & DidCapture) === NoEffect)) {
+              {
+                throw Error("The root failed to unmount after an error. This is likely a bug in React. Please file an issue.");
               }
-            })();
+            }
 
             workInProgress.effectTag = _effectTag & ~ShouldCapture | DidCapture;
             return workInProgress;
@@ -25639,13 +25662,11 @@ if ("development" !== "production") {
               var suspenseState = workInProgress.memoizedState;
 
               if (suspenseState !== null && suspenseState.dehydrated !== null) {
-                (function () {
-                  if (!(workInProgress.alternate !== null)) {
-                    {
-                      throw ReactError(Error("Threw in newly mounted dehydrated component. This is likely a bug in React. Please file an issue."));
-                    }
+                if (!(workInProgress.alternate !== null)) {
+                  {
+                    throw Error("Threw in newly mounted dehydrated component. This is likely a bug in React. Please file an issue.");
                   }
-                })();
+                }
 
                 resetHydrationState();
               }
@@ -25951,13 +25972,11 @@ if ("development" !== "production") {
 
         default:
           {
-            (function () {
+            {
               {
-                {
-                  throw ReactError(Error("This unit of work tag should not have side-effects. This error is likely caused by a bug in React. Please file an issue."));
-                }
+                throw Error("This unit of work tag should not have side-effects. This error is likely caused by a bug in React. Please file an issue.");
               }
-            })();
+            }
           }
       }
     }
@@ -26175,13 +26194,11 @@ if ("development" !== "production") {
 
         default:
           {
-            (function () {
+            {
               {
-                {
-                  throw ReactError(Error("This unit of work tag should not have side-effects. This error is likely caused by a bug in React. Please file an issue."));
-                }
+                throw Error("This unit of work tag should not have side-effects. This error is likely caused by a bug in React. Please file an issue.");
               }
-            })();
+            }
           }
       }
     }
@@ -26525,13 +26542,11 @@ if ("development" !== "production") {
 
         default:
           {
-            (function () {
+            {
               {
-                {
-                  throw ReactError(Error("This unit of work tag should not have side-effects. This error is likely caused by a bug in React. Please file an issue."));
-                }
+                throw Error("This unit of work tag should not have side-effects. This error is likely caused by a bug in React. Please file an issue.");
               }
-            })();
+            }
           }
       }
     }
@@ -26547,13 +26562,11 @@ if ("development" !== "production") {
         parent = parent.return;
       }
 
-      (function () {
+      {
         {
-          {
-            throw ReactError(Error("Expected to find a host parent. This error is likely caused by a bug in React. Please file an issue."));
-          }
+          throw Error("Expected to find a host parent. This error is likely caused by a bug in React. Please file an issue.");
         }
-      })();
+      }
     }
 
     function isHostParent(fiber) {
@@ -26645,14 +26658,11 @@ if ("development" !== "production") {
         // eslint-disable-next-line-no-fallthrough
 
         default:
-          (function () {
+          {
             {
-              {
-                throw ReactError(Error("Invalid host parent fiber. This error is likely caused by a bug in React. Please file an issue."));
-              }
+              throw Error("Invalid host parent fiber. This error is likely caused by a bug in React. Please file an issue.");
             }
-          })();
-
+          }
       }
 
       if (parentFiber.effectTag & ContentReset) {
@@ -26728,13 +26738,11 @@ if ("development" !== "production") {
           var parent = node.return;
 
           findParent: while (true) {
-            (function () {
-              if (!(parent !== null)) {
-                {
-                  throw ReactError(Error("Expected to find a host parent. This error is likely caused by a bug in React. Please file an issue."));
-                }
+            if (!(parent !== null)) {
+              {
+                throw Error("Expected to find a host parent. This error is likely caused by a bug in React. Please file an issue.");
               }
-            })();
+            }
 
             var parentStateNode = parent.stateNode;
 
@@ -26968,13 +26976,11 @@ if ("development" !== "production") {
 
         case HostText:
           {
-            (function () {
-              if (!(finishedWork.stateNode !== null)) {
-                {
-                  throw ReactError(Error("This should have a text node initialized. This error is likely caused by a bug in React. Please file an issue."));
-                }
+            if (!(finishedWork.stateNode !== null)) {
+              {
+                throw Error("This should have a text node initialized. This error is likely caused by a bug in React. Please file an issue.");
               }
-            })();
+            }
 
             var textInstance = finishedWork.stateNode;
             var newText = finishedWork.memoizedProps; // For hydration we reuse the update path but we treat the oldProps
@@ -27059,13 +27065,11 @@ if ("development" !== "production") {
 
         default:
           {
-            (function () {
+            {
               {
-                {
-                  throw ReactError(Error("This unit of work tag should not have side-effects. This error is likely caused by a bug in React. Please file an issue."));
-                }
+                throw Error("This unit of work tag should not have side-effects. This error is likely caused by a bug in React. Please file an issue.");
               }
-            })();
+            }
           }
       }
     }
@@ -27312,17 +27316,17 @@ if ("development" !== "production") {
               _workInProgress.updateQueue = updateQueue;
             } else {
               thenables.add(thenable);
-            } // If the boundary is outside of batched mode, we should *not*
+            } // If the boundary is outside of blocking mode, we should *not*
             // suspend the commit. Pretend as if the suspended component rendered
             // null and keep rendering. In the commit phase, we'll schedule a
             // subsequent synchronous update to re-render the Suspense.
             //
             // Note: It doesn't matter whether the component that suspended was
-            // inside a batched mode tree. If the Suspense is outside of it, we
+            // inside a blocking mode tree. If the Suspense is outside of it, we
             // should *not* suspend the commit.
 
 
-            if ((_workInProgress.mode & BatchedMode) === NoMode) {
+            if ((_workInProgress.mode & BlockingMode) === NoMode) {
               _workInProgress.effectTag |= DidCapture; // We're going to commit this fiber even though it didn't complete.
               // But we shouldn't call any lifecycle methods or callbacks. Remove
               // all lifecycle effect tags.
@@ -27487,8 +27491,7 @@ if ("development" !== "production") {
     var RootErrored = 2;
     var RootSuspended = 3;
     var RootSuspendedWithDelay = 4;
-    var RootCompleted = 5;
-    var RootLocked = 6; // Describes where we are in the React execution stack
+    var RootCompleted = 5; // Describes where we are in the React execution stack
 
     var executionContext = NoContext; // The root we're working on
 
@@ -27549,7 +27552,7 @@ if ("development" !== "production") {
 
     var currentEventTime = NoWork;
 
-    function requestCurrentTime() {
+    function requestCurrentTimeForUpdate() {
       if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
         // We're inside React, so it's fine to read the actual time.
         return msToExpirationTime(now());
@@ -27566,10 +27569,14 @@ if ("development" !== "production") {
       return currentEventTime;
     }
 
+    function getCurrentTime() {
+      return msToExpirationTime(now());
+    }
+
     function computeExpirationForFiber(currentTime, fiber, suspenseConfig) {
       var mode = fiber.mode;
 
-      if ((mode & BatchedMode) === NoMode) {
+      if ((mode & BlockingMode) === NoMode) {
         return Sync;
       }
 
@@ -27614,14 +27621,11 @@ if ("development" !== "production") {
             break;
 
           default:
-            (function () {
+            {
               {
-                {
-                  throw ReactError(Error("Expected a valid priority level"));
-                }
+                throw Error("Expected a valid priority level");
               }
-            })();
-
+            }
         }
       } // If we're in the middle of rendering a tree, do not update at the same
       // expiration time that is already rendering.
@@ -27636,23 +27640,6 @@ if ("development" !== "production") {
       }
 
       return expirationTime;
-    }
-
-    var lastUniqueAsyncExpiration = NoWork;
-
-    function computeUniqueAsyncExpiration() {
-      var currentTime = requestCurrentTime();
-      var result = computeAsyncExpiration(currentTime);
-
-      if (result <= lastUniqueAsyncExpiration) {
-        // Since we assume the current time monotonically increases, we only hit
-        // this branch when computeUniqueAsyncExpiration is fired multiple times
-        // within a 200ms window (or whatever the async bucket size is).
-        result -= 1;
-      }
-
-      lastUniqueAsyncExpiration = result;
-      return result;
     }
 
     function scheduleUpdateOnFiber(fiber, expirationTime) {
@@ -27690,7 +27677,7 @@ if ("development" !== "production") {
             // a batch. This is intentionally inside scheduleUpdateOnFiber instead of
             // scheduleCallbackForFiber to preserve the ability to schedule a callback
             // without immediately flushing it. We only do this for user-initiated
-            // updates, to preserve historical behavior of sync mode.
+            // updates, to preserve historical behavior of legacy mode.
             flushSyncCallbackQueue();
           }
         }
@@ -27852,7 +27839,7 @@ if ("development" !== "production") {
       // time as an argument.
 
 
-      var currentTime = requestCurrentTime();
+      var currentTime = requestCurrentTimeForUpdate();
       var priorityLevel = inferPriorityFromExpirationTime(currentTime, expirationTime); // If there's an existing render task, confirm it has the correct priority and
       // expiration time. Otherwise, we'll cancel it and schedule a new one.
 
@@ -27903,7 +27890,7 @@ if ("development" !== "production") {
       if (didTimeout) {
         // The render task took too long to complete. Mark the current time as
         // expired to synchronously render all expired work in a single batch.
-        var currentTime = requestCurrentTime();
+        var currentTime = requestCurrentTimeForUpdate();
         markRootExpiredAtTime(root, currentTime); // This will schedule a synchronous callback.
 
         ensureRootIsScheduled(root);
@@ -27917,13 +27904,11 @@ if ("development" !== "production") {
       if (expirationTime !== NoWork) {
         var originalCallbackNode = root.callbackNode;
 
-        (function () {
-          if (!((executionContext & (RenderContext | CommitContext)) === NoContext)) {
-            {
-              throw ReactError(Error("Should not already be working."));
-            }
+        if (!((executionContext & (RenderContext | CommitContext)) === NoContext)) {
+          {
+            throw Error("Should not already be working.");
           }
-        })();
+        }
 
         flushPassiveEffects(); // If the root or expiration time have changed, throw out the existing stack
         // and prepare a fresh one. Otherwise we'll continue where we left off.
@@ -27977,7 +27962,6 @@ if ("development" !== "production") {
             stopFinishedWorkLoopTimer();
             var finishedWork = root.finishedWork = root.current.alternate;
             root.finishedExpirationTime = expirationTime;
-            resolveLocksOnRoot(root, expirationTime);
             finishConcurrentRender(root, finishedWork, workInProgressRootExitStatus, expirationTime);
           }
 
@@ -28002,13 +27986,11 @@ if ("development" !== "production") {
         case RootIncomplete:
         case RootFatalErrored:
           {
-            (function () {
+            {
               {
-                {
-                  throw ReactError(Error("Root did not complete. This is a bug in React."));
-                }
+                throw Error("Root did not complete. This is a bug in React.");
               }
-            })();
+            }
           }
         // Flow knows about invariant, so it complains if I add a break
         // statement, but eslint doesn't know about invariant, so it complains
@@ -28016,18 +27998,16 @@ if ("development" !== "production") {
 
         case RootErrored:
           {
-            if (expirationTime !== Idle) {
-              // If this was an async render, the error may have happened due to
-              // a mutation in a concurrent event. Try rendering one more time,
-              // synchronously, to see if the error goes away. If there are
-              // lower priority updates, let's include those, too, in case they
-              // fix the inconsistency. Render at Idle to include all updates.
-              markRootExpiredAtTime(root, Idle);
-              break;
-            } // Commit the root in its errored state.
+            // If this was an async render, the error may have happened due to
+            // a mutation in a concurrent event. Try rendering one more time,
+            // synchronously, to see if the error goes away. If there are
+            // lower priority updates, let's include those, too, in case they
+            // fix the inconsistency. Render at Idle to include all updates.
+            // If it was Idle or Never or some not-yet-invented time, render
+            // at that time.
+            markRootExpiredAtTime(root, expirationTime > Idle ? Idle : expirationTime); // We assume that this second render pass will be synchronous
+            // and therefore not hit this path again.
 
-
-            commitRoot(root);
             break;
           }
 
@@ -28211,24 +28191,13 @@ if ("development" !== "production") {
             break;
           }
 
-        case RootLocked:
-          {
-            // This root has a lock that prevents it from committing. Exit. If
-            // we begin work on the root again, without any intervening updates,
-            // it will finish without doing additional work.
-            markRootSuspendedAtTime(root, expirationTime);
-            break;
-          }
-
         default:
           {
-            (function () {
+            {
               {
-                {
-                  throw ReactError(Error("Unknown root exit status."));
-                }
+                throw Error("Unknown root exit status.");
               }
-            })();
+            }
           }
       }
     } // This is the entry point for synchronous tasks that don't go
@@ -28246,13 +28215,11 @@ if ("development" !== "production") {
         // batch.commit() API.
         commitRoot(root);
       } else {
-        (function () {
-          if (!((executionContext & (RenderContext | CommitContext)) === NoContext)) {
-            {
-              throw ReactError(Error("Should not already be working."));
-            }
+        if (!((executionContext & (RenderContext | CommitContext)) === NoContext)) {
+          {
+            throw Error("Should not already be working.");
           }
-        })();
+        }
 
         flushPassiveEffects(); // If the root or expiration time have changed, throw out the existing stack
         // and prepare a fresh one. Otherwise we'll continue where we left off.
@@ -28299,21 +28266,17 @@ if ("development" !== "production") {
 
           if (workInProgress !== null) {
             // This is a sync render, so we should have finished the whole tree.
-            (function () {
+            {
               {
-                {
-                  throw ReactError(Error("Cannot commit an incomplete root. This error is likely caused by a bug in React. Please file an issue."));
-                }
+                throw Error("Cannot commit an incomplete root. This error is likely caused by a bug in React. Please file an issue.");
               }
-            })();
+            }
           } else {
             // We now have a consistent tree. Because this is a sync render, we
-            // will commit it even if something suspended. The only exception is
-            // if the root is locked (using the unstable_createBatch API).
+            // will commit it even if something suspended.
             stopFinishedWorkLoopTimer();
             root.finishedWork = root.current.alternate;
             root.finishedExpirationTime = expirationTime;
-            resolveLocksOnRoot(root, expirationTime);
             finishSyncRender(root, workInProgressRootExitStatus, expirationTime);
           } // Before exiting, make sure there's a callback scheduled for the next
           // pending level.
@@ -28327,37 +28290,23 @@ if ("development" !== "production") {
     }
 
     function finishSyncRender(root, exitStatus, expirationTime) {
-      if (exitStatus === RootLocked) {
-        // This root has a lock that prevents it from committing. Exit. If we
-        // begin work on the root again, without any intervening updates, it
-        // will finish without doing additional work.
-        markRootSuspendedAtTime(root, expirationTime);
-      } else {
-        // Set this to null to indicate there's no in-progress render.
-        workInProgressRoot = null;
-        {
-          if (exitStatus === RootSuspended || exitStatus === RootSuspendedWithDelay) {
-            flushSuspensePriorityWarningInDEV();
-          }
+      // Set this to null to indicate there's no in-progress render.
+      workInProgressRoot = null;
+      {
+        if (exitStatus === RootSuspended || exitStatus === RootSuspendedWithDelay) {
+          flushSuspensePriorityWarningInDEV();
         }
-        commitRoot(root);
       }
+      commitRoot(root);
     }
 
     function flushRoot(root, expirationTime) {
-      if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
-        (function () {
-          {
-            {
-              throw ReactError(Error("work.commit(): Cannot commit while already rendering. This likely means you attempted to commit from inside a lifecycle method."));
-            }
-          }
-        })();
-      }
-
       markRootExpiredAtTime(root, expirationTime);
       ensureRootIsScheduled(root);
-      flushSyncCallbackQueue();
+
+      if ((executionContext & (RenderContext | CommitContext)) === NoContext) {
+        flushSyncCallbackQueue();
+      }
     }
 
     function flushDiscreteUpdates() {
@@ -28382,17 +28331,8 @@ if ("development" !== "production") {
       flushPassiveEffects();
     }
 
-    function resolveLocksOnRoot(root, expirationTime) {
-      var firstBatch = root.firstBatch;
-
-      if (firstBatch !== null && firstBatch._defer && firstBatch._expirationTime >= expirationTime) {
-        scheduleCallback(NormalPriority, function () {
-          firstBatch._onComplete();
-
-          return null;
-        });
-        workInProgressRootExitStatus = RootLocked;
-      }
+    function syncUpdates(fn, a, b, c) {
+      return runWithPriority$2(ImmediatePriority, fn.bind(null, a, b, c));
     }
 
     function flushPendingDiscreteUpdates() {
@@ -28478,13 +28418,11 @@ if ("development" !== "production") {
 
     function flushSync(fn, a) {
       if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
-        (function () {
+        {
           {
-            {
-              throw ReactError(Error("flushSync was called from inside a lifecycle method. It cannot be called when React is already rendering."));
-            }
+            throw Error("flushSync was called from inside a lifecycle method. It cannot be called when React is already rendering.");
           }
-        })();
+        }
       }
 
       var prevExecutionContext = executionContext;
@@ -28566,6 +28504,7 @@ if ("development" !== "production") {
           // Reset module-level state that was set during the render phase.
           resetContextDependencies();
           resetHooks();
+          resetCurrentFiber();
 
           if (workInProgress === null || workInProgress.return === null) {
             // Expected to be working on a non-root fiber. This is a fatal error
@@ -28968,16 +28907,23 @@ if ("development" !== "production") {
     }
 
     function commitRootImpl(root, renderPriorityLevel) {
-      flushPassiveEffects();
+      do {
+        // `flushPassiveEffects` will call `flushSyncUpdateQueue` at the end, which
+        // means `flushPassiveEffects` will sometimes result in additional
+        // passive effects. So we need to keep flushing in a loop until there are
+        // no more pending effects.
+        // TODO: Might be better if `flushPassiveEffects` did not automatically
+        // flush synchronous work at the end, to avoid factoring hazards like this.
+        flushPassiveEffects();
+      } while (rootWithPendingPassiveEffects !== null);
+
       flushRenderPhaseStrictModeWarningsInDEV();
 
-      (function () {
-        if (!((executionContext & (RenderContext | CommitContext)) === NoContext)) {
-          {
-            throw ReactError(Error("Should not already be working."));
-          }
+      if (!((executionContext & (RenderContext | CommitContext)) === NoContext)) {
+        {
+          throw Error("Should not already be working.");
         }
-      })();
+      }
 
       var finishedWork = root.finishedWork;
       var expirationTime = root.finishedExpirationTime;
@@ -28989,13 +28935,11 @@ if ("development" !== "production") {
       root.finishedWork = null;
       root.finishedExpirationTime = NoWork;
 
-      (function () {
-        if (!(finishedWork !== root.current)) {
-          {
-            throw ReactError(Error("Cannot commit the same tree as before. This error is likely caused by a bug in React. Please file an issue."));
-          }
+      if (!(finishedWork !== root.current)) {
+        {
+          throw Error("Cannot commit the same tree as before. This error is likely caused by a bug in React. Please file an issue.");
         }
-      })(); // commitRoot never returns a continuation; it always finishes synchronously.
+      } // commitRoot never returns a continuation; it always finishes synchronously.
       // So we can clear these now to allow a new callback to be scheduled.
 
 
@@ -29059,13 +29003,11 @@ if ("development" !== "production") {
             invokeGuardedCallback(null, commitBeforeMutationEffects, null);
 
             if (hasCaughtError()) {
-              (function () {
-                if (!(nextEffect !== null)) {
-                  {
-                    throw ReactError(Error("Should be working on an effect."));
-                  }
+              if (!(nextEffect !== null)) {
+                {
+                  throw Error("Should be working on an effect.");
                 }
-              })();
+              }
 
               var error = clearCaughtError();
               captureCommitPhaseError(nextEffect, error);
@@ -29091,13 +29033,11 @@ if ("development" !== "production") {
             invokeGuardedCallback(null, commitMutationEffects, null, root, renderPriorityLevel);
 
             if (hasCaughtError()) {
-              (function () {
-                if (!(nextEffect !== null)) {
-                  {
-                    throw ReactError(Error("Should be working on an effect."));
-                  }
+              if (!(nextEffect !== null)) {
+                {
+                  throw Error("Should be working on an effect.");
                 }
-              })();
+              }
 
               var _error = clearCaughtError();
 
@@ -29125,13 +29065,11 @@ if ("development" !== "production") {
             invokeGuardedCallback(null, commitLayoutEffects, null, root, expirationTime);
 
             if (hasCaughtError()) {
-              (function () {
-                if (!(nextEffect !== null)) {
-                  {
-                    throw ReactError(Error("Should be working on an effect."));
-                  }
+              if (!(nextEffect !== null)) {
+                {
+                  throw Error("Should be working on an effect.");
                 }
-              })();
+              }
 
               var _error2 = clearCaughtError();
 
@@ -29417,13 +29355,11 @@ if ("development" !== "production") {
       rootWithPendingPassiveEffects = null;
       pendingPassiveEffectsExpirationTime = NoWork;
 
-      (function () {
-        if (!((executionContext & (RenderContext | CommitContext)) === NoContext)) {
-          {
-            throw ReactError(Error("Cannot flush passive effects while already rendering."));
-          }
+      if (!((executionContext & (RenderContext | CommitContext)) === NoContext)) {
+        {
+          throw Error("Cannot flush passive effects while already rendering.");
         }
-      })();
+      }
 
       var prevExecutionContext = executionContext;
       executionContext |= CommitContext;
@@ -29439,13 +29375,11 @@ if ("development" !== "production") {
           invokeGuardedCallback(null, commitPassiveHookEffects, null, effect);
 
           if (hasCaughtError()) {
-            (function () {
-              if (!(effect !== null)) {
-                {
-                  throw ReactError(Error("Should be working on an effect."));
-                }
+            if (!(effect !== null)) {
+              {
+                throw Error("Should be working on an effect.");
               }
-            })();
+            }
 
             var error = clearCaughtError();
             captureCommitPhaseError(effect, error);
@@ -29607,10 +29541,10 @@ if ("development" !== "production") {
       // previously was rendered in its fallback state. One of the promises that
       // suspended it has resolved, which means at least part of the tree was
       // likely unblocked. Try rendering again, at a new expiration time.
-      if (retryTime === Never) {
+      if (retryTime === NoWork) {
         var suspenseConfig = null; // Retries don't carry over the already committed update.
 
-        var currentTime = requestCurrentTime();
+        var currentTime = requestCurrentTimeForUpdate();
         retryTime = computeExpirationForFiber(currentTime, boundaryFiber, suspenseConfig);
       } // TODO: Special case idle priority?
 
@@ -29625,7 +29559,7 @@ if ("development" !== "production") {
 
     function retryDehydratedSuspenseBoundary(boundaryFiber) {
       var suspenseState = boundaryFiber.memoizedState;
-      var retryTime = Never;
+      var retryTime = NoWork;
 
       if (suspenseState !== null) {
         retryTime = suspenseState.retryTime;
@@ -29635,7 +29569,7 @@ if ("development" !== "production") {
     }
 
     function resolveRetryThenable(boundaryFiber, thenable) {
-      var retryTime = Never; // Default
+      var retryTime = NoWork; // Default
 
       var retryCache;
 
@@ -29656,14 +29590,11 @@ if ("development" !== "production") {
             break;
 
           default:
-            (function () {
+            {
               {
-                {
-                  throw ReactError(Error("Pinged unknown suspense boundary type. This is probably a bug in React."));
-                }
+                throw Error("Pinged unknown suspense boundary type. This is probably a bug in React.");
               }
-            })();
-
+            }
         }
       } else {
         retryCache = boundaryFiber.stateNode;
@@ -29719,14 +29650,11 @@ if ("development" !== "production") {
       if (nestedUpdateCount > NESTED_UPDATE_LIMIT) {
         nestedUpdateCount = 0;
         rootWithNestedUpdates = null;
-
-        (function () {
+        {
           {
-            {
-              throw ReactError(Error("Maximum update depth exceeded. This can happen when a component repeatedly calls setState inside componentWillUpdate or componentDidUpdate. React limits the number of nested updates to prevent infinite loops."));
-            }
+            throw Error("Maximum update depth exceeded. This can happen when a component repeatedly calls setState inside componentWillUpdate or componentDidUpdate. React limits the number of nested updates to prevent infinite loops.");
           }
-        })();
+        }
       }
 
       {
@@ -29814,12 +29742,14 @@ if ("development" !== "production") {
           if (originalError !== null && typeof originalError === 'object' && typeof originalError.then === 'function') {
             // Don't replay promises. Treat everything else like an error.
             throw originalError;
-          } // Keep this code in sync with renderRoot; any changes here must have
+          } // Keep this code in sync with handleError; any changes here must have
           // corresponding changes there.
 
 
           resetContextDependencies();
-          resetHooks(); // Unwind the failed stack frame
+          resetHooks(); // Don't reset current debug fiber, since we're about to work on the
+          // same fiber again.
+          // Unwind the failed stack frame
 
           unwindInterruptedWork(unitOfWork); // Restore the original properties of the fiber.
 
@@ -29916,7 +29846,7 @@ if ("development" !== "production") {
     function warnIfUnmockedScheduler(fiber) {
       {
         if (didWarnAboutUnmockedScheduler === false && Scheduler.unstable_flushAllWithoutAsserting === undefined) {
-          if (fiber.mode & BatchedMode || fiber.mode & ConcurrentMode) {
+          if (fiber.mode & BlockingMode || fiber.mode & ConcurrentMode) {
             didWarnAboutUnmockedScheduler = true;
             warningWithoutStack$1(false, 'In Concurrent or Sync modes, the "scheduler" module needs to be mocked ' + 'to guarantee consistent behaviour across tests and browsers. ' + 'For example, with jest: \n' + "jest.mock('scheduler', () => require('scheduler/unstable_mock'));\n\n" + 'For more info, visit https://fb.me/react-mock-scheduler');
           } else if (warnAboutUnmockedScheduler === true) {
@@ -30022,7 +29952,7 @@ if ("development" !== "production") {
           componentsThatTriggeredHighPriSuspend = null;
 
           if (componentNames.length > 0) {
-            warningWithoutStack$1(false, '%s triggered a user-blocking update that suspended.' + '\n\n' + 'The fix is to split the update into multiple parts: a user-blocking ' + 'update to provide immediate feedback, and another update that ' + 'triggers the bulk of the changes.' + '\n\n' + 'Refer to the documentation for useSuspenseTransition to learn how ' + 'to implement this pattern.', // TODO: Add link to React docs with more information, once it exists
+            warningWithoutStack$1(false, '%s triggered a user-blocking update that suspended.' + '\n\n' + 'The fix is to split the update into multiple parts: a user-blocking ' + 'update to provide immediate feedback, and another update that ' + 'triggers the bulk of the changes.' + '\n\n' + 'Refer to the documentation for useTransition to learn how ' + 'to implement this pattern.', // TODO: Add link to React docs with more information, once it exists
             componentNames.sort().join(', '));
           }
         }
@@ -30109,10 +30039,10 @@ if ("development" !== "production") {
           });
         }
       }); // Store the current set of interactions on the FiberRoot for a few reasons:
-      // We can re-use it in hot functions like renderRoot() without having to
-      // recalculate it. We will also use it in commitWork() to pass to any Profiler
-      // onRender() hooks. This also provides DevTools with a way to access it when
-      // the onCommitRoot() hook is called.
+      // We can re-use it in hot functions like performConcurrentWorkOnRoot()
+      // without having to recalculate it. We will also use it in commitWork() to
+      // pass to any Profiler onRender() hooks. This also provides DevTools with a
+      // way to access it when the onCommitRoot() hook is called.
 
       root.memoizedInteractions = interactions;
 
@@ -30220,7 +30150,7 @@ if ("development" !== "production") {
             var didError = (root.current.effectTag & DidCapture) === DidCapture;
 
             if (enableProfilerTimer) {
-              var currentTime = requestCurrentTime();
+              var currentTime = getCurrentTime();
               var priorityLevel = inferPriorityFromExpirationTime(currentTime, expirationTime);
               hook.onCommitFiberRoot(rendererID, root, priorityLevel, didError);
             } else {
@@ -30562,9 +30492,9 @@ if ("development" !== "production") {
       var mode;
 
       if (tag === ConcurrentRoot) {
-        mode = ConcurrentMode | BatchedMode | StrictMode;
-      } else if (tag === BatchedRoot) {
-        mode = BatchedMode | StrictMode;
+        mode = ConcurrentMode | BlockingMode | StrictMode;
+      } else if (tag === BlockingRoot) {
+        mode = BlockingMode | StrictMode;
       } else {
         mode = NoMode;
       }
@@ -30606,7 +30536,7 @@ if ("development" !== "production") {
 
           case REACT_CONCURRENT_MODE_TYPE:
             fiberTag = Mode;
-            mode |= ConcurrentMode | BatchedMode | StrictMode;
+            mode |= ConcurrentMode | BlockingMode | StrictMode;
             break;
 
           case REACT_STRICT_MODE_TYPE:
@@ -30679,14 +30609,11 @@ if ("development" !== "production") {
                   info += '\n\nCheck the render method of `' + ownerName + '`.';
                 }
               }
-
-              (function () {
+              {
                 {
-                  {
-                    throw ReactError(Error("Element type is invalid: expected a string (for built-in components) or a class/function (for composite components) but got: " + (type == null ? type : typeof type) + "." + info));
-                  }
+                  throw Error("Element type is invalid: expected a string (for built-in components) or a class/function (for composite components) but got: " + (type == null ? type : typeof type) + "." + info);
                 }
-              })();
+              }
             }
         }
       }
@@ -30872,7 +30799,6 @@ if ("development" !== "production") {
       this.context = null;
       this.pendingContext = null;
       this.hydrate = hydrate;
-      this.firstBatch = null;
       this.callbackNode = null;
       this.callbackPriority = NoPriority;
       this.firstPendingTime = NoWork;
@@ -31031,76 +30957,22 @@ if ("development" !== "production") {
       return parentContext;
     }
 
-    function scheduleRootUpdate(current$$1, element, expirationTime, suspenseConfig, callback) {
-      {
-        if (phase === 'render' && current !== null && !didWarnAboutNestedUpdates) {
-          didWarnAboutNestedUpdates = true;
-          warningWithoutStack$1(false, 'Render methods should be a pure function of props and state; ' + 'triggering nested component updates from render is not allowed. ' + 'If necessary, trigger nested updates in componentDidUpdate.\n\n' + 'Check the render method of %s.', getComponentName(current.type) || 'Unknown');
-        }
-      }
-      var update = createUpdate(expirationTime, suspenseConfig); // Caution: React DevTools currently depends on this property
-      // being called "element".
-
-      update.payload = {
-        element: element
-      };
-      callback = callback === undefined ? null : callback;
-
-      if (callback !== null) {
-        !(typeof callback === 'function') ? warningWithoutStack$1(false, 'render(...): Expected the last optional `callback` argument to be a ' + 'function. Instead received: %s.', callback) : void 0;
-        update.callback = callback;
-      }
-
-      enqueueUpdate(current$$1, update);
-      scheduleWork(current$$1, expirationTime);
-      return expirationTime;
-    }
-
-    function updateContainerAtExpirationTime(element, container, parentComponent, expirationTime, suspenseConfig, callback) {
-      // TODO: If this is a nested container, this won't be the root.
-      var current$$1 = container.current;
-      {
-        if (ReactFiberInstrumentation_1.debugTool) {
-          if (current$$1.alternate === null) {
-            ReactFiberInstrumentation_1.debugTool.onMountContainer(container);
-          } else if (element === null) {
-            ReactFiberInstrumentation_1.debugTool.onUnmountContainer(container);
-          } else {
-            ReactFiberInstrumentation_1.debugTool.onUpdateContainer(container);
-          }
-        }
-      }
-      var context = getContextForSubtree(parentComponent);
-
-      if (container.context === null) {
-        container.context = context;
-      } else {
-        container.pendingContext = context;
-      }
-
-      return scheduleRootUpdate(current$$1, element, expirationTime, suspenseConfig, callback);
-    }
-
     function findHostInstance(component) {
       var fiber = get(component);
 
       if (fiber === undefined) {
         if (typeof component.render === 'function') {
-          (function () {
+          {
             {
-              {
-                throw ReactError(Error("Unable to find node on an unmounted component."));
-              }
+              throw Error("Unable to find node on an unmounted component.");
             }
-          })();
+          }
         } else {
-          (function () {
+          {
             {
-              {
-                throw ReactError(Error("Argument appears to not be a ReactComponent. Keys: " + Object.keys(component)));
-              }
+              throw Error("Argument appears to not be a ReactComponent. Keys: " + Object.keys(component));
             }
-          })();
+          }
         }
       }
 
@@ -31119,21 +30991,17 @@ if ("development" !== "production") {
 
         if (fiber === undefined) {
           if (typeof component.render === 'function') {
-            (function () {
+            {
               {
-                {
-                  throw ReactError(Error("Unable to find node on an unmounted component."));
-                }
+                throw Error("Unable to find node on an unmounted component.");
               }
-            })();
+            }
           } else {
-            (function () {
+            {
               {
-                {
-                  throw ReactError(Error("Argument appears to not be a ReactComponent. Keys: " + Object.keys(component)));
-                }
+                throw Error("Argument appears to not be a ReactComponent. Keys: " + Object.keys(component));
               }
-            })();
+            }
           }
         }
 
@@ -31168,7 +31036,7 @@ if ("development" !== "production") {
 
     function updateContainer(element, container, parentComponent, callback) {
       var current$$1 = container.current;
-      var currentTime = requestCurrentTime();
+      var currentTime = requestCurrentTimeForUpdate();
       {
         // $FlowExpectedError - jest isn't a global, and isn't recognized outside of tests
         if ('undefined' !== typeof jest) {
@@ -31178,7 +31046,47 @@ if ("development" !== "production") {
       }
       var suspenseConfig = requestCurrentSuspenseConfig();
       var expirationTime = computeExpirationForFiber(currentTime, current$$1, suspenseConfig);
-      return updateContainerAtExpirationTime(element, container, parentComponent, expirationTime, suspenseConfig, callback);
+      {
+        if (ReactFiberInstrumentation_1.debugTool) {
+          if (current$$1.alternate === null) {
+            ReactFiberInstrumentation_1.debugTool.onMountContainer(container);
+          } else if (element === null) {
+            ReactFiberInstrumentation_1.debugTool.onUnmountContainer(container);
+          } else {
+            ReactFiberInstrumentation_1.debugTool.onUpdateContainer(container);
+          }
+        }
+      }
+      var context = getContextForSubtree(parentComponent);
+
+      if (container.context === null) {
+        container.context = context;
+      } else {
+        container.pendingContext = context;
+      }
+
+      {
+        if (phase === 'render' && current !== null && !didWarnAboutNestedUpdates) {
+          didWarnAboutNestedUpdates = true;
+          warningWithoutStack$1(false, 'Render methods should be a pure function of props and state; ' + 'triggering nested component updates from render is not allowed. ' + 'If necessary, trigger nested updates in componentDidUpdate.\n\n' + 'Check the render method of %s.', getComponentName(current.type) || 'Unknown');
+        }
+      }
+      var update = createUpdate(expirationTime, suspenseConfig); // Caution: React DevTools currently depends on this property
+      // being called "element".
+
+      update.payload = {
+        element: element
+      };
+      callback = callback === undefined ? null : callback;
+
+      if (callback !== null) {
+        !(typeof callback === 'function') ? warningWithoutStack$1(false, 'render(...): Expected the last optional `callback` argument to be a ' + 'function. Instead received: %s.', callback) : void 0;
+        update.callback = callback;
+      }
+
+      enqueueUpdate(current$$1, update);
+      scheduleWork(current$$1, expirationTime);
+      return expirationTime;
     }
 
     function getPublicRootInstance(container) {
@@ -31212,9 +31120,75 @@ if ("development" !== "production") {
         case SuspenseComponent:
           flushSync(function () {
             return scheduleWork(fiber, Sync);
-          });
+          }); // If we're still blocked after this, we need to increase
+          // the priority of any promises resolving within this
+          // boundary so that they next attempt also has higher pri.
+
+          var retryExpTime = computeInteractiveExpiration(requestCurrentTimeForUpdate());
+          markRetryTimeIfNotHydrated(fiber, retryExpTime);
           break;
       }
+    }
+
+    function markRetryTimeImpl(fiber, retryTime) {
+      var suspenseState = fiber.memoizedState;
+
+      if (suspenseState !== null && suspenseState.dehydrated !== null) {
+        if (suspenseState.retryTime < retryTime) {
+          suspenseState.retryTime = retryTime;
+        }
+      }
+    } // Increases the priority of thennables when they resolve within this boundary.
+
+
+    function markRetryTimeIfNotHydrated(fiber, retryTime) {
+      markRetryTimeImpl(fiber, retryTime);
+      var alternate = fiber.alternate;
+
+      if (alternate) {
+        markRetryTimeImpl(alternate, retryTime);
+      }
+    }
+
+    function attemptUserBlockingHydration$1(fiber) {
+      if (fiber.tag !== SuspenseComponent) {
+        // We ignore HostRoots here because we can't increase
+        // their priority and they should not suspend on I/O,
+        // since you have to wrap anything that might suspend in
+        // Suspense.
+        return;
+      }
+
+      var expTime = computeInteractiveExpiration(requestCurrentTimeForUpdate());
+      scheduleWork(fiber, expTime);
+      markRetryTimeIfNotHydrated(fiber, expTime);
+    }
+
+    function attemptContinuousHydration$1(fiber) {
+      if (fiber.tag !== SuspenseComponent) {
+        // We ignore HostRoots here because we can't increase
+        // their priority and they should not suspend on I/O,
+        // since you have to wrap anything that might suspend in
+        // Suspense.
+        return;
+      }
+
+      var expTime = computeContinuousHydrationExpiration(requestCurrentTimeForUpdate());
+      scheduleWork(fiber, expTime);
+      markRetryTimeIfNotHydrated(fiber, expTime);
+    }
+
+    function attemptHydrationAtCurrentPriority$1(fiber) {
+      if (fiber.tag !== SuspenseComponent) {
+        // We ignore HostRoots here because we can't increase
+        // their priority other than synchronously flush it.
+        return;
+      }
+
+      var currentTime = requestCurrentTimeForUpdate();
+      var expTime = computeExpirationForFiber(currentTime, fiber, null);
+      scheduleWork(fiber, expTime);
+      markRetryTimeIfNotHydrated(fiber, expTime);
     }
 
     function findHostInstanceWithNoPortals(fiber) {
@@ -31343,247 +31317,41 @@ if ("development" !== "production") {
       }));
     } // This file intentionally does *not* have the Flow annotation.
     // Don't add it. See `./inline-typed.js` for an explanation.
-
-
-    function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
-    implementation) {
-      var key = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : null;
-      return {
-        // This tag allow us to uniquely identify this as a React Portal
-        $$typeof: REACT_PORTAL_TYPE,
-        key: key == null ? null : '' + key,
-        children: children,
-        containerInfo: containerInfo,
-        implementation: implementation
-      };
-    } // TODO: this is special because it gets imported during build.
-
-
-    var ReactVersion = '16.10.2'; // TODO: This type is shared between the reconciler and ReactDOM, but will
+    // TODO: This type is shared between the reconciler and ReactDOM, but will
     // eventually be lifted out to the renderer.
 
-    setAttemptSynchronousHydration(attemptSynchronousHydration$1);
-    var ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
-    var topLevelUpdateWarnings;
-    var warnOnInvalidCallback;
-    var didWarnAboutUnstableCreatePortal = false;
-    {
-      if (typeof Map !== 'function' || // $FlowIssue Flow incorrectly thinks Map has no prototype
-      Map.prototype == null || typeof Map.prototype.forEach !== 'function' || typeof Set !== 'function' || // $FlowIssue Flow incorrectly thinks Set has no prototype
-      Set.prototype == null || typeof Set.prototype.clear !== 'function' || typeof Set.prototype.forEach !== 'function') {
-        warningWithoutStack$1(false, 'React depends on Map and Set built-in types. Make sure that you load a ' + 'polyfill in older browsers. https://fb.me/react-polyfills');
-      }
 
-      topLevelUpdateWarnings = function (container) {
-        if (container._reactRootContainer && container.nodeType !== COMMENT_NODE) {
-          var hostInstance = findHostInstanceWithNoPortals(container._reactRootContainer._internalRoot.current);
-
-          if (hostInstance) {
-            !(hostInstance.parentNode === container) ? warningWithoutStack$1(false, 'render(...): It looks like the React-rendered content of this ' + 'container was removed without using React. This is not ' + 'supported and will cause errors. Instead, call ' + 'ReactDOM.unmountComponentAtNode to empty a container.') : void 0;
-          }
-        }
-
-        var isRootRenderedBySomeReact = !!container._reactRootContainer;
-        var rootEl = getReactRootElementInContainer(container);
-        var hasNonRootReactChild = !!(rootEl && getInstanceFromNode$1(rootEl));
-        !(!hasNonRootReactChild || isRootRenderedBySomeReact) ? warningWithoutStack$1(false, 'render(...): Replacing React-rendered children with a new root ' + 'component. If you intended to update the children of this node, ' + 'you should instead have the existing children update their state ' + 'and render the new components instead of calling ReactDOM.render.') : void 0;
-        !(container.nodeType !== ELEMENT_NODE || !container.tagName || container.tagName.toUpperCase() !== 'BODY') ? warningWithoutStack$1(false, 'render(): Rendering components directly into document.body is ' + 'discouraged, since its children are often manipulated by third-party ' + 'scripts and browser extensions. This may lead to subtle ' + 'reconciliation issues. Try rendering into a container element created ' + 'for your app.') : void 0;
-      };
-
-      warnOnInvalidCallback = function (callback, callerName) {
-        !(callback === null || typeof callback === 'function') ? warningWithoutStack$1(false, '%s(...): Expected the last optional `callback` argument to be a ' + 'function. Instead received: %s.', callerName, callback) : void 0;
-      };
-    }
-    setRestoreImplementation(restoreControlledState$$1);
-
-    function ReactBatch(root) {
-      var expirationTime = computeUniqueAsyncExpiration();
-      this._expirationTime = expirationTime;
-      this._root = root;
-      this._next = null;
-      this._callbacks = null;
-      this._didComplete = false;
-      this._hasChildren = false;
-      this._children = null;
-      this._defer = true;
+    function ReactDOMRoot(container, options) {
+      this._internalRoot = createRootImpl(container, ConcurrentRoot, options);
     }
 
-    ReactBatch.prototype.render = function (children) {
-      var _this = this;
-
-      (function () {
-        if (!_this._defer) {
-          {
-            throw ReactError(Error("batch.render: Cannot render a batch that already committed."));
-          }
-        }
-      })();
-
-      this._hasChildren = true;
-      this._children = children;
-      var internalRoot = this._root._internalRoot;
-      var expirationTime = this._expirationTime;
-      var work = new ReactWork();
-      updateContainerAtExpirationTime(children, internalRoot, null, expirationTime, null, work._onCommit);
-      return work;
-    };
-
-    ReactBatch.prototype.then = function (onComplete) {
-      if (this._didComplete) {
-        onComplete();
-        return;
-      }
-
-      var callbacks = this._callbacks;
-
-      if (callbacks === null) {
-        callbacks = this._callbacks = [];
-      }
-
-      callbacks.push(onComplete);
-    };
-
-    ReactBatch.prototype.commit = function () {
-      var _this2 = this;
-
-      var internalRoot = this._root._internalRoot;
-      var firstBatch = internalRoot.firstBatch;
-
-      (function () {
-        if (!(_this2._defer && firstBatch !== null)) {
-          {
-            throw ReactError(Error("batch.commit: Cannot commit a batch multiple times."));
-          }
-        }
-      })();
-
-      if (!this._hasChildren) {
-        // This batch is empty. Return.
-        this._next = null;
-        this._defer = false;
-        return;
-      }
-
-      var expirationTime = this._expirationTime; // Ensure this is the first batch in the list.
-
-      if (firstBatch !== this) {
-        // This batch is not the earliest batch. We need to move it to the front.
-        // Update its expiration time to be the expiration time of the earliest
-        // batch, so that we can flush it without flushing the other batches.
-        if (this._hasChildren) {
-          expirationTime = this._expirationTime = firstBatch._expirationTime; // Rendering this batch again ensures its children will be the final state
-          // when we flush (updates are processed in insertion order: last
-          // update wins).
-          // TODO: This forces a restart. Should we print a warning?
-
-          this.render(this._children);
-        } // Remove the batch from the list.
-
-
-        var previous = null;
-        var batch = firstBatch;
-
-        while (batch !== this) {
-          previous = batch;
-          batch = batch._next;
-        }
-
-        (function () {
-          if (!(previous !== null)) {
-            {
-              throw ReactError(Error("batch.commit: Cannot commit a batch multiple times."));
-            }
-          }
-        })();
-
-        previous._next = batch._next; // Add it to the front.
-
-        this._next = firstBatch;
-        firstBatch = internalRoot.firstBatch = this;
-      } // Synchronously flush all the work up to this batch's expiration time.
-
-
-      this._defer = false;
-      flushRoot(internalRoot, expirationTime); // Pop the batch from the list.
-
-      var next = this._next;
-      this._next = null;
-      firstBatch = internalRoot.firstBatch = next; // Append the next earliest batch's children to the update queue.
-
-      if (firstBatch !== null && firstBatch._hasChildren) {
-        firstBatch.render(firstBatch._children);
-      }
-    };
-
-    ReactBatch.prototype._onComplete = function () {
-      if (this._didComplete) {
-        return;
-      }
-
-      this._didComplete = true;
-      var callbacks = this._callbacks;
-
-      if (callbacks === null) {
-        return;
-      } // TODO: Error handling.
-
-
-      for (var i = 0; i < callbacks.length; i++) {
-        var _callback = callbacks[i];
-
-        _callback();
-      }
-    };
-
-    function ReactWork() {
-      this._callbacks = null;
-      this._didCommit = false; // TODO: Avoid need to bind by replacing callbacks in the update queue with
-      // list of Work objects.
-
-      this._onCommit = this._onCommit.bind(this);
+    function ReactDOMBlockingRoot(container, tag, options) {
+      this._internalRoot = createRootImpl(container, tag, options);
     }
 
-    ReactWork.prototype.then = function (onCommit) {
-      if (this._didCommit) {
-        onCommit();
-        return;
+    ReactDOMRoot.prototype.render = ReactDOMBlockingRoot.prototype.render = function (children, callback) {
+      var root = this._internalRoot;
+      var cb = callback === undefined ? null : callback;
+      {
+        warnOnInvalidCallback(cb, 'render');
       }
-
-      var callbacks = this._callbacks;
-
-      if (callbacks === null) {
-        callbacks = this._callbacks = [];
-      }
-
-      callbacks.push(onCommit);
+      updateContainer(children, root, null, cb);
     };
 
-    ReactWork.prototype._onCommit = function () {
-      if (this._didCommit) {
-        return;
+    ReactDOMRoot.prototype.unmount = ReactDOMBlockingRoot.prototype.unmount = function (callback) {
+      var root = this._internalRoot;
+      var cb = callback === undefined ? null : callback;
+      {
+        warnOnInvalidCallback(cb, 'render');
       }
+      var container = root.containerInfo;
+      updateContainer(null, root, null, function () {
+        unmarkContainerAsRoot(container);
 
-      this._didCommit = true;
-      var callbacks = this._callbacks;
-
-      if (callbacks === null) {
-        return;
-      } // TODO: Error handling.
-
-
-      for (var i = 0; i < callbacks.length; i++) {
-        var _callback2 = callbacks[i];
-
-        (function () {
-          if (!(typeof _callback2 === 'function')) {
-            {
-              throw ReactError(Error("Invalid argument passed as callback. Expected a function. Instead received: " + _callback2));
-            }
-          }
-        })();
-
-        _callback2();
-      }
+        if (cb !== null) {
+          cb();
+        }
+      });
     };
 
     function createRootImpl(container, tag, options) {
@@ -31601,86 +31369,73 @@ if ("development" !== "production") {
       return root;
     }
 
-    function ReactSyncRoot(container, tag, options) {
-      this._internalRoot = createRootImpl(container, tag, options);
-    }
-
-    function ReactRoot(container, options) {
-      this._internalRoot = createRootImpl(container, ConcurrentRoot, options);
-    }
-
-    ReactRoot.prototype.render = ReactSyncRoot.prototype.render = function (children, callback) {
-      var root = this._internalRoot;
-      var work = new ReactWork();
-      callback = callback === undefined ? null : callback;
-      {
-        warnOnInvalidCallback(callback, 'render');
-      }
-
-      if (callback !== null) {
-        work.then(callback);
-      }
-
-      updateContainer(children, root, null, work._onCommit);
-      return work;
-    };
-
-    ReactRoot.prototype.unmount = ReactSyncRoot.prototype.unmount = function (callback) {
-      var root = this._internalRoot;
-      var work = new ReactWork();
-      callback = callback === undefined ? null : callback;
-      {
-        warnOnInvalidCallback(callback, 'render');
-      }
-
-      if (callback !== null) {
-        work.then(callback);
-      }
-
-      updateContainer(null, root, null, work._onCommit);
-      return work;
-    }; // Sync roots cannot create batches. Only concurrent ones.
-
-
-    ReactRoot.prototype.createBatch = function () {
-      var batch = new ReactBatch(this);
-      var expirationTime = batch._expirationTime;
-      var internalRoot = this._internalRoot;
-      var firstBatch = internalRoot.firstBatch;
-
-      if (firstBatch === null) {
-        internalRoot.firstBatch = batch;
-        batch._next = null;
-      } else {
-        // Insert sorted by expiration time then insertion order
-        var insertAfter = null;
-        var insertBefore = firstBatch;
-
-        while (insertBefore !== null && insertBefore._expirationTime >= expirationTime) {
-          insertAfter = insertBefore;
-          insertBefore = insertBefore._next;
-        }
-
-        batch._next = insertBefore;
-
-        if (insertAfter !== null) {
-          insertAfter._next = batch;
+    function createRoot(container, options) {
+      if (!isValidContainer(container)) {
+        {
+          throw Error("createRoot(...): Target container is not a DOM element.");
         }
       }
 
-      return batch;
-    };
-    /**
-     * True if the supplied DOM node is a valid node element.
-     *
-     * @param {?DOMElement} node The candidate DOM node.
-     * @return {boolean} True if the DOM is a valid DOM node.
-     * @internal
-     */
+      warnIfReactDOMContainerInDEV(container);
+      return new ReactDOMRoot(container, options);
+    }
 
+    function createBlockingRoot(container, options) {
+      if (!isValidContainer(container)) {
+        {
+          throw Error("createRoot(...): Target container is not a DOM element.");
+        }
+      }
+
+      warnIfReactDOMContainerInDEV(container);
+      return new ReactDOMBlockingRoot(container, BlockingRoot, options);
+    }
+
+    function createLegacyRoot(container, options) {
+      return new ReactDOMBlockingRoot(container, LegacyRoot, options);
+    }
 
     function isValidContainer(node) {
       return !!(node && (node.nodeType === ELEMENT_NODE || node.nodeType === DOCUMENT_NODE || node.nodeType === DOCUMENT_FRAGMENT_NODE || node.nodeType === COMMENT_NODE && node.nodeValue === ' react-mount-point-unstable '));
+    }
+
+    function warnOnInvalidCallback(callback, callerName) {
+      {
+        !(callback === null || typeof callback === 'function') ? warningWithoutStack$1(false, '%s(...): Expected the last optional `callback` argument to be a ' + 'function. Instead received: %s.', callerName, callback) : void 0;
+      }
+    }
+
+    function warnIfReactDOMContainerInDEV(container) {
+      {
+        if (isContainerMarkedAsRoot(container)) {
+          if (container._reactRootContainer) {
+            warningWithoutStack$1(false, 'You are calling ReactDOM.createRoot() on a container that was previously ' + 'passed to ReactDOM.render(). This is not supported.');
+          } else {
+            warningWithoutStack$1(false, 'You are calling ReactDOM.createRoot() on a container that ' + 'has already been passed to createRoot() before. Instead, call ' + 'root.render() on the existing root instead if you want to update it.');
+          }
+        }
+      }
+    }
+
+    var ReactCurrentOwner$1 = ReactSharedInternals.ReactCurrentOwner;
+    var topLevelUpdateWarnings;
+    var warnedAboutHydrateAPI = false;
+    {
+      topLevelUpdateWarnings = function (container) {
+        if (container._reactRootContainer && container.nodeType !== COMMENT_NODE) {
+          var hostInstance = findHostInstanceWithNoPortals(container._reactRootContainer._internalRoot.current);
+
+          if (hostInstance) {
+            !(hostInstance.parentNode === container) ? warningWithoutStack$1(false, 'render(...): It looks like the React-rendered content of this ' + 'container was removed without using React. This is not ' + 'supported and will cause errors. Instead, call ' + 'ReactDOM.unmountComponentAtNode to empty a container.') : void 0;
+          }
+        }
+
+        var isRootRenderedBySomeReact = !!container._reactRootContainer;
+        var rootEl = getReactRootElementInContainer(container);
+        var hasNonRootReactChild = !!(rootEl && getInstanceFromNode$1(rootEl));
+        !(!hasNonRootReactChild || isRootRenderedBySomeReact) ? warningWithoutStack$1(false, 'render(...): Replacing React-rendered children with a new root ' + 'component. If you intended to update the children of this node, ' + 'you should instead have the existing children update their state ' + 'and render the new components instead of calling ReactDOM.render.') : void 0;
+        !(container.nodeType !== ELEMENT_NODE || !container.tagName || container.tagName.toUpperCase() !== 'BODY') ? warningWithoutStack$1(false, 'render(): Rendering components directly into document.body is ' + 'discouraged, since its children are often manipulated by third-party ' + 'scripts and browser extensions. This may lead to subtle ' + 'reconciliation issues. Try rendering into a container element created ' + 'for your app.') : void 0;
+      };
     }
 
     function getReactRootElementInContainer(container) {
@@ -31699,9 +31454,6 @@ if ("development" !== "production") {
       var rootElement = getReactRootElementInContainer(container);
       return !!(rootElement && rootElement.nodeType === ELEMENT_NODE && rootElement.hasAttribute(ROOT_ATTRIBUTE_NAME));
     }
-
-    setBatchingImplementation(batchedUpdates$1, discreteUpdates$1, flushDiscreteUpdates, batchedEventUpdates$1);
-    var warnedAboutHydrateAPI = false;
 
     function legacyCreateRootFromDOMContainer(container, forceHydrate) {
       var shouldHydrate = forceHydrate || shouldHydrateDueToLegacyHeuristic(container); // First clear any existing content.
@@ -31726,9 +31478,8 @@ if ("development" !== "production") {
           warnedAboutHydrateAPI = true;
           lowPriorityWarningWithoutStack$1(false, 'render(): Calling ReactDOM.render() to hydrate server-rendered markup ' + 'will stop working in React v17. Replace the ReactDOM.render() call ' + 'with ReactDOM.hydrate() if you want React to attach to the server HTML.');
         }
-      } // Legacy roots are not batched.
-
-      return new ReactSyncRoot(container, LegacyRoot, shouldHydrate ? {
+      }
+      return createLegacyRoot(container, shouldHydrate ? {
         hydrate: true
       } : undefined);
     }
@@ -31781,16 +31532,164 @@ if ("development" !== "production") {
       return getPublicRootInstance(fiberRoot);
     }
 
+    function findDOMNode(componentOrElement) {
+      {
+        var owner = ReactCurrentOwner$1.current;
+
+        if (owner !== null && owner.stateNode !== null) {
+          var warnedAboutRefsInRender = owner.stateNode._warnedAboutRefsInRender;
+          !warnedAboutRefsInRender ? warningWithoutStack$1(false, '%s is accessing findDOMNode inside its render(). ' + 'render() should be a pure function of props and state. It should ' + 'never access something that requires stale data from the previous ' + 'render, such as refs. Move this logic to componentDidMount and ' + 'componentDidUpdate instead.', getComponentName(owner.type) || 'A component') : void 0;
+          owner.stateNode._warnedAboutRefsInRender = true;
+        }
+      }
+
+      if (componentOrElement == null) {
+        return null;
+      }
+
+      if (componentOrElement.nodeType === ELEMENT_NODE) {
+        return componentOrElement;
+      }
+
+      {
+        return findHostInstanceWithWarning(componentOrElement, 'findDOMNode');
+      }
+      return findHostInstance(componentOrElement);
+    }
+
+    function hydrate(element, container, callback) {
+      if (!isValidContainer(container)) {
+        {
+          throw Error("Target container is not a DOM element.");
+        }
+      }
+
+      {
+        var isModernRoot = isContainerMarkedAsRoot(container) && container._reactRootContainer === undefined;
+
+        if (isModernRoot) {
+          warningWithoutStack$1(false, 'You are calling ReactDOM.hydrate() on a container that was previously ' + 'passed to ReactDOM.createRoot(). This is not supported. ' + 'Did you mean to call createRoot(container, {hydrate: true}).render(element)?');
+        }
+      } // TODO: throw or warn if we couldn't hydrate?
+
+      return legacyRenderSubtreeIntoContainer(null, element, container, true, callback);
+    }
+
+    function render(element, container, callback) {
+      if (!isValidContainer(container)) {
+        {
+          throw Error("Target container is not a DOM element.");
+        }
+      }
+
+      {
+        var isModernRoot = isContainerMarkedAsRoot(container) && container._reactRootContainer === undefined;
+
+        if (isModernRoot) {
+          warningWithoutStack$1(false, 'You are calling ReactDOM.render() on a container that was previously ' + 'passed to ReactDOM.createRoot(). This is not supported. ' + 'Did you mean to call root.render(element)?');
+        }
+      }
+      return legacyRenderSubtreeIntoContainer(null, element, container, false, callback);
+    }
+
+    function unstable_renderSubtreeIntoContainer(parentComponent, element, containerNode, callback) {
+      if (!isValidContainer(containerNode)) {
+        {
+          throw Error("Target container is not a DOM element.");
+        }
+      }
+
+      if (!(parentComponent != null && has(parentComponent))) {
+        {
+          throw Error("parentComponent must be a valid React Component");
+        }
+      }
+
+      return legacyRenderSubtreeIntoContainer(parentComponent, element, containerNode, false, callback);
+    }
+
+    function unmountComponentAtNode(container) {
+      if (!isValidContainer(container)) {
+        {
+          throw Error("unmountComponentAtNode(...): Target container is not a DOM element.");
+        }
+      }
+
+      {
+        var isModernRoot = isContainerMarkedAsRoot(container) && container._reactRootContainer === undefined;
+
+        if (isModernRoot) {
+          warningWithoutStack$1(false, 'You are calling ReactDOM.unmountComponentAtNode() on a container that was previously ' + 'passed to ReactDOM.createRoot(). This is not supported. Did you mean to call root.unmount()?');
+        }
+      }
+
+      if (container._reactRootContainer) {
+        {
+          var rootEl = getReactRootElementInContainer(container);
+          var renderedByDifferentReact = rootEl && !getInstanceFromNode$1(rootEl);
+          !!renderedByDifferentReact ? warningWithoutStack$1(false, "unmountComponentAtNode(): The node you're attempting to unmount " + 'was rendered by another copy of React.') : void 0;
+        } // Unmount should not be batched.
+
+        unbatchedUpdates(function () {
+          legacyRenderSubtreeIntoContainer(null, null, container, false, function () {
+            container._reactRootContainer = null;
+            unmarkContainerAsRoot(container);
+          });
+        }); // If you call unmountComponentAtNode twice in quick succession, you'll
+        // get `true` twice. That's probably fine?
+
+        return true;
+      } else {
+        {
+          var _rootEl = getReactRootElementInContainer(container);
+
+          var hasNonRootReactChild = !!(_rootEl && getInstanceFromNode$1(_rootEl)); // Check if the container itself is a React root node.
+
+          var isContainerReactRoot = container.nodeType === ELEMENT_NODE && isValidContainer(container.parentNode) && !!container.parentNode._reactRootContainer;
+          !!hasNonRootReactChild ? warningWithoutStack$1(false, "unmountComponentAtNode(): The node you're attempting to unmount " + 'was rendered by React and is not a top-level container. %s', isContainerReactRoot ? 'You may have accidentally passed in a React root node instead ' + 'of its container.' : 'Instead, have the parent component update its state and ' + 'rerender in order to remove this component.') : void 0;
+        }
+        return false;
+      }
+    }
+
+    function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
+    implementation) {
+      var key = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : null;
+      return {
+        // This tag allow us to uniquely identify this as a React Portal
+        $$typeof: REACT_PORTAL_TYPE,
+        key: key == null ? null : '' + key,
+        children: children,
+        containerInfo: containerInfo,
+        implementation: implementation
+      };
+    } // TODO: this is special because it gets imported during build.
+
+
+    var ReactVersion = '16.12.0';
+    setAttemptSynchronousHydration(attemptSynchronousHydration$1);
+    setAttemptUserBlockingHydration(attemptUserBlockingHydration$1);
+    setAttemptContinuousHydration(attemptContinuousHydration$1);
+    setAttemptHydrationAtCurrentPriority(attemptHydrationAtCurrentPriority$1);
+    var didWarnAboutUnstableCreatePortal = false;
+    {
+      if (typeof Map !== 'function' || // $FlowIssue Flow incorrectly thinks Map has no prototype
+      Map.prototype == null || typeof Map.prototype.forEach !== 'function' || typeof Set !== 'function' || // $FlowIssue Flow incorrectly thinks Set has no prototype
+      Set.prototype == null || typeof Set.prototype.clear !== 'function' || typeof Set.prototype.forEach !== 'function') {
+        warningWithoutStack$1(false, 'React depends on Map and Set built-in types. Make sure that you load a ' + 'polyfill in older browsers. https://fb.me/react-polyfills');
+      }
+    }
+    setRestoreImplementation(restoreControlledState$$1);
+    setBatchingImplementation(batchedUpdates$1, discreteUpdates$1, flushDiscreteUpdates, batchedEventUpdates$1);
+
     function createPortal$$1(children, container) {
       var key = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
 
-      (function () {
-        if (!isValidContainer(container)) {
-          {
-            throw ReactError(Error("Target container is not a DOM element."));
-          }
+      if (!isValidContainer(container)) {
+        {
+          throw Error("Target container is not a DOM element.");
         }
-      })(); // TODO: pass ReactDOM portal implementation as third argument
+      } // TODO: pass ReactDOM portal implementation as third argument
 
 
       return createPortal$1(children, container, null, key);
@@ -31798,118 +31697,12 @@ if ("development" !== "production") {
 
     var ReactDOM = {
       createPortal: createPortal$$1,
-      findDOMNode: function (componentOrElement) {
-        {
-          var owner = ReactCurrentOwner.current;
-
-          if (owner !== null && owner.stateNode !== null) {
-            var warnedAboutRefsInRender = owner.stateNode._warnedAboutRefsInRender;
-            !warnedAboutRefsInRender ? warningWithoutStack$1(false, '%s is accessing findDOMNode inside its render(). ' + 'render() should be a pure function of props and state. It should ' + 'never access something that requires stale data from the previous ' + 'render, such as refs. Move this logic to componentDidMount and ' + 'componentDidUpdate instead.', getComponentName(owner.type) || 'A component') : void 0;
-            owner.stateNode._warnedAboutRefsInRender = true;
-          }
-        }
-
-        if (componentOrElement == null) {
-          return null;
-        }
-
-        if (componentOrElement.nodeType === ELEMENT_NODE) {
-          return componentOrElement;
-        }
-
-        {
-          return findHostInstanceWithWarning(componentOrElement, 'findDOMNode');
-        }
-        return findHostInstance(componentOrElement);
-      },
-      hydrate: function (element, container, callback) {
-        (function () {
-          if (!isValidContainer(container)) {
-            {
-              throw ReactError(Error("Target container is not a DOM element."));
-            }
-          }
-        })();
-
-        {
-          !!container._reactHasBeenPassedToCreateRootDEV ? warningWithoutStack$1(false, 'You are calling ReactDOM.hydrate() on a container that was previously ' + 'passed to ReactDOM.%s(). This is not supported. ' + 'Did you mean to call createRoot(container, {hydrate: true}).render(element)?', enableStableConcurrentModeAPIs ? 'createRoot' : 'unstable_createRoot') : void 0;
-        } // TODO: throw or warn if we couldn't hydrate?
-
-        return legacyRenderSubtreeIntoContainer(null, element, container, true, callback);
-      },
-      render: function (element, container, callback) {
-        (function () {
-          if (!isValidContainer(container)) {
-            {
-              throw ReactError(Error("Target container is not a DOM element."));
-            }
-          }
-        })();
-
-        {
-          !!container._reactHasBeenPassedToCreateRootDEV ? warningWithoutStack$1(false, 'You are calling ReactDOM.render() on a container that was previously ' + 'passed to ReactDOM.%s(). This is not supported. ' + 'Did you mean to call root.render(element)?', enableStableConcurrentModeAPIs ? 'createRoot' : 'unstable_createRoot') : void 0;
-        }
-        return legacyRenderSubtreeIntoContainer(null, element, container, false, callback);
-      },
-      unstable_renderSubtreeIntoContainer: function (parentComponent, element, containerNode, callback) {
-        (function () {
-          if (!isValidContainer(containerNode)) {
-            {
-              throw ReactError(Error("Target container is not a DOM element."));
-            }
-          }
-        })();
-
-        (function () {
-          if (!(parentComponent != null && has(parentComponent))) {
-            {
-              throw ReactError(Error("parentComponent must be a valid React Component"));
-            }
-          }
-        })();
-
-        return legacyRenderSubtreeIntoContainer(parentComponent, element, containerNode, false, callback);
-      },
-      unmountComponentAtNode: function (container) {
-        (function () {
-          if (!isValidContainer(container)) {
-            {
-              throw ReactError(Error("unmountComponentAtNode(...): Target container is not a DOM element."));
-            }
-          }
-        })();
-
-        {
-          !!container._reactHasBeenPassedToCreateRootDEV ? warningWithoutStack$1(false, 'You are calling ReactDOM.unmountComponentAtNode() on a container that was previously ' + 'passed to ReactDOM.%s(). This is not supported. Did you mean to call root.unmount()?', enableStableConcurrentModeAPIs ? 'createRoot' : 'unstable_createRoot') : void 0;
-        }
-
-        if (container._reactRootContainer) {
-          {
-            var rootEl = getReactRootElementInContainer(container);
-            var renderedByDifferentReact = rootEl && !getInstanceFromNode$1(rootEl);
-            !!renderedByDifferentReact ? warningWithoutStack$1(false, "unmountComponentAtNode(): The node you're attempting to unmount " + 'was rendered by another copy of React.') : void 0;
-          } // Unmount should not be batched.
-
-          unbatchedUpdates(function () {
-            legacyRenderSubtreeIntoContainer(null, null, container, false, function () {
-              container._reactRootContainer = null;
-            });
-          }); // If you call unmountComponentAtNode twice in quick succession, you'll
-          // get `true` twice. That's probably fine?
-
-          return true;
-        } else {
-          {
-            var _rootEl = getReactRootElementInContainer(container);
-
-            var hasNonRootReactChild = !!(_rootEl && getInstanceFromNode$1(_rootEl)); // Check if the container itself is a React root node.
-
-            var isContainerReactRoot = container.nodeType === ELEMENT_NODE && isValidContainer(container.parentNode) && !!container.parentNode._reactRootContainer;
-            !!hasNonRootReactChild ? warningWithoutStack$1(false, "unmountComponentAtNode(): The node you're attempting to unmount " + 'was rendered by React and is not a top-level container. %s', isContainerReactRoot ? 'You may have accidentally passed in a React root node instead ' + 'of its container.' : 'Instead, have the parent component update its state and ' + 'rerender in order to remove this component.') : void 0;
-          }
-          return false;
-        }
-      },
+      // Legacy
+      findDOMNode: findDOMNode,
+      hydrate: hydrate,
+      render: render,
+      unstable_renderSubtreeIntoContainer: unstable_renderSubtreeIntoContainer,
+      unmountComponentAtNode: unmountComponentAtNode,
       // Temporary alias since we already shipped React 16 RC with it.
       // TODO: remove in React 17.
       unstable_createPortal: function () {
@@ -31921,17 +31714,7 @@ if ("development" !== "production") {
         return createPortal$$1.apply(void 0, arguments);
       },
       unstable_batchedUpdates: batchedUpdates$1,
-      // TODO remove this legacy method, unstable_discreteUpdates replaces it
-      unstable_interactiveUpdates: function (fn, a, b, c) {
-        flushDiscreteUpdates();
-        return discreteUpdates$1(fn, a, b, c);
-      },
-      unstable_discreteUpdates: discreteUpdates$1,
-      unstable_flushDiscreteUpdates: flushDiscreteUpdates,
       flushSync: flushSync,
-      unstable_createRoot: createRoot,
-      unstable_createSyncRoot: createSyncRoot,
-      unstable_flushControlled: flushControlled,
       __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED: {
         // Keep in sync with ReactDOMUnstableNativeDependencies.js
         // ReactTestUtils.js, and ReactTestUtilsAct.js. This is an array for better minification.
@@ -31939,46 +31722,18 @@ if ("development" !== "production") {
       }
     };
 
-    function createRoot(container, options) {
-      var functionName = enableStableConcurrentModeAPIs ? 'createRoot' : 'unstable_createRoot';
-
-      (function () {
-        if (!isValidContainer(container)) {
-          {
-            throw ReactError(Error(functionName + "(...): Target container is not a DOM element."));
-          }
-        }
-      })();
-
-      warnIfReactDOMContainerInDEV(container);
-      return new ReactRoot(container, options);
-    }
-
-    function createSyncRoot(container, options) {
-      var functionName = enableStableConcurrentModeAPIs ? 'createRoot' : 'unstable_createRoot';
-
-      (function () {
-        if (!isValidContainer(container)) {
-          {
-            throw ReactError(Error(functionName + "(...): Target container is not a DOM element."));
-          }
-        }
-      })();
-
-      warnIfReactDOMContainerInDEV(container);
-      return new ReactSyncRoot(container, BatchedRoot, options);
-    }
-
-    function warnIfReactDOMContainerInDEV(container) {
-      {
-        !!container._reactRootContainer ? warningWithoutStack$1(false, 'You are calling ReactDOM.%s() on a container that was previously ' + 'passed to ReactDOM.render(). This is not supported.', enableStableConcurrentModeAPIs ? 'createRoot' : 'unstable_createRoot') : void 0;
-        container._reactHasBeenPassedToCreateRootDEV = true;
-      }
-    }
-
-    if (enableStableConcurrentModeAPIs) {
+    if (exposeConcurrentModeAPIs) {
       ReactDOM.createRoot = createRoot;
-      ReactDOM.createSyncRoot = createSyncRoot;
+      ReactDOM.createBlockingRoot = createBlockingRoot;
+      ReactDOM.unstable_discreteUpdates = discreteUpdates$1;
+      ReactDOM.unstable_flushDiscreteUpdates = flushDiscreteUpdates;
+      ReactDOM.unstable_flushControlled = flushControlled;
+
+      ReactDOM.unstable_scheduleHydration = function (target) {
+        if (target) {
+          queueExplicitHydrationTarget(target);
+        }
+      };
     }
 
     var foundDevTools = injectIntoDevTools({
@@ -32047,8 +31802,851 @@ if ("development" === 'production') {
 } else {
   module.exports = require('./cjs/react-dom.development.js');
 }
-},{"./cjs/react-dom.development.js":"node_modules/react-dom/cjs/react-dom.development.js"}],"node_modules/react-is/cjs/react-is.development.js":[function(require,module,exports) {
-/** @license React v16.10.2
+},{"./cjs/react-dom.development.js":"node_modules/react-dom/cjs/react-dom.development.js"}],"node_modules/wicg-inert/src/inert.js":[function(require,module,exports) {
+/**
+ * This work is licensed under the W3C Software and Document License
+ * (http://www.w3.org/Consortium/Legal/2015/copyright-software-and-document).
+ */
+// Convenience function for converting NodeLists.
+
+/** @type {typeof Array.prototype.slice} */
+const slice = Array.prototype.slice;
+/**
+ * IE has a non-standard name for "matches".
+ * @type {typeof Element.prototype.matches}
+ */
+
+const matches = Element.prototype.matches || Element.prototype.msMatchesSelector;
+/** @type {string} */
+
+const _focusableElementsString = ['a[href]', 'area[href]', 'input:not([disabled])', 'select:not([disabled])', 'textarea:not([disabled])', 'button:not([disabled])', 'details', 'summary', 'iframe', 'object', 'embed', '[contenteditable]'].join(',');
+/**
+ * `InertRoot` manages a single inert subtree, i.e. a DOM subtree whose root element has an `inert`
+ * attribute.
+ *
+ * Its main functions are:
+ *
+ * - to create and maintain a set of managed `InertNode`s, including when mutations occur in the
+ *   subtree. The `makeSubtreeUnfocusable()` method handles collecting `InertNode`s via registering
+ *   each focusable node in the subtree with the singleton `InertManager` which manages all known
+ *   focusable nodes within inert subtrees. `InertManager` ensures that a single `InertNode`
+ *   instance exists for each focusable node which has at least one inert root as an ancestor.
+ *
+ * - to notify all managed `InertNode`s when this subtree stops being inert (i.e. when the `inert`
+ *   attribute is removed from the root node). This is handled in the destructor, which calls the
+ *   `deregister` method on `InertManager` for each managed inert node.
+ */
+
+
+class InertRoot {
+  /**
+   * @param {!Element} rootElement The Element at the root of the inert subtree.
+   * @param {!InertManager} inertManager The global singleton InertManager object.
+   */
+  constructor(rootElement, inertManager) {
+    /** @type {!InertManager} */
+    this._inertManager = inertManager;
+    /** @type {!Element} */
+
+    this._rootElement = rootElement;
+    /**
+     * @type {!Set<!InertNode>}
+     * All managed focusable nodes in this InertRoot's subtree.
+     */
+
+    this._managedNodes = new Set(); // Make the subtree hidden from assistive technology
+
+    if (this._rootElement.hasAttribute('aria-hidden')) {
+      /** @type {?string} */
+      this._savedAriaHidden = this._rootElement.getAttribute('aria-hidden');
+    } else {
+      this._savedAriaHidden = null;
+    }
+
+    this._rootElement.setAttribute('aria-hidden', 'true'); // Make all focusable elements in the subtree unfocusable and add them to _managedNodes
+
+
+    this._makeSubtreeUnfocusable(this._rootElement); // Watch for:
+    // - any additions in the subtree: make them unfocusable too
+    // - any removals from the subtree: remove them from this inert root's managed nodes
+    // - attribute changes: if `tabindex` is added, or removed from an intrinsically focusable
+    //   element, make that node a managed node.
+
+
+    this._observer = new MutationObserver(this._onMutation.bind(this));
+
+    this._observer.observe(this._rootElement, {
+      attributes: true,
+      childList: true,
+      subtree: true
+    });
+  }
+  /**
+   * Call this whenever this object is about to become obsolete.  This unwinds all of the state
+   * stored in this object and updates the state of all of the managed nodes.
+   */
+
+
+  destructor() {
+    this._observer.disconnect();
+
+    if (this._rootElement) {
+      if (this._savedAriaHidden !== null) {
+        this._rootElement.setAttribute('aria-hidden', this._savedAriaHidden);
+      } else {
+        this._rootElement.removeAttribute('aria-hidden');
+      }
+    }
+
+    this._managedNodes.forEach(function (inertNode) {
+      this._unmanageNode(inertNode.node);
+    }, this); // Note we cast the nulls to the ANY type here because:
+    // 1) We want the class properties to be declared as non-null, or else we
+    //    need even more casts throughout this code. All bets are off if an
+    //    instance has been destroyed and a method is called.
+    // 2) We don't want to cast "this", because we want type-aware optimizations
+    //    to know which properties we're setting.
+
+
+    this._observer =
+    /** @type {?} */
+    null;
+    this._rootElement =
+    /** @type {?} */
+    null;
+    this._managedNodes =
+    /** @type {?} */
+    null;
+    this._inertManager =
+    /** @type {?} */
+    null;
+  }
+  /**
+   * @return {!Set<!InertNode>} A copy of this InertRoot's managed nodes set.
+   */
+
+
+  get managedNodes() {
+    return new Set(this._managedNodes);
+  }
+  /** @return {boolean} */
+
+
+  get hasSavedAriaHidden() {
+    return this._savedAriaHidden !== null;
+  }
+  /** @param {?string} ariaHidden */
+
+
+  set savedAriaHidden(ariaHidden) {
+    this._savedAriaHidden = ariaHidden;
+  }
+  /** @return {?string} */
+
+
+  get savedAriaHidden() {
+    return this._savedAriaHidden;
+  }
+  /**
+   * @param {!Node} startNode
+   */
+
+
+  _makeSubtreeUnfocusable(startNode) {
+    composedTreeWalk(startNode, node => this._visitNode(node));
+    let activeElement = document.activeElement;
+
+    if (!document.body.contains(startNode)) {
+      // startNode may be in shadow DOM, so find its nearest shadowRoot to get the activeElement.
+      let node = startNode;
+      /** @type {!ShadowRoot|undefined} */
+
+      let root = undefined;
+
+      while (node) {
+        if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+          root =
+          /** @type {!ShadowRoot} */
+          node;
+          break;
+        }
+
+        node = node.parentNode;
+      }
+
+      if (root) {
+        activeElement = root.activeElement;
+      }
+    }
+
+    if (startNode.contains(activeElement)) {
+      activeElement.blur(); // In IE11, if an element is already focused, and then set to tabindex=-1
+      // calling blur() will not actually move the focus.
+      // To work around this we call focus() on the body instead.
+
+      if (activeElement === document.activeElement) {
+        document.body.focus();
+      }
+    }
+  }
+  /**
+   * @param {!Node} node
+   */
+
+
+  _visitNode(node) {
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return;
+    }
+
+    const element =
+    /** @type {!Element} */
+    node; // If a descendant inert root becomes un-inert, its descendants will still be inert because of
+    // this inert root, so all of its managed nodes need to be adopted by this InertRoot.
+
+    if (element !== this._rootElement && element.hasAttribute('inert')) {
+      this._adoptInertRoot(element);
+    }
+
+    if (matches.call(element, _focusableElementsString) || element.hasAttribute('tabindex')) {
+      this._manageNode(element);
+    }
+  }
+  /**
+   * Register the given node with this InertRoot and with InertManager.
+   * @param {!Node} node
+   */
+
+
+  _manageNode(node) {
+    const inertNode = this._inertManager.register(node, this);
+
+    this._managedNodes.add(inertNode);
+  }
+  /**
+   * Unregister the given node with this InertRoot and with InertManager.
+   * @param {!Node} node
+   */
+
+
+  _unmanageNode(node) {
+    const inertNode = this._inertManager.deregister(node, this);
+
+    if (inertNode) {
+      this._managedNodes.delete(inertNode);
+    }
+  }
+  /**
+   * Unregister the entire subtree starting at `startNode`.
+   * @param {!Node} startNode
+   */
+
+
+  _unmanageSubtree(startNode) {
+    composedTreeWalk(startNode, node => this._unmanageNode(node));
+  }
+  /**
+   * If a descendant node is found with an `inert` attribute, adopt its managed nodes.
+   * @param {!Element} node
+   */
+
+
+  _adoptInertRoot(node) {
+    let inertSubroot = this._inertManager.getInertRoot(node); // During initialisation this inert root may not have been registered yet,
+    // so register it now if need be.
+
+
+    if (!inertSubroot) {
+      this._inertManager.setInert(node, true);
+
+      inertSubroot = this._inertManager.getInertRoot(node);
+    }
+
+    inertSubroot.managedNodes.forEach(function (savedInertNode) {
+      this._manageNode(savedInertNode.node);
+    }, this);
+  }
+  /**
+   * Callback used when mutation observer detects subtree additions, removals, or attribute changes.
+   * @param {!Array<!MutationRecord>} records
+   * @param {!MutationObserver} self
+   */
+
+
+  _onMutation(records, self) {
+    records.forEach(function (record) {
+      const target =
+      /** @type {!Element} */
+      record.target;
+
+      if (record.type === 'childList') {
+        // Manage added nodes
+        slice.call(record.addedNodes).forEach(function (node) {
+          this._makeSubtreeUnfocusable(node);
+        }, this); // Un-manage removed nodes
+
+        slice.call(record.removedNodes).forEach(function (node) {
+          this._unmanageSubtree(node);
+        }, this);
+      } else if (record.type === 'attributes') {
+        if (record.attributeName === 'tabindex') {
+          // Re-initialise inert node if tabindex changes
+          this._manageNode(target);
+        } else if (target !== this._rootElement && record.attributeName === 'inert' && target.hasAttribute('inert')) {
+          // If a new inert root is added, adopt its managed nodes and make sure it knows about the
+          // already managed nodes from this inert subroot.
+          this._adoptInertRoot(target);
+
+          const inertSubroot = this._inertManager.getInertRoot(target);
+
+          this._managedNodes.forEach(function (managedNode) {
+            if (target.contains(managedNode.node)) {
+              inertSubroot._manageNode(managedNode.node);
+            }
+          });
+        }
+      }
+    }, this);
+  }
+
+}
+/**
+ * `InertNode` initialises and manages a single inert node.
+ * A node is inert if it is a descendant of one or more inert root elements.
+ *
+ * On construction, `InertNode` saves the existing `tabindex` value for the node, if any, and
+ * either removes the `tabindex` attribute or sets it to `-1`, depending on whether the element
+ * is intrinsically focusable or not.
+ *
+ * `InertNode` maintains a set of `InertRoot`s which are descendants of this `InertNode`. When an
+ * `InertRoot` is destroyed, and calls `InertManager.deregister()`, the `InertManager` notifies the
+ * `InertNode` via `removeInertRoot()`, which in turn destroys the `InertNode` if no `InertRoot`s
+ * remain in the set. On destruction, `InertNode` reinstates the stored `tabindex` if one exists,
+ * or removes the `tabindex` attribute if the element is intrinsically focusable.
+ */
+
+
+class InertNode {
+  /**
+   * @param {!Node} node A focusable element to be made inert.
+   * @param {!InertRoot} inertRoot The inert root element associated with this inert node.
+   */
+  constructor(node, inertRoot) {
+    /** @type {!Node} */
+    this._node = node;
+    /** @type {boolean} */
+
+    this._overrodeFocusMethod = false;
+    /**
+     * @type {!Set<!InertRoot>} The set of descendant inert roots.
+     *    If and only if this set becomes empty, this node is no longer inert.
+     */
+
+    this._inertRoots = new Set([inertRoot]);
+    /** @type {?number} */
+
+    this._savedTabIndex = null;
+    /** @type {boolean} */
+
+    this._destroyed = false; // Save any prior tabindex info and make this node untabbable
+
+    this.ensureUntabbable();
+  }
+  /**
+   * Call this whenever this object is about to become obsolete.
+   * This makes the managed node focusable again and deletes all of the previously stored state.
+   */
+
+
+  destructor() {
+    this._throwIfDestroyed();
+
+    if (this._node && this._node.nodeType === Node.ELEMENT_NODE) {
+      const element =
+      /** @type {!Element} */
+      this._node;
+
+      if (this._savedTabIndex !== null) {
+        element.setAttribute('tabindex', this._savedTabIndex);
+      } else {
+        element.removeAttribute('tabindex');
+      } // Use `delete` to restore native focus method.
+
+
+      if (this._overrodeFocusMethod) {
+        delete element.focus;
+      }
+    } // See note in InertRoot.destructor for why we cast these nulls to ANY.
+
+
+    this._node =
+    /** @type {?} */
+    null;
+    this._inertRoots =
+    /** @type {?} */
+    null;
+    this._destroyed = true;
+  }
+  /**
+   * @type {boolean} Whether this object is obsolete because the managed node is no longer inert.
+   * If the object has been destroyed, any attempt to access it will cause an exception.
+   */
+
+
+  get destroyed() {
+    return (
+      /** @type {!InertNode} */
+      this._destroyed
+    );
+  }
+  /**
+   * Throw if user tries to access destroyed InertNode.
+   */
+
+
+  _throwIfDestroyed() {
+    if (this.destroyed) {
+      throw new Error('Trying to access destroyed InertNode');
+    }
+  }
+  /** @return {boolean} */
+
+
+  get hasSavedTabIndex() {
+    return this._savedTabIndex !== null;
+  }
+  /** @return {!Node} */
+
+
+  get node() {
+    this._throwIfDestroyed();
+
+    return this._node;
+  }
+  /** @param {?number} tabIndex */
+
+
+  set savedTabIndex(tabIndex) {
+    this._throwIfDestroyed();
+
+    this._savedTabIndex = tabIndex;
+  }
+  /** @return {?number} */
+
+
+  get savedTabIndex() {
+    this._throwIfDestroyed();
+
+    return this._savedTabIndex;
+  }
+  /** Save the existing tabindex value and make the node untabbable and unfocusable */
+
+
+  ensureUntabbable() {
+    if (this.node.nodeType !== Node.ELEMENT_NODE) {
+      return;
+    }
+
+    const element =
+    /** @type {!Element} */
+    this.node;
+
+    if (matches.call(element, _focusableElementsString)) {
+      if (
+      /** @type {!HTMLElement} */
+      element.tabIndex === -1 && this.hasSavedTabIndex) {
+        return;
+      }
+
+      if (element.hasAttribute('tabindex')) {
+        this._savedTabIndex =
+        /** @type {!HTMLElement} */
+        element.tabIndex;
+      }
+
+      element.setAttribute('tabindex', '-1');
+
+      if (element.nodeType === Node.ELEMENT_NODE) {
+        element.focus = function () {};
+
+        this._overrodeFocusMethod = true;
+      }
+    } else if (element.hasAttribute('tabindex')) {
+      this._savedTabIndex =
+      /** @type {!HTMLElement} */
+      element.tabIndex;
+      element.removeAttribute('tabindex');
+    }
+  }
+  /**
+   * Add another inert root to this inert node's set of managing inert roots.
+   * @param {!InertRoot} inertRoot
+   */
+
+
+  addInertRoot(inertRoot) {
+    this._throwIfDestroyed();
+
+    this._inertRoots.add(inertRoot);
+  }
+  /**
+   * Remove the given inert root from this inert node's set of managing inert roots.
+   * If the set of managing inert roots becomes empty, this node is no longer inert,
+   * so the object should be destroyed.
+   * @param {!InertRoot} inertRoot
+   */
+
+
+  removeInertRoot(inertRoot) {
+    this._throwIfDestroyed();
+
+    this._inertRoots.delete(inertRoot);
+
+    if (this._inertRoots.size === 0) {
+      this.destructor();
+    }
+  }
+
+}
+/**
+ * InertManager is a per-document singleton object which manages all inert roots and nodes.
+ *
+ * When an element becomes an inert root by having an `inert` attribute set and/or its `inert`
+ * property set to `true`, the `setInert` method creates an `InertRoot` object for the element.
+ * The `InertRoot` in turn registers itself as managing all of the element's focusable descendant
+ * nodes via the `register()` method. The `InertManager` ensures that a single `InertNode` instance
+ * is created for each such node, via the `_managedNodes` map.
+ */
+
+
+class InertManager {
+  /**
+   * @param {!Document} document
+   */
+  constructor(document) {
+    if (!document) {
+      throw new Error('Missing required argument; InertManager needs to wrap a document.');
+    }
+    /** @type {!Document} */
+
+
+    this._document = document;
+    /**
+     * All managed nodes known to this InertManager. In a map to allow looking up by Node.
+     * @type {!Map<!Node, !InertNode>}
+     */
+
+    this._managedNodes = new Map();
+    /**
+     * All inert roots known to this InertManager. In a map to allow looking up by Node.
+     * @type {!Map<!Node, !InertRoot>}
+     */
+
+    this._inertRoots = new Map();
+    /**
+     * Observer for mutations on `document.body`.
+     * @type {!MutationObserver}
+     */
+
+    this._observer = new MutationObserver(this._watchForInert.bind(this)); // Add inert style.
+
+    addInertStyle(document.head || document.body || document.documentElement); // Wait for document to be loaded.
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', this._onDocumentLoaded.bind(this));
+    } else {
+      this._onDocumentLoaded();
+    }
+  }
+  /**
+   * Set whether the given element should be an inert root or not.
+   * @param {!Element} root
+   * @param {boolean} inert
+   */
+
+
+  setInert(root, inert) {
+    if (inert) {
+      if (this._inertRoots.has(root)) {
+        // element is already inert
+        return;
+      }
+
+      const inertRoot = new InertRoot(root, this);
+      root.setAttribute('inert', '');
+
+      this._inertRoots.set(root, inertRoot); // If not contained in the document, it must be in a shadowRoot.
+      // Ensure inert styles are added there.
+
+
+      if (!this._document.body.contains(root)) {
+        let parent = root.parentNode;
+
+        while (parent) {
+          if (parent.nodeType === 11) {
+            addInertStyle(parent);
+          }
+
+          parent = parent.parentNode;
+        }
+      }
+    } else {
+      if (!this._inertRoots.has(root)) {
+        // element is already non-inert
+        return;
+      }
+
+      const inertRoot = this._inertRoots.get(root);
+
+      inertRoot.destructor();
+
+      this._inertRoots.delete(root);
+
+      root.removeAttribute('inert');
+    }
+  }
+  /**
+   * Get the InertRoot object corresponding to the given inert root element, if any.
+   * @param {!Node} element
+   * @return {!InertRoot|undefined}
+   */
+
+
+  getInertRoot(element) {
+    return this._inertRoots.get(element);
+  }
+  /**
+   * Register the given InertRoot as managing the given node.
+   * In the case where the node has a previously existing inert root, this inert root will
+   * be added to its set of inert roots.
+   * @param {!Node} node
+   * @param {!InertRoot} inertRoot
+   * @return {!InertNode} inertNode
+   */
+
+
+  register(node, inertRoot) {
+    let inertNode = this._managedNodes.get(node);
+
+    if (inertNode !== undefined) {
+      // node was already in an inert subtree
+      inertNode.addInertRoot(inertRoot);
+    } else {
+      inertNode = new InertNode(node, inertRoot);
+    }
+
+    this._managedNodes.set(node, inertNode);
+
+    return inertNode;
+  }
+  /**
+   * De-register the given InertRoot as managing the given inert node.
+   * Removes the inert root from the InertNode's set of managing inert roots, and remove the inert
+   * node from the InertManager's set of managed nodes if it is destroyed.
+   * If the node is not currently managed, this is essentially a no-op.
+   * @param {!Node} node
+   * @param {!InertRoot} inertRoot
+   * @return {?InertNode} The potentially destroyed InertNode associated with this node, if any.
+   */
+
+
+  deregister(node, inertRoot) {
+    const inertNode = this._managedNodes.get(node);
+
+    if (!inertNode) {
+      return null;
+    }
+
+    inertNode.removeInertRoot(inertRoot);
+
+    if (inertNode.destroyed) {
+      this._managedNodes.delete(node);
+    }
+
+    return inertNode;
+  }
+  /**
+   * Callback used when document has finished loading.
+   */
+
+
+  _onDocumentLoaded() {
+    // Find all inert roots in document and make them actually inert.
+    const inertElements = slice.call(this._document.querySelectorAll('[inert]'));
+    inertElements.forEach(function (inertElement) {
+      this.setInert(inertElement, true);
+    }, this); // Comment this out to use programmatic API only.
+
+    this._observer.observe(this._document.body || this._document.documentElement, {
+      attributes: true,
+      subtree: true,
+      childList: true
+    });
+  }
+  /**
+   * Callback used when mutation observer detects attribute changes.
+   * @param {!Array<!MutationRecord>} records
+   * @param {!MutationObserver} self
+   */
+
+
+  _watchForInert(records, self) {
+    const _this = this;
+
+    records.forEach(function (record) {
+      switch (record.type) {
+        case 'childList':
+          slice.call(record.addedNodes).forEach(function (node) {
+            if (node.nodeType !== Node.ELEMENT_NODE) {
+              return;
+            }
+
+            const inertElements = slice.call(node.querySelectorAll('[inert]'));
+
+            if (matches.call(node, '[inert]')) {
+              inertElements.unshift(node);
+            }
+
+            inertElements.forEach(function (inertElement) {
+              this.setInert(inertElement, true);
+            }, _this);
+          }, _this);
+          break;
+
+        case 'attributes':
+          if (record.attributeName !== 'inert') {
+            return;
+          }
+
+          const target =
+          /** @type {!Element} */
+          record.target;
+          const inert = target.hasAttribute('inert');
+
+          _this.setInert(target, inert);
+
+          break;
+      }
+    }, this);
+  }
+
+}
+/**
+ * Recursively walk the composed tree from |node|.
+ * @param {!Node} node
+ * @param {(function (!Element))=} callback Callback to be called for each element traversed,
+ *     before descending into child nodes.
+ * @param {?ShadowRoot=} shadowRootAncestor The nearest ShadowRoot ancestor, if any.
+ */
+
+
+function composedTreeWalk(node, callback, shadowRootAncestor) {
+  if (node.nodeType == Node.ELEMENT_NODE) {
+    const element =
+    /** @type {!Element} */
+    node;
+
+    if (callback) {
+      callback(element);
+    } // Descend into node:
+    // If it has a ShadowRoot, ignore all child elements - these will be picked
+    // up by the <content> or <shadow> elements. Descend straight into the
+    // ShadowRoot.
+
+
+    const shadowRoot =
+    /** @type {!HTMLElement} */
+    element.shadowRoot;
+
+    if (shadowRoot) {
+      composedTreeWalk(shadowRoot, callback, shadowRoot);
+      return;
+    } // If it is a <content> element, descend into distributed elements - these
+    // are elements from outside the shadow root which are rendered inside the
+    // shadow DOM.
+
+
+    if (element.localName == 'content') {
+      const content =
+      /** @type {!HTMLContentElement} */
+      element; // Verifies if ShadowDom v0 is supported.
+
+      const distributedNodes = content.getDistributedNodes ? content.getDistributedNodes() : [];
+
+      for (let i = 0; i < distributedNodes.length; i++) {
+        composedTreeWalk(distributedNodes[i], callback, shadowRootAncestor);
+      }
+
+      return;
+    } // If it is a <slot> element, descend into assigned nodes - these
+    // are elements from outside the shadow root which are rendered inside the
+    // shadow DOM.
+
+
+    if (element.localName == 'slot') {
+      const slot =
+      /** @type {!HTMLSlotElement} */
+      element; // Verify if ShadowDom v1 is supported.
+
+      const distributedNodes = slot.assignedNodes ? slot.assignedNodes({
+        flatten: true
+      }) : [];
+
+      for (let i = 0; i < distributedNodes.length; i++) {
+        composedTreeWalk(distributedNodes[i], callback, shadowRootAncestor);
+      }
+
+      return;
+    }
+  } // If it is neither the parent of a ShadowRoot, a <content> element, a <slot>
+  // element, nor a <shadow> element recurse normally.
+
+
+  let child = node.firstChild;
+
+  while (child != null) {
+    composedTreeWalk(child, callback, shadowRootAncestor);
+    child = child.nextSibling;
+  }
+}
+/**
+ * Adds a style element to the node containing the inert specific styles
+ * @param {!Node} node
+ */
+
+
+function addInertStyle(node) {
+  if (node.querySelector('style#inert-style')) {
+    return;
+  }
+
+  const style = document.createElement('style');
+  style.setAttribute('id', 'inert-style');
+  style.textContent = '\n' + '[inert] {\n' + '  pointer-events: none;\n' + '  cursor: default;\n' + '}\n' + '\n' + '[inert], [inert] * {\n' + '  user-select: none;\n' + '  -webkit-user-select: none;\n' + '  -moz-user-select: none;\n' + '  -ms-user-select: none;\n' + '}\n';
+  node.appendChild(style);
+}
+/** @type {!InertManager} */
+
+
+const inertManager = new InertManager(document);
+
+if (!Element.prototype.hasOwnProperty('inert')) {
+  Object.defineProperty(Element.prototype, 'inert', {
+    enumerable: true,
+
+    /** @this {!Element} */
+    get: function () {
+      return this.hasAttribute('inert');
+    },
+
+    /** @this {!Element} */
+    set: function (inert) {
+      inertManager.setInert(this, inert);
+    }
+  });
+}
+},{}],"node_modules/react-is/cjs/react-is.development.js":[function(require,module,exports) {
+/** @license React v16.12.0
  * react-is.development.js
  *
  * Copyright (c) Facebook, Inc. and its affiliates.
@@ -32171,6 +32769,8 @@ if ("development" !== "production") {
                 switch ($$typeofType) {
                   case REACT_CONTEXT_TYPE:
                   case REACT_FORWARD_REF_TYPE:
+                  case REACT_LAZY_TYPE:
+                  case REACT_MEMO_TYPE:
                   case REACT_PROVIDER_TYPE:
                     return $$typeofType;
 
@@ -32180,8 +32780,6 @@ if ("development" !== "production") {
 
             }
 
-          case REACT_LAZY_TYPE:
-          case REACT_MEMO_TYPE:
           case REACT_PORTAL_TYPE:
             return $$typeof;
         }
@@ -33287,7 +33885,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = _default;
 
-var _timer = require("./timer");
+var _timer = require("./timer.js");
 
 function _default(callback, delay, time) {
   var t = new _timer.Timer();
@@ -33298,7 +33896,7 @@ function _default(callback, delay, time) {
   }, delay, time);
   return t;
 }
-},{"./timer":"node_modules/d3-timer/src/timer.js"}],"node_modules/d3-timer/src/interval.js":[function(require,module,exports) {
+},{"./timer.js":"node_modules/d3-timer/src/timer.js"}],"node_modules/d3-timer/src/interval.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -33306,7 +33904,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = _default;
 
-var _timer = require("./timer");
+var _timer = require("./timer.js");
 
 function _default(callback, delay, time) {
   var t = new _timer.Timer(),
@@ -33320,7 +33918,7 @@ function _default(callback, delay, time) {
   }, delay, time);
   return t;
 }
-},{"./timer":"node_modules/d3-timer/src/timer.js"}],"node_modules/d3-timer/src/index.js":[function(require,module,exports) {
+},{"./timer.js":"node_modules/d3-timer/src/timer.js"}],"node_modules/d3-timer/src/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -33357,14 +33955,14 @@ Object.defineProperty(exports, "interval", {
   }
 });
 
-var _timer = require("./timer");
+var _timer = require("./timer.js");
 
-var _timeout = _interopRequireDefault(require("./timeout"));
+var _timeout = _interopRequireDefault(require("./timeout.js"));
 
-var _interval = _interopRequireDefault(require("./interval"));
+var _interval = _interopRequireDefault(require("./interval.js"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-},{"./timer":"node_modules/d3-timer/src/timer.js","./timeout":"node_modules/d3-timer/src/timeout.js","./interval":"node_modules/d3-timer/src/interval.js"}],"node_modules/kapellmeister/es/utils.js":[function(require,module,exports) {
+},{"./timer.js":"node_modules/d3-timer/src/timer.js","./timeout.js":"node_modules/d3-timer/src/timeout.js","./interval.js":"node_modules/d3-timer/src/interval.js"}],"node_modules/kapellmeister/es/utils.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -35143,26 +35741,256 @@ Object.defineProperty(exports, "easeElasticInOut", {
   }
 });
 
-var _linear = require("./linear");
+var _linear = require("./linear.js");
 
-var _quad = require("./quad");
+var _quad = require("./quad.js");
 
-var _cubic = require("./cubic");
+var _cubic = require("./cubic.js");
 
-var _poly = require("./poly");
+var _poly = require("./poly.js");
 
-var _sin = require("./sin");
+var _sin = require("./sin.js");
 
-var _exp = require("./exp");
+var _exp = require("./exp.js");
 
-var _circle = require("./circle");
+var _circle = require("./circle.js");
 
-var _bounce = require("./bounce");
+var _bounce = require("./bounce.js");
 
-var _back = require("./back");
+var _back = require("./back.js");
 
-var _elastic = require("./elastic");
-},{"./linear":"node_modules/d3-ease/src/linear.js","./quad":"node_modules/d3-ease/src/quad.js","./cubic":"node_modules/d3-ease/src/cubic.js","./poly":"node_modules/d3-ease/src/poly.js","./sin":"node_modules/d3-ease/src/sin.js","./exp":"node_modules/d3-ease/src/exp.js","./circle":"node_modules/d3-ease/src/circle.js","./bounce":"node_modules/d3-ease/src/bounce.js","./back":"node_modules/d3-ease/src/back.js","./elastic":"node_modules/d3-ease/src/elastic.js"}],"node_modules/nuka-carousel/es/default-controls.js":[function(require,module,exports) {
+var _elastic = require("./elastic.js");
+},{"./linear.js":"node_modules/d3-ease/src/linear.js","./quad.js":"node_modules/d3-ease/src/quad.js","./cubic.js":"node_modules/d3-ease/src/cubic.js","./poly.js":"node_modules/d3-ease/src/poly.js","./sin.js":"node_modules/d3-ease/src/sin.js","./exp.js":"node_modules/d3-ease/src/exp.js","./circle.js":"node_modules/d3-ease/src/circle.js","./bounce.js":"node_modules/d3-ease/src/bounce.js","./back.js":"node_modules/d3-ease/src/back.js","./elastic.js":"node_modules/d3-ease/src/elastic.js"}],"node_modules/nuka-carousel/es/utilities/style-utilities.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.getTransitionProps = exports.getFrameStyles = exports.getSliderStyles = exports.getDecoratorStyles = exports.getAlignmentOffset = exports.getSlideHeight = exports.getImgTagStyles = void 0;
+
+var _react = _interopRequireDefault(require("react"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var getImgTagStyles = function getImgTagStyles() {
+  return ".slider-slide > img { width: 100%; display: block; }\n          .slider-slide > img:focus { margin: auto; }";
+};
+
+exports.getImgTagStyles = getImgTagStyles;
+
+var getSlideHeight = function getSlideHeight(props) {
+  var childCount = _react.default.Children.count(props.children);
+
+  var listWidth = props.slideWidth * childCount;
+  var spacingOffset = props.cellSpacing * childCount;
+  var calculatedHeight = props.vertical ? listWidth + spacingOffset : props.slideHeight;
+  return calculatedHeight > 0 && props.heightMode !== 'current' ? calculatedHeight : 'auto';
+};
+
+exports.getSlideHeight = getSlideHeight;
+
+var getAlignmentOffset = function getAlignmentOffset(slideIndex, config) {
+  var offset = 0;
+
+  switch (config.cellAlign) {
+    case 'left':
+      {
+        offset = 0;
+        offset -= config.cellSpacing * slideIndex;
+        break;
+      }
+
+    case 'center':
+      {
+        offset = (config.frameWidth - config.slideWidth) / 2;
+        offset -= config.cellSpacing * slideIndex;
+        break;
+      }
+
+    case 'right':
+      {
+        offset = config.frameWidth - config.slideWidth;
+        offset -= config.cellSpacing * slideIndex;
+        break;
+      }
+  }
+
+  return offset;
+};
+
+exports.getAlignmentOffset = getAlignmentOffset;
+
+var getDecoratorStyles = function getDecoratorStyles(position) {
+  switch (position) {
+    case 'TopLeft':
+      {
+        return {
+          position: 'absolute',
+          top: 0,
+          left: 0
+        };
+      }
+
+    case 'TopCenter':
+      {
+        return {
+          position: 'absolute',
+          top: 0,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          WebkitTransform: 'translateX(-50%)',
+          msTransform: 'translateX(-50%)'
+        };
+      }
+
+    case 'TopRight':
+      {
+        return {
+          position: 'absolute',
+          top: 0,
+          right: 0
+        };
+      }
+
+    case 'CenterLeft':
+      {
+        return {
+          position: 'absolute',
+          top: '50%',
+          left: 0,
+          transform: 'translateY(-50%)',
+          WebkitTransform: 'translateY(-50%)',
+          msTransform: 'translateY(-50%)'
+        };
+      }
+
+    case 'CenterCenter':
+      {
+        return {
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%,-50%)',
+          WebkitTransform: 'translate(-50%, -50%)',
+          msTransform: 'translate(-50%, -50%)'
+        };
+      }
+
+    case 'CenterRight':
+      {
+        return {
+          position: 'absolute',
+          top: '50%',
+          right: 0,
+          transform: 'translateY(-50%)',
+          WebkitTransform: 'translateY(-50%)',
+          msTransform: 'translateY(-50%)'
+        };
+      }
+
+    case 'BottomLeft':
+      {
+        return {
+          position: 'absolute',
+          bottom: 0,
+          left: 0
+        };
+      }
+
+    case 'BottomCenter':
+      {
+        return {
+          position: 'absolute',
+          bottom: 0,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          WebkitTransform: 'translateX(-50%)',
+          msTransform: 'translateX(-50%)'
+        };
+      }
+
+    case 'BottomRight':
+      {
+        return {
+          position: 'absolute',
+          bottom: 0,
+          right: 0
+        };
+      }
+
+    default:
+      {
+        return {
+          position: 'absolute',
+          top: 0,
+          left: 0
+        };
+      }
+  }
+};
+
+exports.getDecoratorStyles = getDecoratorStyles;
+
+var getSliderStyles = function getSliderStyles(propWidth, propHeight) {
+  return {
+    boxSizing: 'border-box',
+    display: 'block',
+    height: propHeight,
+    MozBoxSizing: 'border-box',
+    position: 'relative',
+    width: propWidth
+  };
+};
+
+exports.getSliderStyles = getSliderStyles;
+
+var getFrameStyles = function getFrameStyles(propFrameOverFlow, propVertical, propFramePadding, stateFrameWidth) {
+  return {
+    boxSizing: 'border-box',
+    display: 'block',
+    height: propVertical ? stateFrameWidth || 'initial' : '100%',
+    margin: propFramePadding,
+    MozBoxSizing: 'border-box',
+    msTransform: 'translate(0, 0)',
+    overflow: propFrameOverFlow,
+    padding: 0,
+    position: 'relative',
+    touchAction: "pinch-zoom ".concat(propVertical ? 'pan-x' : 'pan-y'),
+    transform: 'translate3d(0, 0, 0)',
+    WebkitTransform: 'translate3d(0, 0, 0)'
+  };
+};
+
+exports.getFrameStyles = getFrameStyles;
+
+var getTransitionProps = function getTransitionProps(props, state) {
+  return {
+    animation: props.animation,
+    cellAlign: props.cellAlign,
+    cellSpacing: props.cellSpacing,
+    currentSlide: state.currentSlide,
+    dragging: props.dragging,
+    frameWidth: parseInt(state.frameWidth),
+    heightMode: props.heightMode,
+    isWrappingAround: state.isWrappingAround,
+    left: state.left,
+    opacityScale: props.opacityScale,
+    slideCount: state.slideCount,
+    slideHeight: state.slideHeight,
+    slideListMargin: props.slideListMargin,
+    slideOffset: props.slideOffset,
+    slidesToScroll: props.slidesToScroll,
+    slidesToShow: state.slidesToShow,
+    slideWidth: state.slideWidth,
+    top: state.top,
+    vertical: props.vertical,
+    wrapAround: props.wrapAround,
+    zoomScale: props.zoomScale
+  };
+};
+
+exports.getTransitionProps = getTransitionProps;
+},{"react":"node_modules/react/index.js"}],"node_modules/nuka-carousel/es/default-controls.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -35171,6 +35999,8 @@ Object.defineProperty(exports, "__esModule", {
 exports.PagingDots = exports.NextButton = exports.PreviousButton = void 0;
 
 var _react = _interopRequireDefault(require("react"));
+
+var _styleUtilities = require("./utilities/style-utilities");
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -35186,6 +36016,55 @@ function _typeof(obj) {
   }
 
   return _typeof(obj);
+}
+
+function ownKeys(object, enumerableOnly) {
+  var keys = Object.keys(object);
+
+  if (Object.getOwnPropertySymbols) {
+    var symbols = Object.getOwnPropertySymbols(object);
+    if (enumerableOnly) symbols = symbols.filter(function (sym) {
+      return Object.getOwnPropertyDescriptor(object, sym).enumerable;
+    });
+    keys.push.apply(keys, symbols);
+  }
+
+  return keys;
+}
+
+function _objectSpread(target) {
+  for (var i = 1; i < arguments.length; i++) {
+    var source = arguments[i] != null ? arguments[i] : {};
+
+    if (i % 2) {
+      ownKeys(Object(source), true).forEach(function (key) {
+        _defineProperty(target, key, source[key]);
+      });
+    } else if (Object.getOwnPropertyDescriptors) {
+      Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
+    } else {
+      ownKeys(Object(source)).forEach(function (key) {
+        Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
+      });
+    }
+  }
+
+  return target;
+}
+
+function _defineProperty(obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, {
+      value: value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  } else {
+    obj[key] = value;
+  }
+
+  return obj;
 }
 
 function _classCallCheck(instance, Constructor) {
@@ -35263,7 +36142,8 @@ var defaultButtonStyles = function defaultButtonStyles(disabled) {
     background: 'rgba(0,0,0,0.4)',
     color: 'white',
     padding: 10,
-    opacity: disabled ? 0.3 : 1,
+    textTransform: 'uppercase',
+    opacity: disabled && 0.3,
     cursor: disabled ? 'not-allowed' : 'pointer'
   };
 };
@@ -35292,14 +36172,20 @@ function (_React$Component) {
   }, {
     key: "render",
     value: function render() {
+      var _this$props$defaultCo = this.props.defaultControlsConfig,
+          prevButtonClassName = _this$props$defaultCo.prevButtonClassName,
+          _this$props$defaultCo2 = _this$props$defaultCo.prevButtonStyle,
+          prevButtonStyle = _this$props$defaultCo2 === void 0 ? {} : _this$props$defaultCo2,
+          prevButtonText = _this$props$defaultCo.prevButtonText;
       var disabled = this.props.currentSlide === 0 && !this.props.wrapAround || this.props.slideCount === 0;
       return _react.default.createElement("button", {
-        style: defaultButtonStyles(disabled),
+        className: prevButtonClassName,
+        style: _objectSpread({}, defaultButtonStyles(disabled), {}, prevButtonStyle),
         disabled: disabled,
         onClick: this.handleClick,
         "aria-label": "previous",
         type: "button"
-      }, "PREV");
+      }, prevButtonText || 'Prev');
     }
   }]);
 
@@ -35333,34 +36219,29 @@ function (_React$Component2) {
   }, {
     key: "nextButtonDisabled",
     value: function nextButtonDisabled(params) {
-      var wrapAround = params.wrapAround,
-          slidesToShow = params.slidesToShow,
+      var cellAlign = params.cellAlign,
+          cellSpacing = params.cellSpacing,
           currentSlide = params.currentSlide,
-          cellAlign = params.cellAlign,
-          slideCount = params.slideCount;
+          frameWidth = params.frameWidth,
+          positionValue = params.positionValue,
+          slideCount = params.slideCount,
+          slidesToShow = params.slidesToShow,
+          slideWidth = params.slideWidth,
+          wrapAround = params.wrapAround;
       var buttonDisabled = false;
 
       if (!wrapAround) {
-        var lastSlideIndex = slideCount - 1;
-        var slidesShowing = slidesToShow;
-        var lastSlideOffset = 0;
-
-        switch (cellAlign) {
-          case 'center':
-            slidesShowing = (slidesToShow - 1) * 0.5;
-            lastSlideOffset = Math.floor(slidesToShow * 0.5) - 1;
-            break;
-
-          case 'right':
-            slidesShowing = 1;
-            break;
-        }
-
-        if (slidesToShow > 1) {
-          buttonDisabled = currentSlide + slidesShowing > lastSlideIndex + lastSlideOffset;
-        } else {
-          buttonDisabled = currentSlide + 1 > lastSlideIndex;
-        }
+        var alignmentOffset = (0, _styleUtilities.getAlignmentOffset)(currentSlide, {
+          cellAlign: cellAlign,
+          cellSpacing: cellSpacing,
+          frameWidth: frameWidth,
+          slideWidth: slideWidth
+        });
+        var relativePosition = positionValue - alignmentOffset;
+        var width = slideWidth + cellSpacing;
+        var endOffset = cellAlign === 'center' ? 2 * alignmentOffset : alignmentOffset;
+        var endPosition = -width * slideCount + width * slidesToShow - endOffset;
+        buttonDisabled = relativePosition < endPosition || Math.abs(relativePosition - endPosition) < 0.01;
       }
 
       return buttonDisabled;
@@ -35369,25 +36250,41 @@ function (_React$Component2) {
     key: "render",
     value: function render() {
       var _this$props = this.props,
-          wrapAround = _this$props.wrapAround,
-          slidesToShow = _this$props.slidesToShow,
-          currentSlide = _this$props.currentSlide,
           cellAlign = _this$props.cellAlign,
-          slideCount = _this$props.slideCount;
+          cellSpacing = _this$props.cellSpacing,
+          currentSlide = _this$props.currentSlide,
+          frameWidth = _this$props.frameWidth,
+          left = _this$props.left,
+          slideCount = _this$props.slideCount,
+          slidesToShow = _this$props.slidesToShow,
+          slideWidth = _this$props.slideWidth,
+          top = _this$props.top,
+          vertical = _this$props.vertical,
+          wrapAround = _this$props.wrapAround;
+      var _this$props$defaultCo3 = this.props.defaultControlsConfig,
+          nextButtonClassName = _this$props$defaultCo3.nextButtonClassName,
+          _this$props$defaultCo4 = _this$props$defaultCo3.nextButtonStyle,
+          nextButtonStyle = _this$props$defaultCo4 === void 0 ? {} : _this$props$defaultCo4,
+          nextButtonText = _this$props$defaultCo3.nextButtonText;
       var disabled = this.nextButtonDisabled({
-        wrapAround: wrapAround,
-        slidesToShow: slidesToShow,
-        currentSlide: currentSlide,
         cellAlign: cellAlign,
-        slideCount: slideCount
+        cellSpacing: cellSpacing,
+        currentSlide: currentSlide,
+        frameWidth: frameWidth,
+        positionValue: vertical ? top : left,
+        slideCount: slideCount,
+        slidesToShow: slidesToShow,
+        slideWidth: slideWidth,
+        wrapAround: wrapAround
       });
       return _react.default.createElement("button", {
-        style: defaultButtonStyles(disabled),
+        className: nextButtonClassName,
+        style: _objectSpread({}, defaultButtonStyles(disabled), {}, nextButtonStyle),
         disabled: disabled,
         onClick: this.handleClick,
         "aria-label": "next",
         type: "button"
-      }, "NEXT");
+      }, nextButtonText || 'Next');
     }
   }]);
 
@@ -35436,17 +36333,11 @@ function (_React$Component3) {
     value: function getListStyles() {
       return {
         position: 'relative',
-        margin: 0,
         top: -10,
-        padding: 0
-      };
-    }
-  }, {
-    key: "getListItemStyles",
-    value: function getListItemStyles() {
-      return {
-        listStyleType: 'none',
-        display: 'inline-block'
+        display: 'flex',
+        margin: 0,
+        padding: 0,
+        listStyleType: 'none'
       };
     }
   }, {
@@ -35456,7 +36347,8 @@ function (_React$Component3) {
         cursor: 'pointer',
         opacity: active ? 1 : 0.5,
         background: 'transparent',
-        border: 'none'
+        border: 'none',
+        fill: 'black'
       };
     }
   }, {
@@ -35465,28 +36357,34 @@ function (_React$Component3) {
       var _this3 = this;
 
       var indexes = this.getDotIndexes(this.props.slideCount, this.props.slidesToScroll, this.props.slidesToShow, this.props.cellAlign);
+      var _this$props$defaultCo5 = this.props.defaultControlsConfig,
+          pagingDotsContainerClassName = _this$props$defaultCo5.pagingDotsContainerClassName,
+          pagingDotsClassName = _this$props$defaultCo5.pagingDotsClassName,
+          _this$props$defaultCo6 = _this$props$defaultCo5.pagingDotsStyle,
+          pagingDotsStyle = _this$props$defaultCo6 === void 0 ? {} : _this$props$defaultCo6;
       return _react.default.createElement("ul", {
+        className: pagingDotsContainerClassName,
         style: this.getListStyles()
       }, indexes.map(function (index) {
+        var isActive = _this3.props.currentSlide === index;
         return _react.default.createElement("li", {
-          style: _this3.getListItemStyles(),
           key: index,
-          className: _this3.props.currentSlide === index ? 'paging-item active' : 'paging-item'
+          className: isActive ? 'paging-item active' : 'paging-item'
         }, _react.default.createElement("button", {
+          className: pagingDotsClassName,
           type: "button",
-          style: _this3.getButtonStyles(_this3.props.currentSlide === index),
+          style: _objectSpread({}, _this3.getButtonStyles(isActive), {}, pagingDotsStyle),
           onClick: _this3.props.goToSlide.bind(null, index),
           "aria-label": "slide ".concat(index + 1, " bullet")
-        }, _react.default.createElement("span", {
+        }, _react.default.createElement("svg", {
           className: "paging-dot",
-          style: {
-            display: 'inline-block',
-            borderRadius: '50%',
-            width: '6px',
-            height: '6px',
-            background: 'black'
-          }
-        })));
+          width: "6",
+          height: "6"
+        }, _react.default.createElement("circle", {
+          cx: "3",
+          cy: "3",
+          r: "3"
+        }))));
       }));
     }
   }]);
@@ -35495,959 +36393,17 @@ function (_React$Component3) {
 }(_react.default.Component);
 
 exports.PagingDots = PagingDots;
-},{"react":"node_modules/react/index.js"}],"node_modules/nuka-carousel/es/transitions/scroll-transition.js":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","./utilities/style-utilities":"node_modules/nuka-carousel/es/utilities/style-utilities.js"}],"node_modules/nuka-carousel/es/utilities/utilities.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.default = void 0;
+exports.isFullyVisible = exports.handleSelfFocus = exports.calcSomeInitialState = exports.shouldUpdate = exports.getSlideDirection = exports.swipeDirection = exports.getPropsByTransitionMode = exports.addAccessibility = exports.removeEvent = exports.addEvent = void 0;
 
 var _react = _interopRequireDefault(require("react"));
 
-var _propTypes = _interopRequireDefault(require("prop-types"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _typeof(obj) {
-  if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") {
-    _typeof = function _typeof(obj) {
-      return typeof obj;
-    };
-  } else {
-    _typeof = function _typeof(obj) {
-      return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
-    };
-  }
-
-  return _typeof(obj);
-}
-
-function _classCallCheck(instance, Constructor) {
-  if (!(instance instanceof Constructor)) {
-    throw new TypeError("Cannot call a class as a function");
-  }
-}
-
-function _defineProperties(target, props) {
-  for (var i = 0; i < props.length; i++) {
-    var descriptor = props[i];
-    descriptor.enumerable = descriptor.enumerable || false;
-    descriptor.configurable = true;
-    if ("value" in descriptor) descriptor.writable = true;
-    Object.defineProperty(target, descriptor.key, descriptor);
-  }
-}
-
-function _createClass(Constructor, protoProps, staticProps) {
-  if (protoProps) _defineProperties(Constructor.prototype, protoProps);
-  if (staticProps) _defineProperties(Constructor, staticProps);
-  return Constructor;
-}
-
-function _possibleConstructorReturn(self, call) {
-  if (call && (_typeof(call) === "object" || typeof call === "function")) {
-    return call;
-  }
-
-  return _assertThisInitialized(self);
-}
-
-function _getPrototypeOf(o) {
-  _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) {
-    return o.__proto__ || Object.getPrototypeOf(o);
-  };
-  return _getPrototypeOf(o);
-}
-
-function _assertThisInitialized(self) {
-  if (self === void 0) {
-    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
-  }
-
-  return self;
-}
-
-function _inherits(subClass, superClass) {
-  if (typeof superClass !== "function" && superClass !== null) {
-    throw new TypeError("Super expression must either be null or a function");
-  }
-
-  subClass.prototype = Object.create(superClass && superClass.prototype, {
-    constructor: {
-      value: subClass,
-      writable: true,
-      configurable: true
-    }
-  });
-  if (superClass) _setPrototypeOf(subClass, superClass);
-}
-
-function _setPrototypeOf(o, p) {
-  _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) {
-    o.__proto__ = p;
-    return o;
-  };
-
-  return _setPrototypeOf(o, p);
-}
-
-var MIN_ZOOM_SCALE = 0;
-var MAX_ZOOM_SCALE = 1;
-
-var ScrollTransition =
-/*#__PURE__*/
-function (_React$Component) {
-  _inherits(ScrollTransition, _React$Component);
-
-  function ScrollTransition(props) {
-    var _this;
-
-    _classCallCheck(this, ScrollTransition);
-
-    _this = _possibleConstructorReturn(this, _getPrototypeOf(ScrollTransition).call(this, props));
-    _this.getListStyles = _this.getListStyles.bind(_assertThisInitialized(_this));
-    return _this;
-  }
-
-  _createClass(ScrollTransition, [{
-    key: "getSlideDirection",
-    value: function getSlideDirection(start, end, isWrapping) {
-      var direction = 0;
-      if (start === end) return direction;
-
-      if (isWrapping) {
-        direction = start < end ? -1 : 1;
-      } else {
-        direction = start < end ? 1 : -1;
-      }
-
-      return direction;
-    }
-    /* eslint-disable complexity */
-
-  }, {
-    key: "getSlideTargetPosition",
-    value: function getSlideTargetPosition(index, positionValue) {
-      var targetPosition = (this.props.slideWidth + this.props.cellSpacing) * index;
-      var startSlide = Math.min(Math.abs(Math.floor(positionValue / this.props.slideWidth)), this.props.slideCount - 1);
-      var offset = 0;
-
-      if (this.props.animation === 'zoom' && (this.props.currentSlide === index + 1 || this.props.currentSlide === 0 && index === this.props.children.length - 1)) {
-        offset = this.props.slideOffset;
-      } else if (this.props.animation === 'zoom' && (this.props.currentSlide === index - 1 || this.props.currentSlide === this.props.children.length - 1 && index === 0)) {
-        offset = -this.props.slideOffset;
-      }
-
-      if (this.props.wrapAround && index !== startSlide) {
-        var direction = this.getSlideDirection(startSlide, this.props.currentSlide, this.props.isWrappingAround);
-        var slidesBefore = Math.floor((this.props.slideCount - 1) / 2);
-        var slidesAfter = this.props.slideCount - slidesBefore - 1;
-
-        if (direction < 0) {
-          var temp = slidesBefore;
-          slidesBefore = slidesAfter;
-          slidesAfter = temp;
-        }
-
-        var distanceFromStart = Math.abs(startSlide - index);
-
-        if (index < startSlide) {
-          if (distanceFromStart > slidesBefore) {
-            targetPosition = (this.props.slideWidth + this.props.cellSpacing) * (this.props.slideCount + index);
-          }
-        } else if (distanceFromStart > slidesAfter) {
-          targetPosition = (this.props.slideWidth + this.props.cellSpacing) * (this.props.slideCount - index) * -1;
-        }
-      }
-
-      return targetPosition + offset;
-    }
-    /* eslint-enable complexity */
-
-  }, {
-    key: "formatChildren",
-    value: function formatChildren(children) {
-      var _this2 = this;
-
-      var _this$props = this.props,
-          top = _this$props.top,
-          left = _this$props.left,
-          currentSlide = _this$props.currentSlide,
-          slidesToShow = _this$props.slidesToShow;
-      var positionValue = this.props.vertical ? top : left;
-      return _react.default.Children.map(children, function (child, index) {
-        var visible = index >= currentSlide && index < currentSlide + slidesToShow;
-        return _react.default.createElement("li", {
-          className: "slider-slide".concat(visible ? ' slide-visible' : ''),
-          style: _this2.getSlideStyles(index, positionValue),
-          key: index
-        }, child);
-      });
-    }
-  }, {
-    key: "getSlideStyles",
-    value: function getSlideStyles(index, positionValue) {
-      var targetPosition = this.getSlideTargetPosition(index, positionValue);
-      var transformScale = this.props.animation === 'zoom' && this.props.currentSlide !== index ? Math.max(Math.min(this.props.zoomScale, MAX_ZOOM_SCALE), MIN_ZOOM_SCALE) : 1.0;
-      return {
-        boxSizing: 'border-box',
-        display: this.props.vertical ? 'block' : 'inline-block',
-        height: 'auto',
-        left: this.props.vertical ? 0 : targetPosition,
-        listStyleType: 'none',
-        marginBottom: this.props.vertical ? this.props.cellSpacing / 2 : 'auto',
-        marginLeft: this.props.vertical ? 'auto' : this.props.cellSpacing / 2,
-        marginRight: this.props.vertical ? 'auto' : this.props.cellSpacing / 2,
-        marginTop: this.props.vertical ? this.props.cellSpacing / 2 : 'auto',
-        MozBoxSizing: 'border-box',
-        position: 'absolute',
-        top: this.props.vertical ? targetPosition : 0,
-        transform: "scale(".concat(transformScale, ")"),
-        transition: 'transform .4s linear',
-        verticalAlign: 'top',
-        width: this.props.vertical ? '100%' : this.props.slideWidth
-      };
-    }
-  }, {
-    key: "getListStyles",
-    value: function getListStyles(styles) {
-      var deltaX = styles.deltaX,
-          deltaY = styles.deltaY;
-
-      var listWidth = this.props.slideWidth * _react.default.Children.count(this.props.children);
-
-      var spacingOffset = this.props.cellSpacing * _react.default.Children.count(this.props.children);
-
-      var transform = "translate3d(".concat(deltaX, "px, ").concat(deltaY, "px, 0)");
-      return {
-        transform: transform,
-        WebkitTransform: transform,
-        msTransform: "translate(".concat(deltaX, "px, ").concat(deltaY, "px)"),
-        position: 'relative',
-        display: 'block',
-        margin: this.props.vertical ? "".concat(this.props.cellSpacing / 2 * -1, "px 0px") : "0px ".concat(this.props.cellSpacing / 2 * -1, "px"),
-        padding: 0,
-        height: this.props.vertical ? listWidth + spacingOffset : this.props.slideHeight,
-        width: this.props.vertical ? 'auto' : listWidth + spacingOffset,
-        cursor: this.props.dragging === true ? 'pointer' : 'inherit',
-        boxSizing: 'border-box',
-        MozBoxSizing: 'border-box',
-        touchAction: "pinch-zoom ".concat(this.props.vertical ? 'pan-x' : 'pan-y')
-      };
-    }
-  }, {
-    key: "render",
-    value: function render() {
-      var children = this.formatChildren(this.props.children);
-      var deltaX = this.props.deltaX;
-      var deltaY = this.props.deltaY;
-      return _react.default.createElement("ul", {
-        className: "slider-list",
-        style: this.getListStyles({
-          deltaX: deltaX,
-          deltaY: deltaY
-        })
-      }, children);
-    }
-  }]);
-
-  return ScrollTransition;
-}(_react.default.Component);
-
-exports.default = ScrollTransition;
-ScrollTransition.propTypes = {
-  animation: _propTypes.default.oneOf(['zoom']),
-  cellSpacing: _propTypes.default.number,
-  currentSlide: _propTypes.default.number,
-  deltaX: _propTypes.default.number,
-  deltaY: _propTypes.default.number,
-  dragging: _propTypes.default.bool,
-  isWrappingAround: _propTypes.default.bool,
-  left: _propTypes.default.number,
-  slideCount: _propTypes.default.number,
-  slideHeight: _propTypes.default.number,
-  slideOffset: _propTypes.default.number,
-  slideWidth: _propTypes.default.number,
-  top: _propTypes.default.number,
-  vertical: _propTypes.default.bool,
-  wrapAround: _propTypes.default.bool,
-  zoomScale: _propTypes.default.number
-};
-ScrollTransition.defaultProps = {
-  cellSpacing: 0,
-  currentSlide: 0,
-  deltaX: 0,
-  deltaY: 0,
-  dragging: false,
-  isWrappingAround: false,
-  left: 0,
-  slideCount: 0,
-  slideHeight: 0,
-  slideWidth: 0,
-  top: 0,
-  vertical: false,
-  wrapAround: false,
-  zoomScale: 0.85
-};
-},{"react":"node_modules/react/index.js","prop-types":"node_modules/prop-types/index.js"}],"node_modules/nuka-carousel/es/transitions/fade-transition.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = void 0;
-
-var _react = _interopRequireDefault(require("react"));
-
-var _propTypes = _interopRequireDefault(require("prop-types"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _typeof(obj) {
-  if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") {
-    _typeof = function _typeof(obj) {
-      return typeof obj;
-    };
-  } else {
-    _typeof = function _typeof(obj) {
-      return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
-    };
-  }
-
-  return _typeof(obj);
-}
-
-function _classCallCheck(instance, Constructor) {
-  if (!(instance instanceof Constructor)) {
-    throw new TypeError("Cannot call a class as a function");
-  }
-}
-
-function _defineProperties(target, props) {
-  for (var i = 0; i < props.length; i++) {
-    var descriptor = props[i];
-    descriptor.enumerable = descriptor.enumerable || false;
-    descriptor.configurable = true;
-    if ("value" in descriptor) descriptor.writable = true;
-    Object.defineProperty(target, descriptor.key, descriptor);
-  }
-}
-
-function _createClass(Constructor, protoProps, staticProps) {
-  if (protoProps) _defineProperties(Constructor.prototype, protoProps);
-  if (staticProps) _defineProperties(Constructor, staticProps);
-  return Constructor;
-}
-
-function _possibleConstructorReturn(self, call) {
-  if (call && (_typeof(call) === "object" || typeof call === "function")) {
-    return call;
-  }
-
-  return _assertThisInitialized(self);
-}
-
-function _assertThisInitialized(self) {
-  if (self === void 0) {
-    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
-  }
-
-  return self;
-}
-
-function _getPrototypeOf(o) {
-  _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) {
-    return o.__proto__ || Object.getPrototypeOf(o);
-  };
-  return _getPrototypeOf(o);
-}
-
-function _inherits(subClass, superClass) {
-  if (typeof superClass !== "function" && superClass !== null) {
-    throw new TypeError("Super expression must either be null or a function");
-  }
-
-  subClass.prototype = Object.create(superClass && superClass.prototype, {
-    constructor: {
-      value: subClass,
-      writable: true,
-      configurable: true
-    }
-  });
-  if (superClass) _setPrototypeOf(subClass, superClass);
-}
-
-function _setPrototypeOf(o, p) {
-  _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) {
-    o.__proto__ = p;
-    return o;
-  };
-
-  return _setPrototypeOf(o, p);
-}
-
-var FadeTransition =
-/*#__PURE__*/
-function (_React$Component) {
-  _inherits(FadeTransition, _React$Component);
-
-  function FadeTransition(props) {
-    var _this;
-
-    _classCallCheck(this, FadeTransition);
-
-    _this = _possibleConstructorReturn(this, _getPrototypeOf(FadeTransition).call(this, props));
-    _this.fadeFromSlide = props.currentSlide;
-    return _this;
-  }
-
-  _createClass(FadeTransition, [{
-    key: "formatChildren",
-    value: function formatChildren(children, opacity) {
-      var _this2 = this;
-
-      var _this$props = this.props,
-          currentSlide = _this$props.currentSlide,
-          slidesToShow = _this$props.slidesToShow;
-      return _react.default.Children.map(children, function (child, index) {
-        var visible = index >= currentSlide && index < currentSlide + slidesToShow;
-        return _react.default.createElement("li", {
-          className: "slider-slide".concat(visible ? ' slide-visible' : ''),
-          style: _this2.getSlideStyles(index, opacity),
-          key: index
-        }, child);
-      });
-    }
-  }, {
-    key: "getSlideOpacityAndLeftMap",
-    value: function getSlideOpacityAndLeftMap(fadeFrom, fadeTo, fade) {
-      // Figure out which position to fade to
-      var fadeToPosition = fadeTo;
-
-      if (fadeFrom > fade && fadeFrom === 0) {
-        fadeToPosition = fadeFrom - this.props.slidesToShow;
-      } else if (fadeFrom < fade && fadeFrom + this.props.slidesToShow > this.props.slideCount - 1) {
-        fadeToPosition = fadeFrom + this.props.slidesToShow;
-      } // Calculate opacity for active slides
-
-
-      var opacity = {};
-
-      if (fadeFrom === fadeTo) {
-        opacity[fadeFrom] = 1;
-      } else {
-        var distance = fadeFrom - fadeToPosition;
-        opacity[fadeFrom] = (fade - fadeToPosition) / distance;
-        opacity[fadeTo] = (fadeFrom - fade) / distance;
-      } // Calculate left for slides and merge in opacity
-
-
-      var map = {};
-
-      for (var i = 0; i < this.props.slidesToShow; i++) {
-        map[fadeFrom + i] = {
-          opacity: opacity[fadeFrom],
-          left: this.props.slideWidth * i
-        };
-        map[fadeTo + i] = {
-          opacity: opacity[fadeTo],
-          left: this.props.slideWidth * i
-        };
-      }
-
-      return map;
-    }
-  }, {
-    key: "getSlideStyles",
-    value: function getSlideStyles(index, data) {
-      return {
-        boxSizing: 'border-box',
-        display: 'block',
-        height: 'auto',
-        left: data[index] ? data[index].left : 0,
-        listStyleType: 'none',
-        marginBottom: 'auto',
-        marginLeft: this.props.cellSpacing / 2,
-        marginRight: this.props.cellSpacing / 2,
-        marginTop: 'auto',
-        MozBoxSizing: 'border-box',
-        opacity: data[index] ? data[index].opacity : 0,
-        position: 'absolute',
-        top: 0,
-        verticalAlign: 'top',
-        visibility: data[index] ? 'inherit' : 'hidden',
-        width: this.props.slideWidth
-      };
-    }
-  }, {
-    key: "getContainerStyles",
-    value: function getContainerStyles() {
-      var width = this.props.slideWidth * this.props.slidesToShow;
-      return {
-        boxSizing: 'border-box',
-        cursor: this.props.dragging === true ? 'pointer' : 'inherit',
-        display: 'block',
-        height: this.props.slideHeight,
-        margin: this.props.vertical ? "".concat(this.props.cellSpacing / 2 * -1, "px 0px") : "0px ".concat(this.props.cellSpacing / 2 * -1, "px"),
-        MozBoxSizing: 'border-box',
-        padding: 0,
-        touchAction: 'none',
-        width: width
-      };
-    }
-  }, {
-    key: "render",
-    value: function render() {
-      var fade = -(this.props.deltaX || this.props.deltaY) / this.props.slideWidth;
-
-      if (parseInt(fade) === fade) {
-        this.fadeFromSlide = fade;
-      }
-
-      var opacityAndLeftMap = this.getSlideOpacityAndLeftMap(this.fadeFromSlide, this.props.currentSlide, fade);
-      var children = this.formatChildren(this.props.children, opacityAndLeftMap);
-      return _react.default.createElement("ul", {
-        className: "slider-list",
-        style: this.getContainerStyles()
-      }, children);
-    }
-  }]);
-
-  return FadeTransition;
-}(_react.default.Component);
-
-exports.default = FadeTransition;
-FadeTransition.propTypes = {
-  cellSpacing: _propTypes.default.number,
-  currentSlide: _propTypes.default.number,
-  deltaX: _propTypes.default.number,
-  deltaY: _propTypes.default.number,
-  dragging: _propTypes.default.bool,
-  isWrappingAround: _propTypes.default.bool,
-  left: _propTypes.default.number,
-  slideCount: _propTypes.default.number,
-  slideHeight: _propTypes.default.number,
-  slidesToShow: _propTypes.default.number,
-  slideWidth: _propTypes.default.number,
-  top: _propTypes.default.number,
-  vertical: _propTypes.default.bool,
-  wrapAround: _propTypes.default.bool
-};
-FadeTransition.defaultProps = {
-  cellSpacing: 0,
-  currentSlide: 0,
-  deltaX: 0,
-  deltaY: 0,
-  dragging: false,
-  isWrappingAround: false,
-  left: 0,
-  slideCount: 0,
-  slideHeight: 0,
-  slidesToShow: 1,
-  slideWidth: 0,
-  top: 0,
-  vertical: false,
-  wrapAround: false
-};
-},{"react":"node_modules/react/index.js","prop-types":"node_modules/prop-types/index.js"}],"node_modules/nuka-carousel/es/transitions/3d-scroll-transition.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = void 0;
-
-var _react = _interopRequireDefault(require("react"));
-
-var _propTypes = _interopRequireDefault(require("prop-types"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _typeof(obj) {
-  if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") {
-    _typeof = function _typeof(obj) {
-      return typeof obj;
-    };
-  } else {
-    _typeof = function _typeof(obj) {
-      return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
-    };
-  }
-
-  return _typeof(obj);
-}
-
-function _classCallCheck(instance, Constructor) {
-  if (!(instance instanceof Constructor)) {
-    throw new TypeError("Cannot call a class as a function");
-  }
-}
-
-function _defineProperties(target, props) {
-  for (var i = 0; i < props.length; i++) {
-    var descriptor = props[i];
-    descriptor.enumerable = descriptor.enumerable || false;
-    descriptor.configurable = true;
-    if ("value" in descriptor) descriptor.writable = true;
-    Object.defineProperty(target, descriptor.key, descriptor);
-  }
-}
-
-function _createClass(Constructor, protoProps, staticProps) {
-  if (protoProps) _defineProperties(Constructor.prototype, protoProps);
-  if (staticProps) _defineProperties(Constructor, staticProps);
-  return Constructor;
-}
-
-function _possibleConstructorReturn(self, call) {
-  if (call && (_typeof(call) === "object" || typeof call === "function")) {
-    return call;
-  }
-
-  return _assertThisInitialized(self);
-}
-
-function _getPrototypeOf(o) {
-  _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) {
-    return o.__proto__ || Object.getPrototypeOf(o);
-  };
-  return _getPrototypeOf(o);
-}
-
-function _assertThisInitialized(self) {
-  if (self === void 0) {
-    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
-  }
-
-  return self;
-}
-
-function _inherits(subClass, superClass) {
-  if (typeof superClass !== "function" && superClass !== null) {
-    throw new TypeError("Super expression must either be null or a function");
-  }
-
-  subClass.prototype = Object.create(superClass && superClass.prototype, {
-    constructor: {
-      value: subClass,
-      writable: true,
-      configurable: true
-    }
-  });
-  if (superClass) _setPrototypeOf(subClass, superClass);
-}
-
-function _setPrototypeOf(o, p) {
-  _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) {
-    o.__proto__ = p;
-    return o;
-  };
-
-  return _setPrototypeOf(o, p);
-}
-
-var MIN_ZOOM_SCALE = 0;
-var MAX_ZOOM_SCALE = 1;
-
-var ScrollTransition3D =
-/*#__PURE__*/
-function (_React$Component) {
-  _inherits(ScrollTransition3D, _React$Component);
-
-  function ScrollTransition3D(props) {
-    var _this;
-
-    _classCallCheck(this, ScrollTransition3D);
-
-    _this = _possibleConstructorReturn(this, _getPrototypeOf(ScrollTransition3D).call(this, props));
-    _this.getListStyles = _this.getListStyles.bind(_assertThisInitialized(_this));
-    return _this;
-  }
-
-  _createClass(ScrollTransition3D, [{
-    key: "getSlideDirection",
-    value: function getSlideDirection(start, end, isWrapping) {
-      var direction = 0;
-      if (start === end) return direction;
-
-      if (isWrapping) {
-        direction = start < end ? -1 : 1;
-      } else {
-        direction = start < end ? 1 : -1;
-      }
-
-      return direction;
-    }
-    /* eslint-disable complexity */
-
-  }, {
-    key: "getSlideTargetPosition",
-    value: function getSlideTargetPosition(index) {
-      var targetPosition = 0;
-      var offset = 0;
-
-      if (index !== this.props.currentSlide) {
-        var relativeDistanceToCurrentSlide = this.getRelativeDistanceToCurrentSlide(index);
-        targetPosition = (this.props.slideWidth + this.props.cellSpacing) * relativeDistanceToCurrentSlide - this.getZoomOffsetFor(relativeDistanceToCurrentSlide);
-        offset = 0;
-
-        if (this.props.animation === 'zoom' && (this.props.currentSlide === index + 1 || this.props.currentSlide === 0 && index === this.props.children.length - 1)) {
-          offset = this.props.slideOffset;
-        } else if (this.props.animation === 'zoom' && (this.props.currentSlide === index - 1 || this.props.currentSlide === this.props.children.length - 1 && index === 0)) {
-          offset = -this.props.slideOffset;
-        }
-      }
-
-      return targetPosition + offset;
-    }
-    /* eslint-enable complexity */
-
-  }, {
-    key: "formatChildren",
-    value: function formatChildren(children) {
-      var _this2 = this;
-
-      var _this$props = this.props,
-          top = _this$props.top,
-          left = _this$props.left,
-          currentSlide = _this$props.currentSlide,
-          slidesToShow = _this$props.slidesToShow;
-      var positionValue = this.props.vertical ? top : left;
-      return _react.default.Children.map(children, function (child, index) {
-        var visible = _this2.getDistanceToCurrentSlide(index) <= slidesToShow / 2;
-        var current = currentSlide === index;
-        return _react.default.createElement("li", {
-          className: "slider-slide".concat(visible ? ' slide-visible' : '').concat(current ? ' slide-current' : ''),
-          style: _this2.getSlideStyles(index, positionValue),
-          key: index
-        }, child);
-      });
-    }
-  }, {
-    key: "getZoomOffsetFor",
-    value: function getZoomOffsetFor(relativeDistanceToCurrent) {
-      if (relativeDistanceToCurrent === 0) {
-        return 0;
-      }
-
-      var marginGeneratedByZoom = (1 - Math.pow(this.props.zoomScale, Math.abs(relativeDistanceToCurrent))) * this.props.slideWidth;
-      var direction = relativeDistanceToCurrent < 0 ? -1 : 1;
-      var result = marginGeneratedByZoom * direction + this.getZoomOffsetFor(relativeDistanceToCurrent < 0 ? relativeDistanceToCurrent + 1 : relativeDistanceToCurrent - 1);
-      return result;
-    }
-  }, {
-    key: "getDistance",
-    value: function getDistance(index, referenceIndex) {
-      return Math.abs(index - referenceIndex);
-    }
-  }, {
-    key: "getDistanceToCurrentSlide",
-    value: function getDistanceToCurrentSlide(index) {
-      return this.props.wrapAround ? Math.min(Math.min(this.getDistance(index, 0) + this.getDistance(this.props.currentSlide, this.props.slideCount), this.getDistance(index, this.props.slideCount) + this.getDistance(this.props.currentSlide, 0)), this.getDistance(index, this.props.currentSlide)) : this.getDistance(index, this.props.currentSlide);
-    }
-  }, {
-    key: "getRelativeDistanceToCurrentSlide",
-    value: function getRelativeDistanceToCurrentSlide(index) {
-      if (this.props.wrapAround) {
-        var distanceByLeftEge = this.getDistance(index, 0) + this.getDistance(this.props.currentSlide, this.props.slideCount);
-        var distanceByRightEdge = this.getDistance(index, this.props.slideCount) + this.getDistance(this.props.currentSlide, 0);
-        var absoluteDirectDistance = this.getDistance(index, this.props.currentSlide);
-        var minimumDistance = Math.min(Math.min(distanceByLeftEge, distanceByRightEdge), absoluteDirectDistance);
-
-        switch (minimumDistance) {
-          case absoluteDirectDistance:
-            return index - this.props.currentSlide;
-
-          case distanceByLeftEge:
-            return distanceByLeftEge;
-
-          case distanceByRightEdge:
-            return -distanceByRightEdge;
-
-          default:
-            return 0;
-        }
-      } else {
-        return index - this.props.currentSlide;
-      }
-    }
-  }, {
-    key: "getTransformScale",
-    value: function getTransformScale(index) {
-      return this.props.currentSlide !== index ? Math.max(Math.min(Math.pow(this.props.zoomScale, this.getDistanceToCurrentSlide(index)), MAX_ZOOM_SCALE), MIN_ZOOM_SCALE) : 1.0;
-    }
-  }, {
-    key: "getOpacityScale",
-    value: function getOpacityScale(index) {
-      return this.props.currentSlide !== index ? Math.max(Math.min(Math.pow(this.props.opacityScale, this.getDistanceToCurrentSlide(index)), MAX_ZOOM_SCALE), MIN_ZOOM_SCALE) : 1.0;
-    }
-  }, {
-    key: "getSlideStyles",
-    value: function getSlideStyles(index, positionValue) {
-      var targetPosition = this.getSlideTargetPosition(index, positionValue);
-      var transformScale = this.getTransformScale(index);
-      return {
-        zIndex: this.props.slideCount - this.getDistanceToCurrentSlide(index),
-        boxSizing: 'border-box',
-        display: this.props.vertical ? 'block' : 'inline-block',
-        height: 'auto',
-        left: this.props.vertical ? 0 : targetPosition,
-        listStyleType: 'none',
-        marginBottom: this.props.vertical ? this.props.cellSpacing / 2 : 'auto',
-        marginLeft: this.props.vertical ? 'auto' : this.props.cellSpacing / 2,
-        marginRight: this.props.vertical ? 'auto' : this.props.cellSpacing / 2,
-        marginTop: this.props.vertical ? this.props.cellSpacing / 2 : 'auto',
-        MozBoxSizing: 'border-box',
-        position: 'absolute',
-        top: this.props.vertical ? targetPosition : 0,
-        transform: "scale(".concat(transformScale, ")"),
-        transition: 'left 0.4s ease-out, transform 0.4s ease-out, opacity 0.4s ease-out',
-        verticalAlign: 'top',
-        width: this.props.vertical ? '100%' : this.props.slideWidth,
-        opacity: this.getOpacityScale(index)
-      };
-    }
-  }, {
-    key: "getListStyles",
-    value: function getListStyles() {
-      var listWidth = this.props.slideWidth * _react.default.Children.count(this.props.children);
-
-      var spacingOffset = this.props.cellSpacing * _react.default.Children.count(this.props.children);
-
-      return {
-        left: "calc(50% - (".concat(this.props.slideWidth, "px / 2))"),
-        position: 'relative',
-        margin: this.props.vertical ? "".concat(this.props.cellSpacing / 2 * -1, "px 0px") : "".concat(this.props.slideListMargin, "px ").concat(this.props.cellSpacing / 2 * -1, "px"),
-        padding: 0,
-        height: this.props.vertical ? listWidth + spacingOffset : this.props.slideHeight,
-        width: this.props.vertical ? 'auto' : '100%',
-        cursor: this.props.dragging === true ? 'pointer' : 'inherit',
-        boxSizing: 'border-box',
-        MozBoxSizing: 'border-box',
-        touchAction: "pinch-zoom ".concat(this.props.vertical ? 'pan-x' : 'pan-y')
-      };
-    }
-  }, {
-    key: "render",
-    value: function render() {
-      var children = this.formatChildren(this.props.children);
-      return _react.default.createElement("ul", {
-        className: "slider-list",
-        style: this.getListStyles()
-      }, children);
-    }
-  }]);
-
-  return ScrollTransition3D;
-}(_react.default.Component);
-
-exports.default = ScrollTransition3D;
-ScrollTransition3D.propTypes = {
-  cellSpacing: _propTypes.default.number,
-  currentSlide: _propTypes.default.number,
-  dragging: _propTypes.default.bool,
-  isWrappingAround: _propTypes.default.bool,
-  left: _propTypes.default.number,
-  slideCount: _propTypes.default.number,
-  slideHeight: _propTypes.default.number,
-  slideOffset: _propTypes.default.number,
-  slideWidth: _propTypes.default.number,
-  top: _propTypes.default.number,
-  vertical: _propTypes.default.bool,
-  wrapAround: _propTypes.default.bool,
-  zoomScale: _propTypes.default.number,
-  opacityScale: _propTypes.default.number,
-  slidesToShow: _propTypes.default.number,
-  slideListMargin: _propTypes.default.number
-};
-ScrollTransition3D.defaultProps = {
-  cellSpacing: 0,
-  currentSlide: 0,
-  dragging: false,
-  isWrappingAround: false,
-  left: 0,
-  slideCount: 0,
-  slideHeight: 0,
-  slideWidth: 0,
-  top: 0,
-  vertical: false,
-  wrapAround: true,
-  zoomScale: 0.75,
-  opacityScale: 0.65,
-  slidesToShow: 3,
-  slideListMargin: 10
-};
-},{"react":"node_modules/react/index.js","prop-types":"node_modules/prop-types/index.js"}],"node_modules/nuka-carousel/es/all-transitions.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = void 0;
-
-var _scrollTransition = _interopRequireDefault(require("./transitions/scroll-transition"));
-
-var _fadeTransition = _interopRequireDefault(require("./transitions/fade-transition"));
-
-var _dScrollTransition = _interopRequireDefault(require("./transitions/3d-scroll-transition"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var _default = {
-  fade: _fadeTransition.default,
-  scroll: _scrollTransition.default,
-  scroll3d: _dScrollTransition.default
-};
-exports.default = _default;
-},{"./transitions/scroll-transition":"node_modules/nuka-carousel/es/transitions/scroll-transition.js","./transitions/fade-transition":"node_modules/nuka-carousel/es/transitions/fade-transition.js","./transitions/3d-scroll-transition":"node_modules/nuka-carousel/es/transitions/3d-scroll-transition.js"}],"node_modules/nuka-carousel/es/announce-slide.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = exports.defaultRenderAnnounceSlideMessage = void 0;
-
-var _react = _interopRequireDefault(require("react"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var AnnounceSlide = function AnnounceSlide(_ref) {
-  var message = _ref.message;
-  var styles = {
-    position: 'absolute',
-    left: '-10000px',
-    top: 'auto',
-    width: '1px',
-    height: '1px',
-    overflow: 'hidden'
-  };
-  return _react.default.createElement("div", {
-    "aria-live": "polite",
-    "aria-atomic": "true",
-    style: styles,
-    tabIndex: -1
-  }, message);
-};
-
-var defaultRenderAnnounceSlideMessage = function defaultRenderAnnounceSlideMessage(_ref2) {
-  var currentSlide = _ref2.currentSlide,
-      slideCount = _ref2.slideCount;
-  return "Slide ".concat(currentSlide + 1, " of ").concat(slideCount);
-};
-
-exports.defaultRenderAnnounceSlideMessage = defaultRenderAnnounceSlideMessage;
-var _default = AnnounceSlide;
-exports.default = _default;
-},{"react":"node_modules/react/index.js"}],"node_modules/nuka-carousel/es/utilities/utilities.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.calcSomeInitialState = exports.shouldUpdate = exports.swipeDirection = exports.getPropsByTransitionMode = exports.addAccessibility = exports.removeEvent = exports.addEvent = void 0;
-
-var _react = _interopRequireDefault(require("react"));
+var _styleUtilities = require("./style-utilities");
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -36470,13 +36426,13 @@ function _objectSpread(target) {
     var source = arguments[i] != null ? arguments[i] : {};
 
     if (i % 2) {
-      ownKeys(source, true).forEach(function (key) {
+      ownKeys(Object(source), true).forEach(function (key) {
         _defineProperty(target, key, source[key]);
       });
     } else if (Object.getOwnPropertyDescriptors) {
       Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
     } else {
-      ownKeys(source).forEach(function (key) {
+      ownKeys(Object(source)).forEach(function (key) {
         Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
       });
     }
@@ -36635,6 +36591,21 @@ var swipeDirection = function swipeDirection(x1, x2, y1, y2, vertical) {
 
 exports.swipeDirection = swipeDirection;
 
+var getSlideDirection = function getSlideDirection(start, end, isWrapping) {
+  var direction = 0;
+  if (start === end) return direction;
+
+  if (isWrapping) {
+    direction = start < end ? -1 : 1;
+  } else {
+    direction = start < end ? 1 : -1;
+  }
+
+  return direction;
+};
+
+exports.getSlideDirection = getSlideDirection;
+
 var shouldUpdate = function shouldUpdate(curr, next, keys) {
   var update = false;
 
@@ -36671,197 +36642,1070 @@ var calcSomeInitialState = function calcSomeInitialState(props) {
 };
 
 exports.calcSomeInitialState = calcSomeInitialState;
-},{"react":"node_modules/react/index.js"}],"node_modules/nuka-carousel/es/utilities/style-utilities.js":[function(require,module,exports) {
-"use strict";
 
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.getTransitionProps = exports.getFrameStyles = exports.getSliderStyles = exports.getDecoratorStyles = exports.getImgTagStyles = void 0;
-
-var getImgTagStyles = function getImgTagStyles() {
-  return ".slider-slide > img { width: 100%; display: block; }\n          .slider-slide > img:focus { margin: auto; }";
-};
-
-exports.getImgTagStyles = getImgTagStyles;
-
-var getDecoratorStyles = function getDecoratorStyles(position) {
-  switch (position) {
-    case 'TopLeft':
-      {
-        return {
-          position: 'absolute',
-          top: 0,
-          left: 0
-        };
-      }
-
-    case 'TopCenter':
-      {
-        return {
-          position: 'absolute',
-          top: 0,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          WebkitTransform: 'translateX(-50%)',
-          msTransform: 'translateX(-50%)'
-        };
-      }
-
-    case 'TopRight':
-      {
-        return {
-          position: 'absolute',
-          top: 0,
-          right: 0
-        };
-      }
-
-    case 'CenterLeft':
-      {
-        return {
-          position: 'absolute',
-          top: '50%',
-          left: 0,
-          transform: 'translateY(-50%)',
-          WebkitTransform: 'translateY(-50%)',
-          msTransform: 'translateY(-50%)'
-        };
-      }
-
-    case 'CenterCenter':
-      {
-        return {
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%,-50%)',
-          WebkitTransform: 'translate(-50%, -50%)',
-          msTransform: 'translate(-50%, -50%)'
-        };
-      }
-
-    case 'CenterRight':
-      {
-        return {
-          position: 'absolute',
-          top: '50%',
-          right: 0,
-          transform: 'translateY(-50%)',
-          WebkitTransform: 'translateY(-50%)',
-          msTransform: 'translateY(-50%)'
-        };
-      }
-
-    case 'BottomLeft':
-      {
-        return {
-          position: 'absolute',
-          bottom: 0,
-          left: 0
-        };
-      }
-
-    case 'BottomCenter':
-      {
-        return {
-          position: 'absolute',
-          bottom: 0,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          WebkitTransform: 'translateX(-50%)',
-          msTransform: 'translateX(-50%)'
-        };
-      }
-
-    case 'BottomRight':
-      {
-        return {
-          position: 'absolute',
-          bottom: 0,
-          right: 0
-        };
-      }
-
-    default:
-      {
-        return {
-          position: 'absolute',
-          top: 0,
-          left: 0
-        };
-      }
+var handleSelfFocus = function handleSelfFocus(e) {
+  if (e && e.currentTarget) {
+    e.currentTarget.focus();
   }
 };
 
-exports.getDecoratorStyles = getDecoratorStyles;
+exports.handleSelfFocus = handleSelfFocus;
 
-var getSliderStyles = function getSliderStyles(propWidth, propHeight) {
-  return {
-    boxSizing: 'border-box',
-    display: 'block',
-    height: propHeight,
-    MozBoxSizing: 'border-box',
-    position: 'relative',
-    width: propWidth
-  };
+var isFullyVisible = function isFullyVisible(slideIndex, config) {
+  var cellSpacing = config.cellSpacing,
+      currentSlide = config.currentSlide,
+      frameWidth = config.frameWidth,
+      slideCount = config.slideCount,
+      slideWidth = config.slideWidth,
+      wrapAround = config.wrapAround; // Slide width can't be 0
+
+  var fullSlideWidth = slideWidth + cellSpacing || 1;
+  var offsetWidth = (0, _styleUtilities.getAlignmentOffset)(currentSlide, config);
+  var remainingWidth = frameWidth - offsetWidth;
+  var fullSlidesBefore = Math.floor(offsetWidth / fullSlideWidth) || 0;
+  var fullSlidesAfter = Math.max(Math.floor(remainingWidth / fullSlideWidth) - 1, 0);
+  var currentSlideIndex = Math.ceil(currentSlide);
+  var fullyVisibleSlides = [];
+
+  for (var i = currentSlideIndex - fullSlidesBefore; i < currentSlideIndex + fullSlidesAfter + 1; i++) {
+    if (i < 0) {
+      // -1 won't match a slide index
+      fullyVisibleSlides.push(wrapAround ? slideCount + i : -1);
+    } else {
+      fullyVisibleSlides.push(i > slideCount - 1 ? i - slideCount : i);
+    }
+  }
+
+  return fullyVisibleSlides.includes(slideIndex);
 };
 
-exports.getSliderStyles = getSliderStyles;
-
-var getFrameStyles = function getFrameStyles(propFrameOverFlow, propVertical, propFramePadding, stateFrameWidth) {
-  return {
-    boxSizing: 'border-box',
-    display: 'block',
-    height: propVertical ? stateFrameWidth || 'initial' : '100%',
-    margin: propFramePadding,
-    MozBoxSizing: 'border-box',
-    msTransform: 'translate(0, 0)',
-    overflow: propFrameOverFlow,
-    padding: 0,
-    position: 'relative',
-    touchAction: "pinch-zoom ".concat(propVertical ? 'pan-x' : 'pan-y'),
-    transform: 'translate3d(0, 0, 0)',
-    WebkitTransform: 'translate3d(0, 0, 0)'
-  };
-};
-
-exports.getFrameStyles = getFrameStyles;
-
-var getTransitionProps = function getTransitionProps(props, state) {
-  return {
-    animation: props.animation,
-    cellSpacing: props.cellSpacing,
-    currentSlide: state.currentSlide,
-    dragging: props.dragging,
-    isWrappingAround: state.isWrappingAround,
-    left: state.left,
-    slideCount: state.slideCount,
-    slideHeight: state.slideHeight,
-    slideOffset: props.slideOffset,
-    slidesToShow: state.slidesToShow,
-    slideWidth: state.slideWidth,
-    top: state.top,
-    vertical: props.vertical,
-    wrapAround: props.wrapAround,
-    zoomScale: props.zoomScale,
-    opacityScale: props.opacityScale,
-    slideListMargin: props.slideListMargin
-  };
-};
-
-exports.getTransitionProps = getTransitionProps;
-},{}],"node_modules/nuka-carousel/es/utilities/bootstrapping-utilities.js":[function(require,module,exports) {
+exports.isFullyVisible = isFullyVisible;
+},{"react":"node_modules/react/index.js","./style-utilities":"node_modules/nuka-carousel/es/utilities/style-utilities.js"}],"node_modules/nuka-carousel/es/transitions/scroll-transition.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.getSlideHeight = exports.getValidChildren = exports.addAccessibility = void 0;
+exports.default = void 0;
+
+var _react = _interopRequireDefault(require("react"));
+
+var _propTypes = _interopRequireDefault(require("prop-types"));
+
+var _styleUtilities = require("../utilities/style-utilities");
+
+var _utilities = require("../utilities/utilities");
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _typeof(obj) {
+  if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") {
+    _typeof = function _typeof(obj) {
+      return typeof obj;
+    };
+  } else {
+    _typeof = function _typeof(obj) {
+      return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
+    };
+  }
+
+  return _typeof(obj);
+}
+
+function _extends() {
+  _extends = Object.assign || function (target) {
+    for (var i = 1; i < arguments.length; i++) {
+      var source = arguments[i];
+
+      for (var key in source) {
+        if (Object.prototype.hasOwnProperty.call(source, key)) {
+          target[key] = source[key];
+        }
+      }
+    }
+
+    return target;
+  };
+
+  return _extends.apply(this, arguments);
+}
+
+function _classCallCheck(instance, Constructor) {
+  if (!(instance instanceof Constructor)) {
+    throw new TypeError("Cannot call a class as a function");
+  }
+}
+
+function _defineProperties(target, props) {
+  for (var i = 0; i < props.length; i++) {
+    var descriptor = props[i];
+    descriptor.enumerable = descriptor.enumerable || false;
+    descriptor.configurable = true;
+    if ("value" in descriptor) descriptor.writable = true;
+    Object.defineProperty(target, descriptor.key, descriptor);
+  }
+}
+
+function _createClass(Constructor, protoProps, staticProps) {
+  if (protoProps) _defineProperties(Constructor.prototype, protoProps);
+  if (staticProps) _defineProperties(Constructor, staticProps);
+  return Constructor;
+}
+
+function _possibleConstructorReturn(self, call) {
+  if (call && (_typeof(call) === "object" || typeof call === "function")) {
+    return call;
+  }
+
+  return _assertThisInitialized(self);
+}
+
+function _getPrototypeOf(o) {
+  _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) {
+    return o.__proto__ || Object.getPrototypeOf(o);
+  };
+  return _getPrototypeOf(o);
+}
+
+function _assertThisInitialized(self) {
+  if (self === void 0) {
+    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+  }
+
+  return self;
+}
+
+function _inherits(subClass, superClass) {
+  if (typeof superClass !== "function" && superClass !== null) {
+    throw new TypeError("Super expression must either be null or a function");
+  }
+
+  subClass.prototype = Object.create(superClass && superClass.prototype, {
+    constructor: {
+      value: subClass,
+      writable: true,
+      configurable: true
+    }
+  });
+  if (superClass) _setPrototypeOf(subClass, superClass);
+}
+
+function _setPrototypeOf(o, p) {
+  _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) {
+    o.__proto__ = p;
+    return o;
+  };
+
+  return _setPrototypeOf(o, p);
+}
+
+var MIN_ZOOM_SCALE = 0;
+var MAX_ZOOM_SCALE = 1;
+
+var ScrollTransition =
+/*#__PURE__*/
+function (_React$Component) {
+  _inherits(ScrollTransition, _React$Component);
+
+  function ScrollTransition(props) {
+    var _this;
+
+    _classCallCheck(this, ScrollTransition);
+
+    _this = _possibleConstructorReturn(this, _getPrototypeOf(ScrollTransition).call(this, props));
+    _this.getListStyles = _this.getListStyles.bind(_assertThisInitialized(_this));
+    return _this;
+  }
+  /* eslint-disable complexity */
+
+
+  _createClass(ScrollTransition, [{
+    key: "getSlideTargetPosition",
+    value: function getSlideTargetPosition(currentSlideIndex, positionValue) {
+      var offset = 0;
+
+      if (this.props.animation === 'zoom' && (this.props.currentSlide === currentSlideIndex + 1 || this.props.currentSlide === 0 && currentSlideIndex === this.props.children.length - 1)) {
+        offset = this.props.slideOffset;
+      } else if (this.props.animation === 'zoom' && (this.props.currentSlide === currentSlideIndex - 1 || this.props.currentSlide === this.props.children.length - 1 && currentSlideIndex === 0)) {
+        offset = -this.props.slideOffset;
+      }
+
+      var targetPosition = (this.props.slideWidth + this.props.cellSpacing) * currentSlideIndex;
+      var alignmentOffset = (0, _styleUtilities.getAlignmentOffset)(currentSlideIndex, this.props);
+      var relativePosition = positionValue - alignmentOffset;
+      var startSlideIndex = Math.min(Math.abs(Math.floor(relativePosition / this.props.slideWidth)), this.props.slideCount - 1);
+
+      if (this.props.wrapAround && currentSlideIndex !== startSlideIndex) {
+        var slidesOutOfView = Math.max(this.props.slideCount - Math.ceil(this.props.frameWidth / this.props.slideWidth), // Total slides in view
+        0);
+        var slidesOutOfViewBefore = Math.floor(slidesOutOfView / 2);
+        var slidesOutOfViewAfter = slidesOutOfView - slidesOutOfViewBefore;
+        var direction = (0, _utilities.getSlideDirection)(startSlideIndex, this.props.currentSlide, this.props.isWrappingAround);
+
+        if (direction < 0) {
+          var temp = slidesOutOfViewBefore;
+          slidesOutOfViewBefore = slidesOutOfViewAfter;
+          slidesOutOfViewAfter = temp;
+        }
+
+        var slidesInViewBefore = Math.ceil(alignmentOffset / this.props.slideWidth);
+        var slidesBefore = slidesInViewBefore + slidesOutOfViewBefore;
+        var slidesInViewAfter = Math.ceil((this.props.frameWidth - alignmentOffset) / this.props.slideWidth) - 1;
+        var slidesAfter = slidesInViewAfter + slidesOutOfViewAfter;
+        var distanceFromStart = Math.abs(startSlideIndex - currentSlideIndex);
+
+        if (currentSlideIndex < startSlideIndex) {
+          if (distanceFromStart > slidesBefore) {
+            targetPosition = (this.props.slideWidth + this.props.cellSpacing) * (this.props.slideCount + currentSlideIndex);
+          }
+        } else if (distanceFromStart > slidesAfter) {
+          targetPosition = (this.props.slideWidth + this.props.cellSpacing) * (this.props.slideCount - currentSlideIndex) * -1;
+        }
+      }
+
+      return targetPosition + offset || 0;
+    }
+    /* eslint-enable complexity */
+
+  }, {
+    key: "formatChildren",
+    value: function formatChildren(children) {
+      var _this2 = this;
+
+      var _this$props = this.props,
+          top = _this$props.top,
+          left = _this$props.left,
+          currentSlide = _this$props.currentSlide,
+          slidesToShow = _this$props.slidesToShow,
+          vertical = _this$props.vertical;
+      var positionValue = vertical ? top : left;
+      return _react.default.Children.map(children, function (child, index) {
+        var visible = index >= currentSlide && index < currentSlide + slidesToShow;
+        var isVisible = (0, _utilities.isFullyVisible)(index, _this2.props);
+        var inert = isVisible ? {} : {
+          inert: 'true'
+        };
+        return _react.default.createElement("li", _extends({
+          className: "slider-slide".concat(visible ? ' slide-visible' : ''),
+          style: _this2.getSlideStyles(index, positionValue),
+          key: index,
+          onClick: _utilities.handleSelfFocus,
+          tabIndex: -1
+        }, inert), child);
+      });
+    }
+  }, {
+    key: "getSlideStyles",
+    value: function getSlideStyles(index, positionValue) {
+      var targetPosition = this.getSlideTargetPosition(index, positionValue);
+      var transformScale = this.props.animation === 'zoom' && this.props.currentSlide !== index ? Math.max(Math.min(this.props.zoomScale, MAX_ZOOM_SCALE), MIN_ZOOM_SCALE) : 1.0;
+      return {
+        boxSizing: 'border-box',
+        display: this.props.vertical ? 'block' : 'inline-block',
+        height: (0, _styleUtilities.getSlideHeight)(this.props),
+        left: this.props.vertical ? 0 : targetPosition,
+        listStyleType: 'none',
+        marginBottom: this.props.vertical ? this.props.cellSpacing / 2 : 'auto',
+        marginLeft: this.props.vertical ? 'auto' : this.props.cellSpacing / 2,
+        marginRight: this.props.vertical ? 'auto' : this.props.cellSpacing / 2,
+        marginTop: this.props.vertical ? this.props.cellSpacing / 2 : 'auto',
+        MozBoxSizing: 'border-box',
+        position: 'absolute',
+        top: this.props.vertical ? targetPosition : 0,
+        transform: "scale(".concat(transformScale, ")"),
+        transition: 'transform .4s linear',
+        verticalAlign: 'top',
+        width: this.props.vertical ? '100%' : this.props.slideWidth
+      };
+    }
+  }, {
+    key: "getListStyles",
+    value: function getListStyles(styles) {
+      var deltaX = styles.deltaX,
+          deltaY = styles.deltaY;
+
+      var listWidth = this.props.slideWidth * _react.default.Children.count(this.props.children);
+
+      var spacingOffset = this.props.cellSpacing * _react.default.Children.count(this.props.children);
+
+      var transform = "translate3d(".concat(deltaX, "px, ").concat(deltaY, "px, 0)");
+      return {
+        boxSizing: 'border-box',
+        cursor: this.props.dragging === true ? 'pointer' : 'inherit',
+        display: 'block',
+        height: this.props.vertical ? listWidth + spacingOffset : this.props.slideHeight,
+        margin: this.props.vertical ? "".concat(this.props.cellSpacing / 2 * -1, "px 0px") : "0px ".concat(this.props.cellSpacing / 2 * -1, "px"),
+        padding: 0,
+        position: 'relative',
+        MozBoxSizing: 'border-box',
+        msTransform: "translate(".concat(deltaX, "px, ").concat(deltaY, "px)"),
+        touchAction: "pinch-zoom ".concat(this.props.vertical ? 'pan-x' : 'pan-y'),
+        transform: transform,
+        WebkitTransform: transform,
+        width: 'auto'
+      };
+    }
+  }, {
+    key: "render",
+    value: function render() {
+      var children = this.formatChildren(this.props.children);
+      var deltaX = this.props.deltaX;
+      var deltaY = this.props.deltaY;
+      return _react.default.createElement("ul", {
+        className: "slider-list",
+        style: this.getListStyles({
+          deltaX: deltaX,
+          deltaY: deltaY
+        })
+      }, children);
+    }
+  }]);
+
+  return ScrollTransition;
+}(_react.default.Component);
+
+exports.default = ScrollTransition;
+ScrollTransition.propTypes = {
+  animation: _propTypes.default.oneOf(['zoom']),
+  cellAlign: _propTypes.default.string,
+  cellSpacing: _propTypes.default.number,
+  currentSlide: _propTypes.default.number,
+  deltaX: _propTypes.default.number,
+  deltaY: _propTypes.default.number,
+  dragging: _propTypes.default.bool,
+  frameWidth: _propTypes.default.number,
+  heightMode: _propTypes.default.oneOf(['first', 'current', 'max']),
+  isWrappingAround: _propTypes.default.bool,
+  left: _propTypes.default.number,
+  slideCount: _propTypes.default.number,
+  slideHeight: _propTypes.default.number,
+  slideOffset: _propTypes.default.number,
+  slidesToScroll: _propTypes.default.number,
+  slideWidth: _propTypes.default.number,
+  top: _propTypes.default.number,
+  vertical: _propTypes.default.bool,
+  wrapAround: _propTypes.default.bool,
+  zoomScale: _propTypes.default.number
+};
+ScrollTransition.defaultProps = {
+  cellAlign: 'left',
+  cellSpacing: 0,
+  currentSlide: 0,
+  deltaX: 0,
+  deltaY: 0,
+  dragging: false,
+  frameWidth: 0,
+  heightMode: 'max',
+  isWrappingAround: false,
+  left: 0,
+  slideCount: 0,
+  slideHeight: 0,
+  slidesToScroll: 1,
+  slideWidth: 0,
+  top: 0,
+  vertical: false,
+  wrapAround: false,
+  zoomScale: 0.85
+};
+},{"react":"node_modules/react/index.js","prop-types":"node_modules/prop-types/index.js","../utilities/style-utilities":"node_modules/nuka-carousel/es/utilities/style-utilities.js","../utilities/utilities":"node_modules/nuka-carousel/es/utilities/utilities.js"}],"node_modules/nuka-carousel/es/transitions/fade-transition.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+var _react = _interopRequireDefault(require("react"));
+
+var _propTypes = _interopRequireDefault(require("prop-types"));
+
+var _styleUtilities = require("../utilities/style-utilities");
+
+var _utilities = require("../utilities/utilities");
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _typeof(obj) {
+  if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") {
+    _typeof = function _typeof(obj) {
+      return typeof obj;
+    };
+  } else {
+    _typeof = function _typeof(obj) {
+      return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
+    };
+  }
+
+  return _typeof(obj);
+}
+
+function _classCallCheck(instance, Constructor) {
+  if (!(instance instanceof Constructor)) {
+    throw new TypeError("Cannot call a class as a function");
+  }
+}
+
+function _defineProperties(target, props) {
+  for (var i = 0; i < props.length; i++) {
+    var descriptor = props[i];
+    descriptor.enumerable = descriptor.enumerable || false;
+    descriptor.configurable = true;
+    if ("value" in descriptor) descriptor.writable = true;
+    Object.defineProperty(target, descriptor.key, descriptor);
+  }
+}
+
+function _createClass(Constructor, protoProps, staticProps) {
+  if (protoProps) _defineProperties(Constructor.prototype, protoProps);
+  if (staticProps) _defineProperties(Constructor, staticProps);
+  return Constructor;
+}
+
+function _possibleConstructorReturn(self, call) {
+  if (call && (_typeof(call) === "object" || typeof call === "function")) {
+    return call;
+  }
+
+  return _assertThisInitialized(self);
+}
+
+function _assertThisInitialized(self) {
+  if (self === void 0) {
+    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+  }
+
+  return self;
+}
+
+function _getPrototypeOf(o) {
+  _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) {
+    return o.__proto__ || Object.getPrototypeOf(o);
+  };
+  return _getPrototypeOf(o);
+}
+
+function _inherits(subClass, superClass) {
+  if (typeof superClass !== "function" && superClass !== null) {
+    throw new TypeError("Super expression must either be null or a function");
+  }
+
+  subClass.prototype = Object.create(superClass && superClass.prototype, {
+    constructor: {
+      value: subClass,
+      writable: true,
+      configurable: true
+    }
+  });
+  if (superClass) _setPrototypeOf(subClass, superClass);
+}
+
+function _setPrototypeOf(o, p) {
+  _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) {
+    o.__proto__ = p;
+    return o;
+  };
+
+  return _setPrototypeOf(o, p);
+}
+
+var FadeTransition =
+/*#__PURE__*/
+function (_React$Component) {
+  _inherits(FadeTransition, _React$Component);
+
+  function FadeTransition(props) {
+    var _this;
+
+    _classCallCheck(this, FadeTransition);
+
+    _this = _possibleConstructorReturn(this, _getPrototypeOf(FadeTransition).call(this, props));
+    _this.fadeFromSlide = props.currentSlide;
+    return _this;
+  }
+
+  _createClass(FadeTransition, [{
+    key: "formatChildren",
+    value: function formatChildren(children, opacity) {
+      var _this2 = this;
+
+      var _this$props = this.props,
+          currentSlide = _this$props.currentSlide,
+          slidesToShow = _this$props.slidesToShow;
+      return _react.default.Children.map(children, function (child, index) {
+        var visible = index >= currentSlide && index < currentSlide + slidesToShow;
+        return _react.default.createElement("li", {
+          className: "slider-slide".concat(visible ? ' slide-visible' : ''),
+          style: _this2.getSlideStyles(index, opacity),
+          key: index,
+          onClick: _utilities.handleSelfFocus,
+          tabIndex: -1
+        }, child);
+      });
+    }
+  }, {
+    key: "getSlideOpacityAndLeftMap",
+    value: function getSlideOpacityAndLeftMap(fadeFrom, fadeTo, fade) {
+      // Figure out which position to fade to
+      var fadeToPosition = fadeTo;
+
+      if (fadeFrom > fade && fadeFrom === 0) {
+        fadeToPosition = fadeFrom - this.props.slidesToShow;
+      } else if (fadeFrom < fade && fadeFrom + this.props.slidesToShow > this.props.slideCount - 1) {
+        fadeToPosition = fadeFrom + this.props.slidesToShow;
+      } // Calculate opacity for active slides
+
+
+      var opacity = {};
+
+      if (fadeFrom === fadeTo) {
+        opacity[fadeFrom] = 1;
+      } else {
+        var distance = fadeFrom - fadeToPosition;
+        opacity[fadeFrom] = (fade - fadeToPosition) / distance;
+        opacity[fadeTo] = (fadeFrom - fade) / distance;
+      } // Calculate left for slides and merge in opacity
+
+
+      var map = {};
+
+      for (var i = 0; i < this.props.slidesToShow; i++) {
+        map[fadeFrom + i] = {
+          opacity: opacity[fadeFrom],
+          left: this.props.slideWidth * i
+        };
+        map[fadeTo + i] = {
+          opacity: opacity[fadeTo],
+          left: this.props.slideWidth * i
+        };
+      }
+
+      return map;
+    }
+  }, {
+    key: "getSlideStyles",
+    value: function getSlideStyles(index, data) {
+      return {
+        boxSizing: 'border-box',
+        display: 'block',
+        height: (0, _styleUtilities.getSlideHeight)(this.props),
+        left: data[index] ? data[index].left : 0,
+        listStyleType: 'none',
+        marginBottom: 'auto',
+        marginLeft: this.props.cellSpacing / 2,
+        marginRight: this.props.cellSpacing / 2,
+        marginTop: 'auto',
+        MozBoxSizing: 'border-box',
+        opacity: data[index] ? data[index].opacity : 0,
+        position: 'absolute',
+        top: 0,
+        verticalAlign: 'top',
+        visibility: data[index] ? 'inherit' : 'hidden',
+        width: this.props.slideWidth
+      };
+    }
+  }, {
+    key: "getContainerStyles",
+    value: function getContainerStyles() {
+      var width = this.props.slideWidth * this.props.slidesToShow;
+      return {
+        boxSizing: 'border-box',
+        cursor: this.props.dragging === true ? 'pointer' : 'inherit',
+        display: 'block',
+        height: this.props.slideHeight,
+        margin: this.props.vertical ? "".concat(this.props.cellSpacing / 2 * -1, "px 0px") : "0px ".concat(this.props.cellSpacing / 2 * -1, "px"),
+        MozBoxSizing: 'border-box',
+        padding: 0,
+        touchAction: "pinch-zoom ".concat(this.props.vertical ? 'pan-x' : 'pan-y'),
+        width: width
+      };
+    }
+  }, {
+    key: "render",
+    value: function render() {
+      var fade = -(this.props.deltaX || this.props.deltaY) / this.props.slideWidth % this.props.slideCount;
+
+      if (parseInt(fade) === fade) {
+        this.fadeFromSlide = fade;
+      }
+
+      var opacityAndLeftMap = this.getSlideOpacityAndLeftMap(this.fadeFromSlide, this.props.currentSlide, fade);
+      var children = this.formatChildren(this.props.children, opacityAndLeftMap);
+      return _react.default.createElement("ul", {
+        className: "slider-list",
+        style: this.getContainerStyles()
+      }, children);
+    }
+  }]);
+
+  return FadeTransition;
+}(_react.default.Component);
+
+exports.default = FadeTransition;
+FadeTransition.propTypes = {
+  cellSpacing: _propTypes.default.number,
+  currentSlide: _propTypes.default.number,
+  deltaX: _propTypes.default.number,
+  deltaY: _propTypes.default.number,
+  dragging: _propTypes.default.bool,
+  heightMode: _propTypes.default.oneOf(['first', 'current', 'max']),
+  isWrappingAround: _propTypes.default.bool,
+  left: _propTypes.default.number,
+  slideCount: _propTypes.default.number,
+  slideHeight: _propTypes.default.number,
+  slidesToShow: _propTypes.default.number,
+  slideWidth: _propTypes.default.number,
+  top: _propTypes.default.number,
+  vertical: _propTypes.default.bool,
+  wrapAround: _propTypes.default.bool
+};
+FadeTransition.defaultProps = {
+  cellSpacing: 0,
+  currentSlide: 0,
+  deltaX: 0,
+  deltaY: 0,
+  dragging: false,
+  heightMode: 'max',
+  isWrappingAround: false,
+  left: 0,
+  slideCount: 0,
+  slideHeight: 0,
+  slidesToShow: 1,
+  slideWidth: 0,
+  top: 0,
+  vertical: false,
+  wrapAround: false
+};
+},{"react":"node_modules/react/index.js","prop-types":"node_modules/prop-types/index.js","../utilities/style-utilities":"node_modules/nuka-carousel/es/utilities/style-utilities.js","../utilities/utilities":"node_modules/nuka-carousel/es/utilities/utilities.js"}],"node_modules/nuka-carousel/es/transitions/3d-scroll-transition.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+var _react = _interopRequireDefault(require("react"));
+
+var _propTypes = _interopRequireDefault(require("prop-types"));
+
+var _styleUtilities = require("../utilities/style-utilities");
+
+var _utilities = require("../utilities/utilities");
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _typeof(obj) {
+  if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") {
+    _typeof = function _typeof(obj) {
+      return typeof obj;
+    };
+  } else {
+    _typeof = function _typeof(obj) {
+      return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
+    };
+  }
+
+  return _typeof(obj);
+}
+
+function _classCallCheck(instance, Constructor) {
+  if (!(instance instanceof Constructor)) {
+    throw new TypeError("Cannot call a class as a function");
+  }
+}
+
+function _defineProperties(target, props) {
+  for (var i = 0; i < props.length; i++) {
+    var descriptor = props[i];
+    descriptor.enumerable = descriptor.enumerable || false;
+    descriptor.configurable = true;
+    if ("value" in descriptor) descriptor.writable = true;
+    Object.defineProperty(target, descriptor.key, descriptor);
+  }
+}
+
+function _createClass(Constructor, protoProps, staticProps) {
+  if (protoProps) _defineProperties(Constructor.prototype, protoProps);
+  if (staticProps) _defineProperties(Constructor, staticProps);
+  return Constructor;
+}
+
+function _possibleConstructorReturn(self, call) {
+  if (call && (_typeof(call) === "object" || typeof call === "function")) {
+    return call;
+  }
+
+  return _assertThisInitialized(self);
+}
+
+function _getPrototypeOf(o) {
+  _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) {
+    return o.__proto__ || Object.getPrototypeOf(o);
+  };
+  return _getPrototypeOf(o);
+}
+
+function _assertThisInitialized(self) {
+  if (self === void 0) {
+    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+  }
+
+  return self;
+}
+
+function _inherits(subClass, superClass) {
+  if (typeof superClass !== "function" && superClass !== null) {
+    throw new TypeError("Super expression must either be null or a function");
+  }
+
+  subClass.prototype = Object.create(superClass && superClass.prototype, {
+    constructor: {
+      value: subClass,
+      writable: true,
+      configurable: true
+    }
+  });
+  if (superClass) _setPrototypeOf(subClass, superClass);
+}
+
+function _setPrototypeOf(o, p) {
+  _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) {
+    o.__proto__ = p;
+    return o;
+  };
+
+  return _setPrototypeOf(o, p);
+}
+
+var MIN_ZOOM_SCALE = 0;
+var MAX_ZOOM_SCALE = 1;
+
+var ScrollTransition3D =
+/*#__PURE__*/
+function (_React$Component) {
+  _inherits(ScrollTransition3D, _React$Component);
+
+  function ScrollTransition3D(props) {
+    var _this;
+
+    _classCallCheck(this, ScrollTransition3D);
+
+    _this = _possibleConstructorReturn(this, _getPrototypeOf(ScrollTransition3D).call(this, props));
+    _this.getListStyles = _this.getListStyles.bind(_assertThisInitialized(_this));
+    return _this;
+  }
+  /* eslint-disable complexity */
+
+
+  _createClass(ScrollTransition3D, [{
+    key: "getSlideTargetPosition",
+    value: function getSlideTargetPosition(index) {
+      var targetPosition = 0;
+      var offset = 0;
+
+      if (index !== this.props.currentSlide) {
+        var relativeDistanceToCurrentSlide = this.getRelativeDistanceToCurrentSlide(index);
+        targetPosition = (this.props.slideWidth + this.props.cellSpacing) * relativeDistanceToCurrentSlide - this.getZoomOffsetFor(relativeDistanceToCurrentSlide);
+        offset = 0;
+
+        if (this.props.animation === 'zoom' && (this.props.currentSlide === index + 1 || this.props.currentSlide === 0 && index === this.props.children.length - 1)) {
+          offset = this.props.slideOffset;
+        } else if (this.props.animation === 'zoom' && (this.props.currentSlide === index - 1 || this.props.currentSlide === this.props.children.length - 1 && index === 0)) {
+          offset = -this.props.slideOffset;
+        }
+      }
+
+      return targetPosition + offset;
+    }
+    /* eslint-enable complexity */
+
+  }, {
+    key: "formatChildren",
+    value: function formatChildren(children) {
+      var _this2 = this;
+
+      var _this$props = this.props,
+          top = _this$props.top,
+          left = _this$props.left,
+          currentSlide = _this$props.currentSlide,
+          slidesToShow = _this$props.slidesToShow,
+          vertical = _this$props.vertical;
+      var positionValue = vertical ? top : left;
+      return _react.default.Children.map(children, function (child, index) {
+        var visible = _this2.getDistanceToCurrentSlide(index) <= slidesToShow / 2;
+        var current = currentSlide === index;
+        return _react.default.createElement("li", {
+          className: "slider-slide".concat(visible ? ' slide-visible' : '').concat(current ? ' slide-current' : ''),
+          style: _this2.getSlideStyles(index, positionValue),
+          key: index,
+          onClick: _utilities.handleSelfFocus,
+          tabIndex: -1
+        }, child);
+      });
+    }
+  }, {
+    key: "getZoomOffsetFor",
+    value: function getZoomOffsetFor(relativeDistanceToCurrent) {
+      if (relativeDistanceToCurrent === 0) {
+        return 0;
+      }
+
+      var marginGeneratedByZoom = (1 - Math.pow(this.props.zoomScale, Math.abs(relativeDistanceToCurrent))) * this.props.slideWidth;
+      var direction = relativeDistanceToCurrent < 0 ? -1 : 1;
+      var result = marginGeneratedByZoom * direction + this.getZoomOffsetFor(relativeDistanceToCurrent < 0 ? relativeDistanceToCurrent + 1 : relativeDistanceToCurrent - 1);
+      return result;
+    }
+  }, {
+    key: "getDistance",
+    value: function getDistance(index, referenceIndex) {
+      return Math.abs(index - referenceIndex);
+    }
+  }, {
+    key: "getDistanceToCurrentSlide",
+    value: function getDistanceToCurrentSlide(index) {
+      var _this$props2 = this.props,
+          wrapAround = _this$props2.wrapAround,
+          currentSlide = _this$props2.currentSlide,
+          slideCount = _this$props2.slideCount;
+      return wrapAround ? Math.min(Math.min(this.getDistance(index, 0) + this.getDistance(currentSlide, slideCount), this.getDistance(index, slideCount) + this.getDistance(currentSlide, 0)), this.getDistance(index, currentSlide)) : this.getDistance(index, currentSlide);
+    }
+  }, {
+    key: "getRelativeDistanceToCurrentSlide",
+    value: function getRelativeDistanceToCurrentSlide(index) {
+      var _this$props3 = this.props,
+          wrapAround = _this$props3.wrapAround,
+          currentSlide = _this$props3.currentSlide,
+          slideCount = _this$props3.slideCount;
+
+      if (wrapAround) {
+        var distanceByLeftEge = this.getDistance(index, 0) + this.getDistance(currentSlide, slideCount);
+        var distanceByRightEdge = this.getDistance(index, slideCount) + this.getDistance(currentSlide, 0);
+        var absoluteDirectDistance = this.getDistance(index, currentSlide);
+        var minimumDistance = Math.min(Math.min(distanceByLeftEge, distanceByRightEdge), absoluteDirectDistance);
+
+        switch (minimumDistance) {
+          case absoluteDirectDistance:
+            return index - currentSlide;
+
+          case distanceByLeftEge:
+            return distanceByLeftEge;
+
+          case distanceByRightEdge:
+            return -distanceByRightEdge;
+
+          default:
+            return 0;
+        }
+      } else {
+        return index - currentSlide;
+      }
+    }
+  }, {
+    key: "getTransformScale",
+    value: function getTransformScale(index) {
+      return this.props.currentSlide !== index ? Math.max(Math.min(Math.pow(this.props.zoomScale, this.getDistanceToCurrentSlide(index)), MAX_ZOOM_SCALE), MIN_ZOOM_SCALE) : 1.0;
+    }
+  }, {
+    key: "getOpacityScale",
+    value: function getOpacityScale(index) {
+      return this.props.currentSlide !== index ? Math.max(Math.min(Math.pow(this.props.opacityScale, this.getDistanceToCurrentSlide(index)), MAX_ZOOM_SCALE), MIN_ZOOM_SCALE) : 1.0;
+    }
+  }, {
+    key: "getSlideStyles",
+    value: function getSlideStyles(index, positionValue) {
+      var _this$props4 = this.props,
+          vertical = _this$props4.vertical,
+          slideCount = _this$props4.slideCount,
+          cellSpacing = _this$props4.cellSpacing,
+          slideWidth = _this$props4.slideWidth;
+      var targetPosition = this.getSlideTargetPosition(index, positionValue);
+      var transformScale = this.getTransformScale(index);
+      return {
+        boxSizing: 'border-box',
+        display: vertical ? 'block' : 'inline-block',
+        height: (0, _styleUtilities.getSlideHeight)(this.props),
+        left: vertical ? 0 : targetPosition,
+        listStyleType: 'none',
+        marginBottom: vertical ? cellSpacing / 2 : 'auto',
+        marginLeft: vertical ? 'auto' : cellSpacing / 2,
+        marginRight: vertical ? 'auto' : cellSpacing / 2,
+        marginTop: vertical ? cellSpacing / 2 : 'auto',
+        MozBoxSizing: 'border-box',
+        opacity: this.getOpacityScale(index),
+        position: 'absolute',
+        top: vertical ? targetPosition : 0,
+        transform: "scale(".concat(transformScale, ")"),
+        transition: 'left 0.4s ease-out, transform 0.4s ease-out, opacity 0.4s ease-out',
+        verticalAlign: 'top',
+        width: vertical ? '100%' : slideWidth,
+        zIndex: slideCount - this.getDistanceToCurrentSlide(index)
+      };
+    }
+  }, {
+    key: "getListStyles",
+    value: function getListStyles() {
+      var listWidth = this.props.slideWidth * _react.default.Children.count(this.props.children);
+
+      var spacingOffset = this.props.cellSpacing * _react.default.Children.count(this.props.children);
+
+      return {
+        boxSizing: 'border-box',
+        cursor: this.props.dragging === true ? 'pointer' : 'inherit',
+        height: this.props.vertical ? listWidth + spacingOffset : this.props.slideHeight,
+        left: "calc(50% - (".concat(this.props.slideWidth, "px / 2))"),
+        margin: this.props.vertical ? "".concat(this.props.cellSpacing / 2 * -1, "px 0px") : "".concat(this.props.slideListMargin, "px ").concat(this.props.cellSpacing / 2 * -1, "px"),
+        MozBoxSizing: 'border-box',
+        padding: 0,
+        position: 'relative',
+        touchAction: "pinch-zoom ".concat(this.props.vertical ? 'pan-x' : 'pan-y'),
+        width: this.props.vertical ? 'auto' : '100%'
+      };
+    }
+  }, {
+    key: "render",
+    value: function render() {
+      var children = this.formatChildren(this.props.children);
+      return _react.default.createElement("ul", {
+        className: "slider-list",
+        style: this.getListStyles()
+      }, children);
+    }
+  }]);
+
+  return ScrollTransition3D;
+}(_react.default.Component);
+
+exports.default = ScrollTransition3D;
+ScrollTransition3D.propTypes = {
+  cellSpacing: _propTypes.default.number,
+  currentSlide: _propTypes.default.number,
+  dragging: _propTypes.default.bool,
+  heightMode: _propTypes.default.oneOf(['first', 'current', 'max']),
+  isWrappingAround: _propTypes.default.bool,
+  left: _propTypes.default.number,
+  opacityScale: _propTypes.default.number,
+  slideCount: _propTypes.default.number,
+  slideHeight: _propTypes.default.number,
+  slideListMargin: _propTypes.default.number,
+  slideOffset: _propTypes.default.number,
+  slidesToShow: _propTypes.default.number,
+  slideWidth: _propTypes.default.number,
+  top: _propTypes.default.number,
+  vertical: _propTypes.default.bool,
+  wrapAround: _propTypes.default.bool,
+  zoomScale: _propTypes.default.number
+};
+ScrollTransition3D.defaultProps = {
+  cellSpacing: 0,
+  currentSlide: 0,
+  dragging: false,
+  heightMode: 'max',
+  isWrappingAround: false,
+  left: 0,
+  opacityScale: 0.65,
+  slideCount: 0,
+  slideHeight: 0,
+  slideListMargin: 0,
+  slidesToShow: 3,
+  slideWidth: 0,
+  top: 0,
+  vertical: false,
+  wrapAround: true,
+  zoomScale: 0.75
+};
+},{"react":"node_modules/react/index.js","prop-types":"node_modules/prop-types/index.js","../utilities/style-utilities":"node_modules/nuka-carousel/es/utilities/style-utilities.js","../utilities/utilities":"node_modules/nuka-carousel/es/utilities/utilities.js"}],"node_modules/nuka-carousel/es/all-transitions.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+var _scrollTransition = _interopRequireDefault(require("./transitions/scroll-transition"));
+
+var _fadeTransition = _interopRequireDefault(require("./transitions/fade-transition"));
+
+var _dScrollTransition = _interopRequireDefault(require("./transitions/3d-scroll-transition"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var _default = {
+  fade: _fadeTransition.default,
+  scroll: _scrollTransition.default,
+  scroll3d: _dScrollTransition.default
+};
+exports.default = _default;
+},{"./transitions/scroll-transition":"node_modules/nuka-carousel/es/transitions/scroll-transition.js","./transitions/fade-transition":"node_modules/nuka-carousel/es/transitions/fade-transition.js","./transitions/3d-scroll-transition":"node_modules/nuka-carousel/es/transitions/3d-scroll-transition.js"}],"node_modules/nuka-carousel/es/announce-slide.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = exports.defaultRenderAnnounceSlideMessage = void 0;
 
 var _react = _interopRequireDefault(require("react"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var AnnounceSlide = function AnnounceSlide(_ref) {
+  var message = _ref.message;
+  var styles = {
+    position: 'absolute',
+    left: '-10000px',
+    top: 'auto',
+    width: '1px',
+    height: '1px',
+    overflow: 'hidden'
+  };
+  return _react.default.createElement("div", {
+    "aria-live": "polite",
+    "aria-atomic": "true",
+    style: styles,
+    tabIndex: -1
+  }, message);
+};
+
+var defaultRenderAnnounceSlideMessage = function defaultRenderAnnounceSlideMessage(_ref2) {
+  var currentSlide = _ref2.currentSlide,
+      slideCount = _ref2.slideCount;
+  return "Slide ".concat(currentSlide + 1, " of ").concat(slideCount);
+};
+
+exports.defaultRenderAnnounceSlideMessage = defaultRenderAnnounceSlideMessage;
+var _default = AnnounceSlide;
+exports.default = _default;
+},{"react":"node_modules/react/index.js"}],"node_modules/nuka-carousel/es/utilities/bootstrapping-utilities.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.calculateSlideHeight = exports.findCurrentHeightSlide = exports.findMaxHeightSlideInRange = exports.getValidChildren = exports.addAccessibility = void 0;
+
+var _react = _interopRequireDefault(require("react"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _toConsumableArray(arr) {
+  return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _nonIterableSpread();
+}
+
+function _nonIterableSpread() {
+  throw new TypeError("Invalid attempt to spread non-iterable instance");
+}
+
+function _iterableToArray(iter) {
+  if (Symbol.iterator in Object(iter) || Object.prototype.toString.call(iter) === "[object Arguments]") return Array.from(iter);
+}
+
+function _arrayWithoutHoles(arr) {
+  if (Array.isArray(arr)) {
+    for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) {
+      arr2[i] = arr[i];
+    }
+
+    return arr2;
+  }
+}
 
 var addAccessibility = function addAccessibility(children, slidesToShow) {
   if (slidesToShow > 1) {
@@ -36885,43 +37729,121 @@ var getValidChildren = function getValidChildren(children) {
 
 exports.getValidChildren = getValidChildren;
 
-var findMaxHeightSlide = function findMaxHeightSlide(slides) {
+var getMax = function getMax(a, b) {
+  return a > b ? a : b;
+};
+
+var getHeightOfSlide = function getHeightOfSlide(slide) {
+  if (!slide) {
+    return 0;
+  }
+
+  if (slide.children && slide.children.length > 0) {
+    // Need to convert slide.children from HTMLCollection
+    // to an array
+    var children = _toConsumableArray(slide.children);
+
+    return children.reduce(function (totalHeight, child) {
+      return totalHeight + child.offsetHeight;
+    }, 0);
+  } else {
+    return slide.offsetHeight;
+  }
+}; // end - is exclusive
+
+
+var findMaxHeightSlideInRange = function findMaxHeightSlideInRange(slides, start, end) {
   var maxHeight = 0;
 
-  for (var i = 0; i < slides.length; i++) {
-    if (slides[i].offsetHeight > maxHeight) {
-      maxHeight = slides[i].offsetHeight;
+  if (slides.length === 0 || start < 0 || end < 0 || start > slides.length - 1 || end > slides.length) {
+    return maxHeight;
+  }
+
+  if (start < end) {
+    for (var i = start; i < end; i++) {
+      maxHeight = getMax(getHeightOfSlide(slides[i]), maxHeight);
     }
+  } else if (start > end) {
+    // Finding max in a wrap around
+    for (var _i = start; _i < slides.length; _i++) {
+      maxHeight = getMax(getHeightOfSlide(slides[_i]), maxHeight);
+    }
+
+    for (var _i2 = 0; _i2 < end; _i2++) {
+      maxHeight = getMax(getHeightOfSlide(slides[_i2]), maxHeight);
+    }
+  } else {
+    // start === end
+    maxHeight = getHeightOfSlide(slides[start]);
   }
 
   return maxHeight;
 };
 
-var getSlideHeight = function getSlideHeight(props, state) {
+exports.findMaxHeightSlideInRange = findMaxHeightSlideInRange;
+
+var findCurrentHeightSlide = function findCurrentHeightSlide(currentSlide, slidesToShow, alignment, wrapAround, slides) {
+  if (slidesToShow > 1) {
+    var startIndex = currentSlide;
+    var lastIndex = Math.min(Math.ceil(slidesToShow) + currentSlide, slides.length);
+    var offset = alignment === 'center' ? (slidesToShow - 1) / 2 : slidesToShow - 1;
+
+    switch (alignment) {
+      case 'center':
+        startIndex = Math.floor(currentSlide - offset);
+        lastIndex = Math.ceil(currentSlide + offset) + 1;
+        break;
+
+      case 'right':
+        startIndex = Math.floor(currentSlide - offset);
+        lastIndex = currentSlide + 1;
+        break;
+
+      case 'left':
+        startIndex = Math.floor(currentSlide + offset);
+        lastIndex = Math.ceil(currentSlide + offset) + 1;
+        break;
+    } // inclusive
+
+
+    startIndex = wrapAround && startIndex < 0 ? slides.length + startIndex : Math.max(startIndex, 0); // exclusive
+
+    lastIndex = wrapAround && lastIndex > slides.length ? lastIndex - slides.length : Math.min(lastIndex, slides.length);
+    return findMaxHeightSlideInRange(slides, startIndex, lastIndex);
+  } else {
+    return getHeightOfSlide(slides[currentSlide]);
+  }
+};
+
+exports.findCurrentHeightSlide = findCurrentHeightSlide;
+
+var calculateSlideHeight = function calculateSlideHeight(props, state) {
   var childNodes = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
   var heightMode = props.heightMode,
       vertical = props.vertical,
-      initialSlideHeight = props.initialSlideHeight;
+      initialSlideHeight = props.initialSlideHeight,
+      wrapAround = props.wrapAround;
   var slidesToShow = state.slidesToShow,
-      currentSlide = state.currentSlide;
+      currentSlide = state.currentSlide,
+      cellAlign = state.cellAlign;
   var firstSlide = childNodes[0];
 
   if (firstSlide && heightMode === 'first') {
-    return vertical ? firstSlide.offsetHeight * slidesToShow : firstSlide.offsetHeight;
+    return vertical ? getHeightOfSlide(firstSlide) * slidesToShow : getHeightOfSlide(firstSlide);
   }
 
   if (heightMode === 'max') {
-    return findMaxHeightSlide(childNodes);
+    return findMaxHeightSlideInRange(childNodes, 0, childNodes.length);
   }
 
   if (heightMode === 'current') {
-    return childNodes[currentSlide].offsetHeight;
+    return findCurrentHeightSlide(currentSlide, slidesToShow, cellAlign, wrapAround, childNodes);
   }
 
   return initialSlideHeight || 100;
 };
 
-exports.getSlideHeight = getSlideHeight;
+exports.calculateSlideHeight = calculateSlideHeight;
 },{"react":"node_modules/react/index.js"}],"node_modules/nuka-carousel/es/index.js":[function(require,module,exports) {
 "use strict";
 
@@ -36949,6 +37871,8 @@ Object.defineProperty(exports, "NextButton", {
 exports.default = void 0;
 
 var _react = _interopRequireDefault(require("react"));
+
+require("wicg-inert");
 
 var _propTypes = _interopRequireDefault(require("prop-types"));
 
@@ -37027,13 +37951,13 @@ function _objectSpread(target) {
     var source = arguments[i] != null ? arguments[i] : {};
 
     if (i % 2) {
-      ownKeys(source, true).forEach(function (key) {
+      ownKeys(Object(source), true).forEach(function (key) {
         _defineProperty(target, key, source[key]);
       });
     } else if (Object.getOwnPropertyDescriptors) {
       Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
     } else {
-      ownKeys(source).forEach(function (key) {
+      ownKeys(Object(source)).forEach(function (key) {
         Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
       });
     }
@@ -37170,6 +38094,13 @@ function (_React$Component) {
       funcName: 'renderBottomRightControls',
       key: 'BottomRight'
     }];
+    _this.keyCodeConfig = {
+      nextSlide: [39, 68, 38, 87],
+      previousSlide: [37, 65, 40, 83],
+      firstSlide: [81],
+      lastSlide: [69],
+      pause: [32]
+    };
     _this.childNodesMutationObs = null;
     _this.state = _objectSpread({
       currentSlide: _this.props.slideIndex,
@@ -37183,7 +38114,7 @@ function (_React$Component) {
       slideCount: (0, _bootstrappingUtilities.getValidChildren)(_this.props.children).length,
       top: 0,
       wrapToIndex: null,
-      readyStateChanged: 0
+      hasFocus: false
     }, (0, _utilities.calcSomeInitialState)(_this.props));
     _this.autoplayIterator = _this.autoplayIterator.bind(_assertThisInitialized(_this));
     _this.calcSlideHeightAndWidth = _this.calcSlideHeightAndWidth.bind(_assertThisInitialized(_this));
@@ -37193,13 +38124,14 @@ function (_React$Component) {
     _this.getTargetLeft = _this.getTargetLeft.bind(_assertThisInitialized(_this));
     _this.getTouchEvents = _this.getTouchEvents.bind(_assertThisInitialized(_this));
     _this.goToSlide = _this.goToSlide.bind(_assertThisInitialized(_this));
+    _this.handleFocus = _this.handleFocus.bind(_assertThisInitialized(_this));
+    _this.handleBlur = _this.handleBlur.bind(_assertThisInitialized(_this));
     _this.handleClick = _this.handleClick.bind(_assertThisInitialized(_this));
     _this.handleKeyPress = _this.handleKeyPress.bind(_assertThisInitialized(_this));
     _this.handleMouseOut = _this.handleMouseOut.bind(_assertThisInitialized(_this));
     _this.handleMouseOver = _this.handleMouseOver.bind(_assertThisInitialized(_this));
     _this.handleSwipe = _this.handleSwipe.bind(_assertThisInitialized(_this));
     _this.nextSlide = _this.nextSlide.bind(_assertThisInitialized(_this));
-    _this.onReadyStateChange = _this.onReadyStateChange.bind(_assertThisInitialized(_this));
     _this.onResize = _this.onResize.bind(_assertThisInitialized(_this));
     _this.onVisibilityChange = _this.onVisibilityChange.bind(_assertThisInitialized(_this));
     _this.previousSlide = _this.previousSlide.bind(_assertThisInitialized(_this));
@@ -37217,7 +38149,9 @@ function (_React$Component) {
   _createClass(Carousel, [{
     key: "componentDidMount",
     value: function componentDidMount() {
-      // see https://github.com/facebook/react/issues/3417#issuecomment-121649937
+      var _this2 = this; // see https://github.com/facebook/react/issues/3417#issuecomment-121649937
+
+
       this.mounted = true;
       this.setLeft();
       this.setDimensions();
@@ -37227,12 +38161,38 @@ function (_React$Component) {
       if (this.props.autoplay) {
         this.startAutoplay();
       }
+
+      var keyCodeConfig = _extends({}, this.keyCodeConfig, this.props.keyCodeConfig);
+
+      this.keyCodeMap = this.getKeyCodeMap(keyCodeConfig);
+      this.getlockScrollEvents().lockTouchScroll();
+      var heightCheckDelay = 200;
+
+      var initializeHeight = function initializeHeight(delay) {
+        _this2.timers.push(setTimeout(function () {
+          // If slideHeight is greater than zero, then
+          // assume the app has been initialized.  If not,
+          // keep trying to set dimensions until things work.
+          if (_this2.state.slideHeight > 0) {
+            return;
+          }
+
+          _this2.setDimensions(); // Increase delay per attempt so the checks
+          // slowly decrease if content is taking forever to load.
+
+
+          initializeHeight(delay + heightCheckDelay);
+        }, delay));
+      };
+
+      initializeHeight(heightCheckDelay);
     } // @TODO Remove deprecated componentWillReceiveProps with getDerivedStateFromProps
     // eslint-disable-next-line react/no-deprecated
+    // eslint-disable-next-line camelcase
 
   }, {
-    key: "componentWillReceiveProps",
-    value: function componentWillReceiveProps(nextProps) {
+    key: "UNSAFE_componentWillReceiveProps",
+    value: function UNSAFE_componentWillReceiveProps(nextProps) {
       var slideCount = (0, _bootstrappingUtilities.getValidChildren)(nextProps.children).length;
       var slideCountChanged = slideCount !== this.state.slideCount;
       this.setState(function (prevState) {
@@ -37287,10 +38247,9 @@ function (_React$Component) {
       var _this$calcSlideHeight = this.calcSlideHeightAndWidth(),
           slideHeight = _this$calcSlideHeight.slideHeight;
 
-      var heightMismatches = slideHeight !== prevState.slideHeight; // When using dynamic content in a slide, it is possible for the slide height to be inaccurate. Here, double check that the height is correct once the component has mounted and the `readyStateChange` event has fired.
-      // See #521 and https://github.com/FormidableLabs/nuka-carousel/blob/fea63242a8b2fb69c65689efe615d0feb9b2d1ff/README.md#resizing-height-issue
+      var heightMismatches = slideHeight !== prevState.slideHeight;
 
-      if (this.mounted && prevState.readyStateChanged > 0 && heightMismatches) {
+      if (this.mounted && heightMismatches) {
         this.setDimensions();
       }
     }
@@ -37306,26 +38265,26 @@ function (_React$Component) {
       for (var i = 0; i < this.timers.length; i++) {
         clearTimeout(this.timers[i]);
       }
+
+      this.getlockScrollEvents().unlockTouchScroll();
     }
   }, {
     key: "establishChildNodesMutationObserver",
     value: function establishChildNodesMutationObserver() {
-      var _this2 = this;
+      var _this3 = this;
 
       var childNodes = this.getChildNodes();
 
       if (childNodes.length && 'MutationObserver' in window) {
-        this.childNodesMutationObs = new MutationObserver(function (mutations) {
-          mutations.forEach(function () {
-            _this2.setSlideHeightAndWidth();
-          });
+        this.childNodesMutationObs = new MutationObserver(function () {
+          _this3.setSlideHeightAndWidth();
         });
 
         var observeChildNodeMutation = function observeChildNodeMutation(node) {
-          _this2.childNodesMutationObs.observe(node, {
-            attributes: true,
+          _this3.childNodesMutationObs.observe(node, {
             attributeFilter: ['style'],
             attributeOldValue: false,
+            attributes: true,
             characterData: false,
             characterDataOldValue: false,
             childList: false,
@@ -37349,9 +38308,41 @@ function (_React$Component) {
       }
     }
   }, {
+    key: "getlockScrollEvents",
+    value: function getlockScrollEvents() {
+      var _this4 = this;
+
+      var blockEvent = function blockEvent(e) {
+        if (_this4.state.dragging) {
+          var direction = (0, _utilities.swipeDirection)(_this4.touchObject.startX, e.touches[0].pageX, _this4.touchObject.startY, e.touches[0].pageY, _this4.props.vertical);
+
+          if (direction !== 0) {
+            e.preventDefault();
+          }
+        }
+      };
+
+      var lockTouchScroll = function lockTouchScroll() {
+        document.addEventListener('touchmove', blockEvent, {
+          passive: false
+        });
+      };
+
+      var unlockTouchScroll = function unlockTouchScroll() {
+        document.removeEventListener('touchmove', blockEvent, {
+          passive: false
+        });
+      };
+
+      return {
+        lockTouchScroll: lockTouchScroll,
+        unlockTouchScroll: unlockTouchScroll
+      };
+    }
+  }, {
     key: "getTouchEvents",
     value: function getTouchEvents() {
-      var _this3 = this;
+      var _this5 = this;
 
       if (this.props.swiping === false) {
         return {
@@ -37362,59 +38353,59 @@ function (_React$Component) {
 
       return {
         onTouchStart: function onTouchStart(e) {
-          _this3.touchObject = {
+          _this5.touchObject = {
             startX: e.touches[0].pageX,
             startY: e.touches[0].pageY
           };
 
-          _this3.handleMouseOver();
+          _this5.handleMouseOver();
 
-          _this3.setState({
+          _this5.setState({
             dragging: true
           });
         },
         onTouchMove: function onTouchMove(e) {
-          var direction = (0, _utilities.swipeDirection)(_this3.touchObject.startX, e.touches[0].pageX, _this3.touchObject.startY, e.touches[0].pageY, _this3.props.vertical);
+          var direction = (0, _utilities.swipeDirection)(_this5.touchObject.startX, e.touches[0].pageX, _this5.touchObject.startY, e.touches[0].pageY, _this5.props.vertical);
 
           if (direction !== 0) {
             e.preventDefault();
           }
 
-          var length = _this3.props.vertical ? Math.round(Math.sqrt(Math.pow(e.touches[0].pageY - _this3.touchObject.startY, 2))) : Math.round(Math.sqrt(Math.pow(e.touches[0].pageX - _this3.touchObject.startX, 2)));
+          var length = _this5.props.vertical ? Math.round(Math.sqrt(Math.pow(e.touches[0].pageY - _this5.touchObject.startY, 2))) : Math.round(Math.sqrt(Math.pow(e.touches[0].pageX - _this5.touchObject.startX, 2)));
 
           if (length >= 10) {
-            if (_this3.clickDisabled === false) _this3.props.onDragStart(e);
-            _this3.clickDisabled = true;
+            if (_this5.clickDisabled === false) _this5.props.onDragStart(e);
+            _this5.clickDisabled = true;
           }
 
-          _this3.touchObject = {
-            startX: _this3.touchObject.startX,
-            startY: _this3.touchObject.startY,
+          _this5.touchObject = {
+            startX: _this5.touchObject.startX,
+            startY: _this5.touchObject.startY,
             endX: e.touches[0].pageX,
             endY: e.touches[0].pageY,
             length: length,
             direction: direction
           };
 
-          _this3.setState({
-            left: _this3.props.vertical ? 0 : _this3.getTargetLeft(_this3.touchObject.length * _this3.touchObject.direction),
-            top: _this3.props.vertical ? _this3.getTargetLeft(_this3.touchObject.length * _this3.touchObject.direction) : 0
+          _this5.setState({
+            left: _this5.props.vertical ? 0 : _this5.getTargetLeft(_this5.touchObject.length * _this5.touchObject.direction),
+            top: _this5.props.vertical ? _this5.getTargetLeft(_this5.touchObject.length * _this5.touchObject.direction) : 0
           });
         },
         onTouchEnd: function onTouchEnd(e) {
-          _this3.handleSwipe(e);
+          _this5.handleSwipe(e);
 
-          _this3.handleMouseOut();
+          _this5.handleMouseOut();
         },
         onTouchCancel: function onTouchCancel(e) {
-          _this3.handleSwipe(e);
+          _this5.handleSwipe(e);
         }
       };
     }
   }, {
     key: "getMouseEvents",
     value: function getMouseEvents() {
-      var _this4 = this;
+      var _this6 = this;
 
       if (this.props.dragging === false) {
         return {
@@ -37427,64 +38418,68 @@ function (_React$Component) {
         onMouseOver: this.handleMouseOver,
         onMouseOut: this.handleMouseOut,
         onMouseDown: function onMouseDown(e) {
-          _this4.touchObject = {
+          if (e.preventDefault) {
+            e.preventDefault();
+          }
+
+          _this6.touchObject = {
             startX: e.clientX,
             startY: e.clientY
           };
 
-          _this4.setState({
+          _this6.setState({
             dragging: true
           });
         },
         onMouseMove: function onMouseMove(e) {
-          if (!_this4.state.dragging) {
+          if (!_this6.state.dragging) {
             return;
           }
 
-          var direction = (0, _utilities.swipeDirection)(_this4.touchObject.startX, e.clientX, _this4.touchObject.startY, e.clientY, _this4.props.vertical);
+          var direction = (0, _utilities.swipeDirection)(_this6.touchObject.startX, e.clientX, _this6.touchObject.startY, e.clientY, _this6.props.vertical);
 
           if (direction !== 0) {
             e.preventDefault();
           }
 
-          var length = _this4.props.vertical ? Math.round(Math.sqrt(Math.pow(e.clientY - _this4.touchObject.startY, 2))) : Math.round(Math.sqrt(Math.pow(e.clientX - _this4.touchObject.startX, 2))); // prevents disabling click just because mouse moves a fraction of a pixel
+          var length = _this6.props.vertical ? Math.round(Math.sqrt(Math.pow(e.clientY - _this6.touchObject.startY, 2))) : Math.round(Math.sqrt(Math.pow(e.clientX - _this6.touchObject.startX, 2))); // prevents disabling click just because mouse moves a fraction of a pixel
 
           if (length >= 10) {
-            if (_this4.clickDisabled === false) _this4.props.onDragStart(e);
-            _this4.clickDisabled = true;
+            if (_this6.clickDisabled === false) _this6.props.onDragStart(e);
+            _this6.clickDisabled = true;
           }
 
-          _this4.touchObject = {
-            startX: _this4.touchObject.startX,
-            startY: _this4.touchObject.startY,
+          _this6.touchObject = {
+            startX: _this6.touchObject.startX,
+            startY: _this6.touchObject.startY,
             endX: e.clientX,
             endY: e.clientY,
             length: length,
             direction: direction
           };
 
-          _this4.setState({
-            left: _this4.props.vertical ? 0 : _this4.getTargetLeft(_this4.touchObject.length * _this4.touchObject.direction),
-            top: _this4.props.vertical ? _this4.getTargetLeft(_this4.touchObject.length * _this4.touchObject.direction) : 0
+          _this6.setState({
+            left: _this6.props.vertical ? 0 : _this6.getTargetLeft(_this6.touchObject.length * _this6.touchObject.direction),
+            top: _this6.props.vertical ? _this6.getTargetLeft(_this6.touchObject.length * _this6.touchObject.direction) : 0
           });
         },
         onMouseUp: function onMouseUp(e) {
-          if (_this4.touchObject.length === 0 || _this4.touchObject.length === undefined) {
-            _this4.setState({
+          if (_this6.touchObject.length === 0 || _this6.touchObject.length === undefined) {
+            _this6.setState({
               dragging: false
             });
 
             return;
           }
 
-          _this4.handleSwipe(e);
+          _this6.handleSwipe(e);
         },
         onMouseLeave: function onMouseLeave(e) {
-          if (!_this4.state.dragging) {
+          if (!_this6.state.dragging) {
             return;
           }
 
-          _this4.handleSwipe(e);
+          _this6.handleSwipe(e);
         }
       };
     }
@@ -37519,6 +38514,20 @@ function (_React$Component) {
       }
     }
   }, {
+    key: "handleFocus",
+    value: function handleFocus() {
+      this.setState({
+        hasFocus: true
+      });
+    }
+  }, {
+    key: "handleBlur",
+    value: function handleBlur() {
+      this.setState({
+        hasFocus: false
+      });
+    }
+  }, {
     key: "handleClick",
     value: function handleClick(event) {
       if (this.clickDisabled === true) {
@@ -37537,7 +38546,7 @@ function (_React$Component) {
   }, {
     key: "handleSwipe",
     value: function handleSwipe() {
-      var _this5 = this;
+      var _this7 = this;
 
       var slidesToShow = this.state.slidesToShow;
 
@@ -37545,7 +38554,9 @@ function (_React$Component) {
         slidesToShow = this.state.slidesToScroll;
       }
 
-      if (this.touchObject.length > this.state.slideWidth / slidesToShow / 5) {
+      var touchLength = this.touchObject.length || 0;
+
+      if (touchLength > this.state.slideWidth / slidesToShow / 5) {
         if (this.touchObject.direction === 1) {
           if (this.state.currentSlide + 1 >= this.state.slideCount && !this.props.wrapAround) {
             this.setState({
@@ -37563,13 +38574,13 @@ function (_React$Component) {
             this.previousSlide();
           }
         }
-      } else {
+      } else if (touchLength > 0) {
         this.goToSlide(this.state.currentSlide);
       } // wait for `handleClick` event before resetting clickDisabled
 
 
       this.timers.push(setTimeout(function () {
-        _this5.clickDisabled = false;
+        _this7.clickDisabled = false;
       }, 0));
       this.touchObject = {};
       this.setState({
@@ -37580,31 +38591,27 @@ function (_React$Component) {
   }, {
     key: "handleKeyPress",
     value: function handleKeyPress(e) {
-      if (this.props.enableKeyboardControls) {
-        switch (e.keyCode) {
-          case 39:
-          case 68:
-          case 38:
-          case 87:
+      if (this.state.hasFocus && this.props.enableKeyboardControls) {
+        var actionName = this.keyCodeMap[e.keyCode];
+
+        switch (actionName) {
+          case 'nextSlide':
             this.nextSlide();
             break;
 
-          case 37:
-          case 65:
-          case 40:
-          case 83:
+          case 'previousSlide':
             this.previousSlide();
             break;
 
-          case 81:
+          case 'firstSlide':
             this.goToSlide(0, this.props);
             break;
 
-          case 69:
+          case 'lastSlide':
             this.goToSlide(this.state.slideCount - 1, this.props);
             break;
 
-          case 32:
+          case 'pause':
             if (this.state.pauseOnHover && this.props.autoplay) {
               this.setState({
                 pauseOnHover: false
@@ -37621,6 +38628,17 @@ function (_React$Component) {
 
         }
       }
+    }
+  }, {
+    key: "getKeyCodeMap",
+    value: function getKeyCodeMap(keyCodeConfig) {
+      var keyCodeMap = {};
+      Object.keys(keyCodeConfig).forEach(function (actionName) {
+        keyCodeConfig[actionName].forEach(function (keyCode) {
+          return keyCodeMap[keyCode] = actionName;
+        });
+      });
+      return keyCodeMap;
     }
   }, {
     key: "autoplayIterator",
@@ -37671,32 +38689,8 @@ function (_React$Component) {
   }, {
     key: "getTargetLeft",
     value: function getTargetLeft(touchOffset, slide) {
-      var offset;
       var target = slide || this.state.currentSlide;
-
-      switch (this.state.cellAlign) {
-        case 'left':
-          {
-            offset = 0;
-            offset -= this.props.cellSpacing * target;
-            break;
-          }
-
-        case 'center':
-          {
-            offset = (this.state.frameWidth - this.state.slideWidth) / 2;
-            offset -= this.props.cellSpacing * target;
-            break;
-          }
-
-        case 'right':
-          {
-            offset = this.state.frameWidth - this.state.slideWidth;
-            offset -= this.props.cellSpacing * target;
-            break;
-          }
-      }
-
+      var offset = (0, _styleUtilities.getAlignmentOffset)(target, _objectSpread({}, this.props, {}, this.state));
       var left = this.state.slideWidth * target;
       var lastSlide = this.state.currentSlide > 0 && target + this.state.slidesToScroll >= this.state.slideCount;
 
@@ -37753,7 +38747,7 @@ function (_React$Component) {
   }, {
     key: "goToSlide",
     value: function goToSlide(index, props) {
-      var _this6 = this;
+      var _this8 = this;
 
       if (props === undefined) {
         props = this.props;
@@ -37780,20 +38774,20 @@ function (_React$Component) {
           props.beforeSlide(this.state.currentSlide, 0);
           this.setState(function (prevState) {
             return {
-              left: props.vertical ? 0 : _this6.getTargetLeft(_this6.state.slideWidth, prevState.currentSlide),
-              top: props.vertical ? _this6.getTargetLeft(_this6.state.slideWidth, prevState.currentSlide) : 0,
+              left: props.vertical ? 0 : _this8.getTargetLeft(_this8.state.slideWidth, prevState.currentSlide),
+              top: props.vertical ? _this8.getTargetLeft(_this8.state.slideWidth, prevState.currentSlide) : 0,
               currentSlide: 0,
               isWrappingAround: true,
-              wrapToIndex: _this6.state.slideCount
+              wrapToIndex: _this8.state.slideCount
             };
           }, function () {
-            _this6.timers.push(setTimeout(function () {
-              _this6.resetAutoplay();
+            _this8.timers.push(setTimeout(function () {
+              _this8.resetAutoplay();
 
-              _this6.isTransitioning = false;
+              _this8.isTransitioning = false;
 
               if (index !== previousSlide) {
-                _this6.props.afterSlide(0);
+                _this8.props.afterSlide(0);
               }
             }, props.speed));
           });
@@ -37803,20 +38797,20 @@ function (_React$Component) {
           props.beforeSlide(this.state.currentSlide, endSlide);
           this.setState(function (prevState) {
             return {
-              left: props.vertical ? 0 : _this6.getTargetLeft(0, prevState.currentSlide),
-              top: props.vertical ? _this6.getTargetLeft(0, prevState.currentSlide) : 0,
+              left: props.vertical ? 0 : _this8.getTargetLeft(0, prevState.currentSlide),
+              top: props.vertical ? _this8.getTargetLeft(0, prevState.currentSlide) : 0,
               currentSlide: endSlide,
               isWrappingAround: true,
               wrapToIndex: index
             };
           }, function () {
-            _this6.timers.push(setTimeout(function () {
-              _this6.resetAutoplay();
+            _this8.timers.push(setTimeout(function () {
+              _this8.resetAutoplay();
 
-              _this6.isTransitioning = false;
+              _this8.isTransitioning = false;
 
               if (index !== previousSlide) {
-                _this6.props.afterSlide(_this6.state.slideCount - 1);
+                _this8.props.afterSlide(_this8.state.slideCount - 1);
               }
             }, props.speed));
           });
@@ -37828,13 +38822,13 @@ function (_React$Component) {
       this.setState({
         currentSlide: index
       }, function () {
-        return _this6.timers.push(setTimeout(function () {
-          _this6.resetAutoplay();
+        return _this8.timers.push(setTimeout(function () {
+          _this8.resetAutoplay();
 
-          _this6.isTransitioning = false;
+          _this8.isTransitioning = false;
 
           if (index !== previousSlide) {
-            _this6.props.afterSlide(index);
+            _this8.props.afterSlide(index);
           }
         }, props.speed));
       });
@@ -37862,8 +38856,10 @@ function (_React$Component) {
         }
 
         var offset = this.state.currentSlide + this.state.slidesToScroll;
-        var nextSlideIndex = this.props.cellAlign !== 'left' ? offset : Math.min(offset, childrenCount - slidesToShow);
-        this.goToSlide(nextSlideIndex);
+        var nextSlideIndex = this.props.cellAlign !== 'left' ? offset : Math.min(offset, childrenCount - slidesToShow); // If nextSlideIndex is larger than last index, then
+        // just navigate to last index
+
+        this.goToSlide(Math.min(nextSlideIndex, childrenCount - 1));
       }
     }
   }, {
@@ -37885,7 +38881,6 @@ function (_React$Component) {
     value: function bindEvents() {
       if (_exenv.default.canUseDOM) {
         (0, _utilities.addEvent)(window, 'resize', this.onResize);
-        (0, _utilities.addEvent)(document, 'readystatechange', this.onReadyStateChange);
         (0, _utilities.addEvent)(document, 'visibilitychange', this.onVisibilityChange);
         (0, _utilities.addEvent)(document, 'keydown', this.handleKeyPress);
       }
@@ -37894,16 +38889,6 @@ function (_React$Component) {
     key: "onResize",
     value: function onResize() {
       this.setDimensions(null, this.props.onResize);
-    }
-  }, {
-    key: "onReadyStateChange",
-    value: function onReadyStateChange() {
-      // When using dynamic content in a slide, it is possible that `readystatechange` will fire before the component has finished mounting, which means `this.state.slideHeight` remains 0, instead of the correct height. Tracking this in state will trigger `componentDidUpdate` which can set the correct height.
-      // See #521 and https://github.com/FormidableLabs/nuka-carousel/blob/fea63242a8b2fb69c65689efe615d0feb9b2d1ff/README.md#resizing-height-issue
-      this.setState({
-        readyStateChanged: this.state.readyStateChanged + 1
-      });
-      this.setDimensions();
     }
   }, {
     key: "onVisibilityChange",
@@ -37919,7 +38904,6 @@ function (_React$Component) {
     value: function unbindEvents() {
       if (_exenv.default.canUseDOM) {
         (0, _utilities.removeEvent)(window, 'resize', this.onResize);
-        (0, _utilities.removeEvent)(document, 'readystatechange', this.onReadyStateChange);
         (0, _utilities.removeEvent)(document, 'visibilitychange', this.onVisibilityChange);
         (0, _utilities.removeEvent)(document, 'keydown', this.handleKeyPress);
       }
@@ -37930,7 +38914,7 @@ function (_React$Component) {
       // slide height
       props = props || this.props;
       var childNodes = this.getChildNodes();
-      var slideHeight = (0, _bootstrappingUtilities.getSlideHeight)(props, this.state, childNodes); //slide width
+      var slideHeight = (0, _bootstrappingUtilities.calculateSlideHeight)(props, this.state, childNodes); //slide width
 
       var _getPropsByTransition = (0, _utilities.getPropsByTransitionMode)(props, ['slidesToShow']),
           slidesToShow = _getPropsByTransition.slidesToShow;
@@ -37960,13 +38944,20 @@ function (_React$Component) {
   }, {
     key: "setSlideHeightAndWidth",
     value: function setSlideHeightAndWidth() {
-      this.setState(this.calcSlideHeightAndWidth());
+      var _this$calcSlideHeight2 = this.calcSlideHeightAndWidth(),
+          slideHeight = _this$calcSlideHeight2.slideHeight,
+          slideWidth = _this$calcSlideHeight2.slideWidth;
+
+      if (slideHeight !== this.state.slideHeight || slideWidth !== this.state.slideWidth) {
+        this.setState({
+          slideHeight: slideHeight,
+          slideWidth: slideWidth
+        });
+      }
     }
   }, {
     key: "setDimensions",
     value: function setDimensions(props) {
-      var _this7 = this;
-
       var stateCb = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : function () {};
       props = props || this.props;
 
@@ -37976,9 +38967,9 @@ function (_React$Component) {
 
       var frame = this.frame;
 
-      var _this$calcSlideHeight2 = this.calcSlideHeightAndWidth(props),
-          slideHeight = _this$calcSlideHeight2.slideHeight,
-          slideWidth = _this$calcSlideHeight2.slideWidth;
+      var _this$calcSlideHeight3 = this.calcSlideHeightAndWidth(props),
+          slideHeight = _this$calcSlideHeight3.slideHeight,
+          slideWidth = _this$calcSlideHeight3.slideWidth;
 
       var frameHeight = slideHeight + props.cellSpacing * (slidesToShow - 1);
       var frameWidth = props.vertical ? frameHeight : frame.offsetWidth;
@@ -37996,13 +38987,9 @@ function (_React$Component) {
         slidesToScroll: slidesToScroll,
         slidesToShow: slidesToShow,
         slideWidth: slideWidth,
-        cellAlign: cellAlign,
-        left: props.vertical ? 0 : this.getTargetLeft(),
-        top: props.vertical ? this.getTargetLeft() : 0
+        cellAlign: cellAlign
       }, function () {
         stateCb();
-
-        _this7.setLeft();
       });
     }
   }, {
@@ -38033,7 +39020,7 @@ function (_React$Component) {
   }, {
     key: "renderControls",
     value: function renderControls() {
-      var _this8 = this;
+      var _this9 = this;
 
       if (this.props.withoutControls) {
         return this.controlsMap.map(function () {
@@ -38043,26 +39030,30 @@ function (_React$Component) {
         return this.controlsMap.map(function (_ref) {
           var funcName = _ref.funcName,
               key = _ref.key;
-          var func = _this8.props[funcName];
+          var func = _this9.props[funcName];
           var controlChildren = func && typeof func === 'function' && func({
-            cellAlign: _this8.props.cellAlign,
-            cellSpacing: _this8.props.cellSpacing,
-            currentSlide: _this8.state.currentSlide,
-            frameWidth: _this8.state.frameWidth,
+            cellAlign: _this9.props.cellAlign,
+            cellSpacing: _this9.props.cellSpacing,
+            currentSlide: _this9.state.currentSlide,
+            defaultControlsConfig: _this9.props.defaultControlsConfig,
+            frameWidth: _this9.state.frameWidth,
             goToSlide: function goToSlide(index) {
-              return _this8.goToSlide(index);
+              return _this9.goToSlide(index);
             },
+            left: _this9.state.left,
             nextSlide: function nextSlide() {
-              return _this8.nextSlide();
+              return _this9.nextSlide();
             },
             previousSlide: function previousSlide() {
-              return _this8.previousSlide();
+              return _this9.previousSlide();
             },
-            slideCount: _this8.state.slideCount,
-            slidesToScroll: _this8.state.slidesToScroll,
-            slidesToShow: _this8.state.slidesToShow,
-            slideWidth: _this8.state.slideWidth,
-            wrapAround: _this8.props.wrapAround
+            slideCount: _this9.state.slideCount,
+            slidesToScroll: _this9.state.slidesToScroll,
+            slidesToShow: _this9.state.slidesToShow,
+            slideWidth: _this9.state.slideWidth,
+            top: _this9.state.top,
+            vertical: _this9.props.vertical,
+            wrapAround: _this9.props.wrapAround
           });
           return controlChildren && _react.default.createElement("div", {
             className: "slider-control-".concat(key.toLowerCase()),
@@ -38075,19 +39066,19 @@ function (_React$Component) {
   }, {
     key: "render",
     value: function render() {
-      var _this9 = this;
+      var _this10 = this;
 
       var _this$state2 = this.state,
           currentSlide = _this$state2.currentSlide,
           slideCount = _this$state2.slideCount,
           frameWidth = _this$state2.frameWidth;
       var _this$props = this.props,
+          disableAnimation = _this$props.disableAnimation,
           frameOverflow = _this$props.frameOverflow,
-          vertical = _this$props.vertical,
           framePadding = _this$props.framePadding,
-          slidesToShow = _this$props.slidesToShow,
           renderAnnounceSlideMessage = _this$props.renderAnnounceSlideMessage,
-          disableAnimation = _this$props.disableAnimation;
+          slidesToShow = _this$props.slidesToShow,
+          vertical = _this$props.vertical;
       var duration = this.state.dragging || !this.state.dragging && this.state.resetWrapAroundPosition && this.props.wrapAround || disableAnimation || !this.state.hasInteraction ? 0 : this.props.speed;
       var frameStyles = (0, _styleUtilities.getFrameStyles)(frameOverflow, vertical, framePadding, frameWidth);
       var touchEvents = this.getTouchEvents();
@@ -38095,7 +39086,10 @@ function (_React$Component) {
       var TransitionControl = _allTransitions.default[this.props.transitionMode];
       var validChildren = (0, _bootstrappingUtilities.getValidChildren)(this.props.children);
       return _react.default.createElement("div", {
-        className: ['slider', this.props.className || ''].join(' '),
+        className: ['slider', this.props.className || ''].join(' ').trim(),
+        onFocus: this.handleFocus,
+        onBlur: this.handleBlur,
+        tabIndex: 0,
         style: _extends({}, (0, _styleUtilities.getSliderStyles)(this.props.width, this.props.height), this.props.style)
       }, !this.props.autoplay && _react.default.createElement(_announceSlide.default, {
         message: renderAnnounceSlideMessage({
@@ -38105,7 +39099,7 @@ function (_React$Component) {
       }), _react.default.createElement("div", _extends({
         className: "slider-frame",
         ref: function ref(frame) {
-          return _this9.frame = frame;
+          return _this10.frame = frame;
         },
         style: frameStyles
       }, touchEvents, mouseEvents, {
@@ -38117,11 +39111,11 @@ function (_React$Component) {
           ty: 0
         },
         update: function update() {
-          var _this9$getOffsetDelta = _this9.getOffsetDeltas(),
-              tx = _this9$getOffsetDelta.tx,
-              ty = _this9$getOffsetDelta.ty;
+          var _this10$getOffsetDelt = _this10.getOffsetDeltas(),
+              tx = _this10$getOffsetDelt.tx,
+              ty = _this10$getOffsetDelt.ty;
 
-          if (_this9.props.disableEdgeSwiping && !_this9.props.wrapAround && _this9.isEdgeSwiping()) {
+          if (_this10.props.disableEdgeSwiping && !_this10.props.wrapAround && _this10.isEdgeSwiping()) {
             return {};
           } else {
             return {
@@ -38129,21 +39123,21 @@ function (_React$Component) {
               ty: ty,
               timing: {
                 duration: duration,
-                ease: _this9.state.easing
+                ease: _this10.state.easing
               },
               events: {
                 end: function end() {
-                  var newLeft = _this9.props.vertical ? 0 : _this9.getTargetLeft();
-                  var newTop = _this9.props.vertical ? _this9.getTargetLeft() : 0;
+                  var newLeft = _this10.props.vertical ? 0 : _this10.getTargetLeft();
+                  var newTop = _this10.props.vertical ? _this10.getTargetLeft() : 0;
 
-                  if (newLeft !== _this9.state.left || newTop !== _this9.state.top) {
-                    _this9.setState({
+                  if (newLeft !== _this10.state.left || newTop !== _this10.state.top) {
+                    _this10.setState({
                       left: newLeft,
                       top: newTop,
                       isWrappingAround: false,
                       resetWrapAroundPosition: true
                     }, function () {
-                      _this9.setState({
+                      _this10.setState({
                         resetWrapAroundPosition: false
                       });
                     });
@@ -38156,7 +39150,7 @@ function (_React$Component) {
         children: function children(_ref2) {
           var tx = _ref2.tx,
               ty = _ref2.ty;
-          return _react.default.createElement(TransitionControl, _extends({}, (0, _styleUtilities.getTransitionProps)(_this9.props, _this9.state), {
+          return _react.default.createElement(TransitionControl, _extends({}, (0, _styleUtilities.getTransitionProps)(_this10.props, _this10.state), {
             deltaX: tx,
             deltaY: ty
           }), (0, _bootstrappingUtilities.addAccessibility)(validChildren, slidesToShow, currentSlide));
@@ -38184,20 +39178,39 @@ Carousel.propTypes = {
   beforeSlide: _propTypes.default.func,
   cellAlign: _propTypes.default.oneOf(['left', 'center', 'right']),
   cellSpacing: _propTypes.default.number,
-  enableKeyboardControls: _propTypes.default.bool,
+  defaultControlsConfig: _propTypes.default.shape({
+    nextButtonClassName: _propTypes.default.string,
+    nextButtonStyle: _propTypes.default.object,
+    nextButtonText: _propTypes.default.string,
+    prevButtonClassName: _propTypes.default.string,
+    prevButtonStyle: _propTypes.default.object,
+    prevButtonText: _propTypes.default.string,
+    pagingDotsContainerClassName: _propTypes.default.string,
+    pagingDotsClassName: _propTypes.default.string,
+    pagingDotsStyle: _propTypes.default.object
+  }),
   disableAnimation: _propTypes.default.bool,
   disableEdgeSwiping: _propTypes.default.bool,
   dragging: _propTypes.default.bool,
   easing: _propTypes.default.string,
   edgeEasing: _propTypes.default.string,
+  enableKeyboardControls: _propTypes.default.bool,
   frameOverflow: _propTypes.default.string,
   framePadding: _propTypes.default.string,
   height: _propTypes.default.string,
   heightMode: _propTypes.default.oneOf(['first', 'current', 'max']),
   initialSlideHeight: _propTypes.default.number,
   initialSlideWidth: _propTypes.default.number,
+  keyCodeConfig: _propTypes.default.exact({
+    previousSlide: _propTypes.default.arrayOf(_propTypes.default.number),
+    nextSlide: _propTypes.default.arrayOf(_propTypes.default.number),
+    firstSlide: _propTypes.default.arrayOf(_propTypes.default.number),
+    lastSlide: _propTypes.default.arrayOf(_propTypes.default.number),
+    pause: _propTypes.default.arrayOf(_propTypes.default.number)
+  }),
   onDragStart: _propTypes.default.func,
   onResize: _propTypes.default.func,
+  opacityScale: _propTypes.default.number,
   pauseOnHover: _propTypes.default.bool,
   renderAnnounceSlideMessage: _propTypes.default.func,
   renderBottomCenterControls: _propTypes.default.func,
@@ -38210,6 +39223,7 @@ Carousel.propTypes = {
   renderTopLeftControls: _propTypes.default.func,
   renderTopRightControls: _propTypes.default.func,
   slideIndex: _propTypes.default.number,
+  slideListMargin: _propTypes.default.number,
   slideOffset: _propTypes.default.number,
   slidesToScroll: _propTypes.default.oneOfType([_propTypes.default.number, _propTypes.default.oneOf(['auto'])]),
   slidesToShow: _propTypes.default.number,
@@ -38220,9 +39234,7 @@ Carousel.propTypes = {
   vertical: _propTypes.default.bool,
   width: _propTypes.default.string,
   withoutControls: _propTypes.default.bool,
-  wrapAround: _propTypes.default.bool,
-  opacityScale: _propTypes.default.number,
-  slideListMargin: _propTypes.default.number
+  wrapAround: _propTypes.default.bool
 };
 Carousel.defaultProps = {
   afterSlide: function afterSlide() {},
@@ -38233,16 +39245,18 @@ Carousel.defaultProps = {
   beforeSlide: function beforeSlide() {},
   cellAlign: 'left',
   cellSpacing: 0,
-  enableKeyboardControls: false,
+  defaultControlsConfig: {},
   disableAnimation: false,
   disableEdgeSwiping: false,
   dragging: true,
   easing: 'easeCircleOut',
   edgeEasing: 'easeElasticOut',
+  enableKeyboardControls: false,
   frameOverflow: 'hidden',
   framePadding: '0px',
   height: 'inherit',
   heightMode: 'max',
+  keyCodeConfig: {},
   onDragStart: function onDragStart() {},
   onResize: function onResize() {},
   pauseOnHover: true,
@@ -38257,6 +39271,7 @@ Carousel.defaultProps = {
     return _react.default.createElement(_defaultControls.NextButton, props);
   },
   slideIndex: 0,
+  slideListMargin: 10,
   slideOffset: 25,
   slidesToScroll: 1,
   slidesToShow: 1,
@@ -38268,10 +39283,9 @@ Carousel.defaultProps = {
   vertical: false,
   width: '100%',
   withoutControls: false,
-  wrapAround: false,
-  slideListMargin: 10
+  wrapAround: false
 };
-},{"react":"node_modules/react/index.js","prop-types":"node_modules/prop-types/index.js","exenv":"node_modules/exenv/index.js","react-move/Animate":"node_modules/react-move/Animate/index.js","d3-ease":"node_modules/d3-ease/src/index.js","./default-controls":"node_modules/nuka-carousel/es/default-controls.js","./all-transitions":"node_modules/nuka-carousel/es/all-transitions.js","./announce-slide":"node_modules/nuka-carousel/es/announce-slide.js","./utilities/utilities":"node_modules/nuka-carousel/es/utilities/utilities.js","./utilities/style-utilities":"node_modules/nuka-carousel/es/utilities/style-utilities.js","./utilities/bootstrapping-utilities":"node_modules/nuka-carousel/es/utilities/bootstrapping-utilities.js"}],"scripts/components/news-outline/news-item.tsx":[function(require,module,exports) {
+},{"react":"node_modules/react/index.js","wicg-inert":"node_modules/wicg-inert/src/inert.js","prop-types":"node_modules/prop-types/index.js","exenv":"node_modules/exenv/index.js","react-move/Animate":"node_modules/react-move/Animate/index.js","d3-ease":"node_modules/d3-ease/src/index.js","./default-controls":"node_modules/nuka-carousel/es/default-controls.js","./all-transitions":"node_modules/nuka-carousel/es/all-transitions.js","./announce-slide":"node_modules/nuka-carousel/es/announce-slide.js","./utilities/utilities":"node_modules/nuka-carousel/es/utilities/utilities.js","./utilities/style-utilities":"node_modules/nuka-carousel/es/utilities/style-utilities.js","./utilities/bootstrapping-utilities":"node_modules/nuka-carousel/es/utilities/bootstrapping-utilities.js"}],"scripts/components/news-outline/news-item.tsx":[function(require,module,exports) {
 "use strict";
 
 var __importStar = this && this.__importStar || function (mod) {
@@ -38402,63 +39416,63 @@ var featured_activities = [[{
   content: "",
   category: "Research",
   image: require("../../images/activities/loa-signing-pics/featured.jpg"),
-  location: "University of Peshawar, Peshawar, KPK"
+  location: "University of Peshawar, Peshawar"
 }, {
   title: "Environmental Information & Management – The Case of Punjab",
   date: new Date("2019/11/28"),
   content: "",
   category: "Lecture",
   image: require("../../images/activities/uni-of-faisalabad-pics/featured.jpg"),
-  location: "University of Agriculture, Faisalabad, Punjab"
+  location: "University of Agriculture, Faisalabad"
 }, {
   title: "Roundtable Conference (RTC) - Environmental Information Management system and the World",
   date: new Date("2019/11/21"),
   content: "",
   category: "Conference",
   image: require("../../images/activities/quetta-rtc-pics/featured.jpg"),
-  location: "BUITEMS, Quetta, Balochistan"
+  location: "BUITEMS, Quetta"
 }], [{
   title: "Onsite briefing-EIMS & IT – Exploring the Role of Media and other stakeholders",
   date: new Date(),
   content: "",
   category: "Research",
   image: require("../../images/activities/pitb-pics/featured.jpg"),
-  location: "Punjab Information Technology Board, Lahore, Punjab"
+  location: "PITB, Lahore"
 }, {
   title: "Seminar-Environmental Information & Management – Global Examples & Lessons for Pakistan",
   date: new Date("2019/09/18"),
   content: "",
   category: "Seminar",
   image: require("../../images/activities/karachi-seminar-pics/featured.jpg"),
-  location: "NED University, Karachi, Sindh"
+  location: "NED University, Karachi"
 }, {
   title: "Environmental Information Management System: Addressing Key Issues & Way Forward for Pakistan",
   date: new Date("2019/08/06"),
   content: "",
   category: "Lecture",
   image: require("../../images/activities/abbottabad-lecture-pictures/featured.jpg"),
-  location: "Office of Chief Conservator of Forest, ATD, KPK"
+  location: "Office of Chief Conservator of Forest, Abbottabad"
 }], [{
   title: "Environmental Information & Management: Global Perspective and Way Forward for Khyber Pakhtunkhwa",
   date: new Date("2019/06/17"),
   content: "",
   category: "Conference",
   image: require("../../images/activities/peshawar-rtc-pics/featured.jpg"),
-  location: "Environmental Protection Agency, Peshawar, KPK"
+  location: "EPA, Peshawar"
 }, {
   title: "Media Visit - Exploring the role of Media for Environmental Management Information System",
   date: new Date("2019/04/30"),
   content: "",
   category: "Seminar",
   image: require("../../images/activities/media-visit-30th-April-pics/featured.jpeg"),
-  location: "Morgah Biodiversity Park, Rawalpindi, Punjab"
+  location: "Morgah Biodiversity Park, Rawalpindi"
 }, {
   title: "Consultative Event - EIMS: Addressing Key Issues & Way Forward for Pakistan",
   date: new Date("2019/04/18"),
   content: "",
   category: "Event",
   image: require("../../images/activities/lahore-rtc-pics/featured.jpg"),
-  location: "Forest Department, Lahore, Punjab"
+  location: "Forest Department, Lahore"
 }]];
 module.exports = {
   featured_activities: featured_activities
@@ -38991,7 +40005,7 @@ if ("development" !== 'production') {
     }
   };
 }
-},{}],"../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js":[function(require,module,exports) {
+},{}],"../../../../.nvm/versions/node/v13.7.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js":[function(require,module,exports) {
 
 // shim for using process in browser
 var process = module.exports = {}; // cached from whatever global is present so that test runners that stub it
@@ -39379,7 +40393,7 @@ var getFrameData = function () {
 exports.getFrameData = getFrameData;
 var _default = sync;
 exports.default = _default;
-},{"hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","process":"../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js"}],"node_modules/style-value-types/dist/style-value-types.es.js":[function(require,module,exports) {
+},{"hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","process":"../../../../.nvm/versions/node/v13.7.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js"}],"node_modules/style-value-types/dist/style-value-types.es.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -39439,13 +40453,13 @@ var number = {
 };
 exports.number = number;
 
-var alpha = __assign({}, number, {
+var alpha = __assign(__assign({}, number), {
   transform: clamp(0, 1)
 });
 
 exports.alpha = alpha;
 
-var scale = __assign({}, number, {
+var scale = __assign(__assign({}, number), {
   default: 1
 });
 
@@ -39474,7 +40488,7 @@ exports.vh = vh;
 var vw = createUnitType('vw');
 exports.vw = vw;
 
-var progressPercentage = __assign({}, percent, {
+var progressPercentage = __assign(__assign({}, percent), {
   parse: function (v) {
     return percent.parse(v) / 100;
   },
@@ -39531,7 +40545,7 @@ var hslaTemplate = function (_a) {
   return "hsla(" + hue + ", " + saturation + ", " + lightness + ", " + alpha$$1 + ")";
 };
 
-var rgbUnit = __assign({}, number, {
+var rgbUnit = __assign(__assign({}, number), {
   transform: function (v) {
     return Math.round(clampRgbUnit(v));
   }
@@ -39584,7 +40598,7 @@ var hsla = {
 };
 exports.hsla = hsla;
 
-var hex = __assign({}, rgba, {
+var hex = __assign(__assign({}, rgba), {
   test: function (v) {
     return typeof v === 'string' && isColorString(v, '#');
   },
@@ -40631,10 +41645,12 @@ exports.steps = steps;
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.buildStyleProperty = buildStyleProperty;
 exports.buildSVGAttrs = buildSVGAttrs;
+exports.buildStyleProperty = buildStyleProperty;
 exports.isTransformProp = isTransformProp;
 exports.transformProps = exports.createStylerFactory = exports.default = void 0;
+
+var _tslib = require("tslib");
 
 var _framesync = _interopRequireDefault(require("framesync"));
 
@@ -40643,43 +41659,6 @@ var _styleValueTypes = require("style-value-types");
 var _heyListen = require("hey-listen");
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/*! *****************************************************************************
-Copyright (c) Microsoft Corporation. All rights reserved.
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-this file except in compliance with the License. You may obtain a copy of the
-License at http://www.apache.org/licenses/LICENSE-2.0
-
-THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
-WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
-MERCHANTABLITY OR NON-INFRINGEMENT.
-
-See the Apache Version 2.0 License for specific language governing permissions
-and limitations under the License.
-***************************************************************************** */
-var __assign = function () {
-  __assign = Object.assign || function __assign(t) {
-    for (var s, i = 1, n = arguments.length; i < n; i++) {
-      s = arguments[i];
-
-      for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
-    }
-
-    return t;
-  };
-
-  return __assign.apply(this, arguments);
-};
-
-function __rest(s, e) {
-  var t = {};
-
-  for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0) t[p] = s[p];
-
-  if (s != null && typeof Object.getOwnPropertySymbols === "function") for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) if (e.indexOf(p[i]) < 0) t[p[i]] = s[p[i]];
-  return t;
-}
 
 var createStyler = function (_a) {
   var onRead = _a.onRead,
@@ -40693,8 +41672,7 @@ var createStyler = function (_a) {
       _a = {};
     }
 
-    var props = __rest(_a, []);
-
+    var props = (0, _tslib.__rest)(_a, []);
     var state = {};
     var changedValues = [];
     var hasChanged = false;
@@ -40853,10 +41831,11 @@ function isTransformOriginProp(key) {
 
 var int =
 /*#__PURE__*/
-__assign({}, _styleValueTypes.number, {
+(0, _tslib.__assign)(
+/*#__PURE__*/
+(0, _tslib.__assign)({}, _styleValueTypes.number), {
   transform: Math.round
 });
-
 var valueTypes = {
   color: _styleValueTypes.color,
   backgroundColor: _styleValueTypes.color,
@@ -40972,7 +41951,7 @@ function buildTransform(state, transform, transformKeys, transformIsDefault, ena
   }
 
   if (isCustomTemplate(state.transform)) {
-    transformString = state.transform(transform, transformString);
+    transformString = state.transform(transform, transformIsDefault ? '' : transformString);
   } else if (transformIsDefault) {
     transformString = 'none';
   }
@@ -41119,9 +42098,8 @@ function createCssStyler(element, _a) {
   }
 
   var enableHardwareAcceleration = _a.enableHardwareAcceleration,
-      props = __rest(_a, ["enableHardwareAcceleration"]);
-
-  return cssStyler(__assign({
+      props = (0, _tslib.__rest)(_a, ["enableHardwareAcceleration"]);
+  return cssStyler((0, _tslib.__assign)({
     element: element,
     buildStyles: createStyleBuilder(enableHardwareAcceleration),
     preparseOutput: true
@@ -41184,8 +42162,7 @@ function buildSVGAttrs(_a, dimensions, totalPathLength, cssBuilder, attrs, isDas
       pathSpacing = _b === void 0 ? 1 : _b,
       _c = _a.pathOffset,
       pathOffset = _c === void 0 ? 0 : _c,
-      state = __rest(_a, ["attrX", "attrY", "originX", "originY", "pathLength", "pathSpacing", "pathOffset"]);
-
+      state = (0, _tslib.__rest)(_a, ["attrX", "attrY", "originX", "originY", "pathLength", "pathSpacing", "pathOffset"]);
   var style = cssBuilder(state);
 
   for (var key in style) {
@@ -41302,15 +42279,23 @@ var cache =
 /*#__PURE__*/
 new WeakMap();
 
+var isHTMLElement = function (node) {
+  return node instanceof HTMLElement || typeof node.click === 'function';
+};
+
+var isSVGElement = function (node) {
+  return node instanceof SVGElement || 'ownerSVGElement' in node;
+};
+
 var createDOMStyler = function (node, props) {
   var styler;
 
-  if (node instanceof HTMLElement) {
-    styler = createCssStyler(node, props);
-  } else if (node instanceof SVGElement) {
-    styler = svg(node);
-  } else if (node === window) {
+  if (node === window) {
     styler = viewport(node);
+  } else if (isHTMLElement(node)) {
+    styler = createCssStyler(node, props);
+  } else if (isSVGElement(node)) {
+    styler = svg(node);
   }
 
   (0, _heyListen.invariant)(styler !== undefined, 'No valid node provided. Node must be HTMLElement, SVGElement or window.');
@@ -41329,7 +42314,7 @@ function index(nodeOrSelector, props) {
 
 var _default = index;
 exports.default = _default;
-},{"framesync":"node_modules/framesync/dist/framesync.es.js","style-value-types":"node_modules/style-value-types/dist/style-value-types.es.js","hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js"}],"node_modules/popmotion/dist/popmotion.es.js":[function(require,module,exports) {
+},{"tslib":"node_modules/tslib/tslib.es6.js","framesync":"node_modules/framesync/dist/framesync.es.js","style-value-types":"node_modules/style-value-types/dist/style-value-types.es.js","hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js"}],"node_modules/popmotion/dist/popmotion.es.js":[function(require,module,exports) {
 var process = require("process");
 "use strict";
 
@@ -43065,7 +44050,7 @@ var styler = function () {
 };
 
 exports.styler = styler;
-},{"tslib":"node_modules/tslib/tslib.es6.js","@popmotion/popcorn":"node_modules/@popmotion/popcorn/dist/popcorn.es.js","framesync":"node_modules/framesync/dist/framesync.es.js","style-value-types":"node_modules/style-value-types/dist/style-value-types.es.js","@popmotion/easing":"node_modules/@popmotion/easing/dist/easing.es.js","hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","process":"../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js"}],"node_modules/@emotion/memoize/dist/memoize.browser.esm.js":[function(require,module,exports) {
+},{"tslib":"node_modules/tslib/tslib.es6.js","@popmotion/popcorn":"node_modules/@popmotion/popcorn/dist/popcorn.es.js","framesync":"node_modules/framesync/dist/framesync.es.js","style-value-types":"node_modules/style-value-types/dist/style-value-types.es.js","@popmotion/easing":"node_modules/@popmotion/easing/dist/easing.es.js","hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","process":"../../../../.nvm/versions/node/v13.7.0/lib/node_modules/parcel-bundler/node_modules/process/browser.js"}],"node_modules/@emotion/memoize/dist/memoize.browser.esm.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -43095,7 +44080,7 @@ var _memoize = _interopRequireDefault(require("@emotion/memoize"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var reactPropsRegex = /^((children|dangerouslySetInnerHTML|key|ref|autoFocus|defaultValue|defaultChecked|innerHTML|suppressContentEditableWarning|suppressHydrationWarning|valueLink|accept|acceptCharset|accessKey|action|allow|allowUserMedia|allowPaymentRequest|allowFullScreen|allowTransparency|alt|async|autoComplete|autoPlay|capture|cellPadding|cellSpacing|challenge|charSet|checked|cite|classID|className|cols|colSpan|content|contentEditable|contextMenu|controls|controlsList|coords|crossOrigin|data|dateTime|decoding|default|defer|dir|disabled|download|draggable|encType|form|formAction|formEncType|formMethod|formNoValidate|formTarget|frameBorder|headers|height|hidden|high|href|hrefLang|htmlFor|httpEquiv|id|inputMode|integrity|is|keyParams|keyType|kind|label|lang|list|loading|loop|low|marginHeight|marginWidth|max|maxLength|media|mediaGroup|method|min|minLength|multiple|muted|name|nonce|noValidate|open|optimum|pattern|placeholder|playsInline|poster|preload|profile|radioGroup|readOnly|referrerPolicy|rel|required|reversed|role|rows|rowSpan|sandbox|scope|scoped|scrolling|seamless|selected|shape|size|sizes|slot|span|spellCheck|src|srcDoc|srcLang|srcSet|start|step|style|summary|tabIndex|target|title|type|useMap|value|width|wmode|wrap|about|datatype|inlist|prefix|property|resource|typeof|vocab|autoCapitalize|autoCorrect|autoSave|color|itemProp|itemScope|itemType|itemID|itemRef|results|security|unselectable|accentHeight|accumulate|additive|alignmentBaseline|allowReorder|alphabetic|amplitude|arabicForm|ascent|attributeName|attributeType|autoReverse|azimuth|baseFrequency|baselineShift|baseProfile|bbox|begin|bias|by|calcMode|capHeight|clip|clipPathUnits|clipPath|clipRule|colorInterpolation|colorInterpolationFilters|colorProfile|colorRendering|contentScriptType|contentStyleType|cursor|cx|cy|d|decelerate|descent|diffuseConstant|direction|display|divisor|dominantBaseline|dur|dx|dy|edgeMode|elevation|enableBackground|end|exponent|externalResourcesRequired|fill|fillOpacity|fillRule|filter|filterRes|filterUnits|floodColor|floodOpacity|focusable|fontFamily|fontSize|fontSizeAdjust|fontStretch|fontStyle|fontVariant|fontWeight|format|from|fr|fx|fy|g1|g2|glyphName|glyphOrientationHorizontal|glyphOrientationVertical|glyphRef|gradientTransform|gradientUnits|hanging|horizAdvX|horizOriginX|ideographic|imageRendering|in|in2|intercept|k|k1|k2|k3|k4|kernelMatrix|kernelUnitLength|kerning|keyPoints|keySplines|keyTimes|lengthAdjust|letterSpacing|lightingColor|limitingConeAngle|local|markerEnd|markerMid|markerStart|markerHeight|markerUnits|markerWidth|mask|maskContentUnits|maskUnits|mathematical|mode|numOctaves|offset|opacity|operator|order|orient|orientation|origin|overflow|overlinePosition|overlineThickness|panose1|paintOrder|pathLength|patternContentUnits|patternTransform|patternUnits|pointerEvents|points|pointsAtX|pointsAtY|pointsAtZ|preserveAlpha|preserveAspectRatio|primitiveUnits|r|radius|refX|refY|renderingIntent|repeatCount|repeatDur|requiredExtensions|requiredFeatures|restart|result|rotate|rx|ry|scale|seed|shapeRendering|slope|spacing|specularConstant|specularExponent|speed|spreadMethod|startOffset|stdDeviation|stemh|stemv|stitchTiles|stopColor|stopOpacity|strikethroughPosition|strikethroughThickness|string|stroke|strokeDasharray|strokeDashoffset|strokeLinecap|strokeLinejoin|strokeMiterlimit|strokeOpacity|strokeWidth|surfaceScale|systemLanguage|tableValues|targetX|targetY|textAnchor|textDecoration|textRendering|textLength|to|transform|u1|u2|underlinePosition|underlineThickness|unicode|unicodeBidi|unicodeRange|unitsPerEm|vAlphabetic|vHanging|vIdeographic|vMathematical|values|vectorEffect|version|vertAdvY|vertOriginX|vertOriginY|viewBox|viewTarget|visibility|widths|wordSpacing|writingMode|x|xHeight|x1|x2|xChannelSelector|xlinkActuate|xlinkArcrole|xlinkHref|xlinkRole|xlinkShow|xlinkTitle|xlinkType|xmlBase|xmlns|xmlnsXlink|xmlLang|xmlSpace|y|y1|y2|yChannelSelector|z|zoomAndPan|for|class|autofocus)|(([Dd][Aa][Tt][Aa]|[Aa][Rr][Ii][Aa]|x)-.*))$/; // https://esbench.com/bench/5bfee68a4cd7e6009ef61d23
+var reactPropsRegex = /^((children|dangerouslySetInnerHTML|key|ref|autoFocus|defaultValue|defaultChecked|innerHTML|suppressContentEditableWarning|suppressHydrationWarning|valueLink|accept|acceptCharset|accessKey|action|allow|allowUserMedia|allowPaymentRequest|allowFullScreen|allowTransparency|alt|async|autoComplete|autoPlay|capture|cellPadding|cellSpacing|challenge|charSet|checked|cite|classID|className|cols|colSpan|content|contentEditable|contextMenu|controls|controlsList|coords|crossOrigin|data|dateTime|decoding|default|defer|dir|disabled|download|draggable|encType|form|formAction|formEncType|formMethod|formNoValidate|formTarget|frameBorder|headers|height|hidden|high|href|hrefLang|htmlFor|httpEquiv|id|inputMode|integrity|is|keyParams|keyType|kind|label|lang|list|loading|loop|low|marginHeight|marginWidth|max|maxLength|media|mediaGroup|method|min|minLength|multiple|muted|name|nonce|noValidate|open|optimum|pattern|placeholder|playsInline|poster|preload|profile|radioGroup|readOnly|referrerPolicy|rel|required|reversed|role|rows|rowSpan|sandbox|scope|scoped|scrolling|seamless|selected|shape|size|sizes|slot|span|spellCheck|src|srcDoc|srcLang|srcSet|start|step|style|summary|tabIndex|target|title|type|useMap|value|width|wmode|wrap|about|datatype|inlist|prefix|property|resource|typeof|vocab|autoCapitalize|autoCorrect|autoSave|color|itemProp|itemScope|itemType|itemID|itemRef|on|results|security|unselectable|accentHeight|accumulate|additive|alignmentBaseline|allowReorder|alphabetic|amplitude|arabicForm|ascent|attributeName|attributeType|autoReverse|azimuth|baseFrequency|baselineShift|baseProfile|bbox|begin|bias|by|calcMode|capHeight|clip|clipPathUnits|clipPath|clipRule|colorInterpolation|colorInterpolationFilters|colorProfile|colorRendering|contentScriptType|contentStyleType|cursor|cx|cy|d|decelerate|descent|diffuseConstant|direction|display|divisor|dominantBaseline|dur|dx|dy|edgeMode|elevation|enableBackground|end|exponent|externalResourcesRequired|fill|fillOpacity|fillRule|filter|filterRes|filterUnits|floodColor|floodOpacity|focusable|fontFamily|fontSize|fontSizeAdjust|fontStretch|fontStyle|fontVariant|fontWeight|format|from|fr|fx|fy|g1|g2|glyphName|glyphOrientationHorizontal|glyphOrientationVertical|glyphRef|gradientTransform|gradientUnits|hanging|horizAdvX|horizOriginX|ideographic|imageRendering|in|in2|intercept|k|k1|k2|k3|k4|kernelMatrix|kernelUnitLength|kerning|keyPoints|keySplines|keyTimes|lengthAdjust|letterSpacing|lightingColor|limitingConeAngle|local|markerEnd|markerMid|markerStart|markerHeight|markerUnits|markerWidth|mask|maskContentUnits|maskUnits|mathematical|mode|numOctaves|offset|opacity|operator|order|orient|orientation|origin|overflow|overlinePosition|overlineThickness|panose1|paintOrder|pathLength|patternContentUnits|patternTransform|patternUnits|pointerEvents|points|pointsAtX|pointsAtY|pointsAtZ|preserveAlpha|preserveAspectRatio|primitiveUnits|r|radius|refX|refY|renderingIntent|repeatCount|repeatDur|requiredExtensions|requiredFeatures|restart|result|rotate|rx|ry|scale|seed|shapeRendering|slope|spacing|specularConstant|specularExponent|speed|spreadMethod|startOffset|stdDeviation|stemh|stemv|stitchTiles|stopColor|stopOpacity|strikethroughPosition|strikethroughThickness|string|stroke|strokeDasharray|strokeDashoffset|strokeLinecap|strokeLinejoin|strokeMiterlimit|strokeOpacity|strokeWidth|surfaceScale|systemLanguage|tableValues|targetX|targetY|textAnchor|textDecoration|textRendering|textLength|to|transform|u1|u2|underlinePosition|underlineThickness|unicode|unicodeBidi|unicodeRange|unitsPerEm|vAlphabetic|vHanging|vIdeographic|vMathematical|values|vectorEffect|version|vertAdvY|vertOriginX|vertOriginY|viewBox|viewTarget|visibility|widths|wordSpacing|writingMode|x|xHeight|x1|x2|xChannelSelector|xlinkActuate|xlinkArcrole|xlinkHref|xlinkRole|xlinkShow|xlinkTitle|xlinkType|xmlBase|xmlns|xmlnsXlink|xmlLang|xmlSpace|y|y1|y2|yChannelSelector|z|zoomAndPan|for|class|autofocus)|(([Dd][Aa][Tt][Aa]|[Aa][Rr][Ii][Aa]|x)-.*))$/; // https://esbench.com/bench/5bfee68a4cd7e6009ef61d23
 
 var index = (0, _memoize.default)(function (prop) {
   return reactPropsRegex.test(prop) || prop.charCodeAt(0) === 111
@@ -43115,6 +44100,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.MotionPlugins = MotionPlugins;
+exports.ReducedMotion = ReducedMotion;
 exports.isValidMotionProp = isValidMotionProp;
 exports.motionValue = motionValue;
 exports.transform = transform;
@@ -43123,16 +44109,18 @@ exports.useAnimatedState = useAnimatedState;
 exports.useAnimation = useAnimation;
 exports.useCycle = useCycle;
 exports.useDomEvent = useDomEvent;
+exports.useDragControls = useDragControls;
 exports.useExternalRef = useExternalRef;
 exports.useGestures = useGestures;
 exports.useInvertedScale = useInvertedScale;
 exports.useMotionValue = useMotionValue;
 exports.usePanGesture = usePanGesture;
+exports.useReducedMotion = useReducedMotion;
 exports.useSpring = useSpring;
 exports.useTapGesture = useTapGesture;
 exports.useTransform = useTransform;
 exports.useViewportScroll = useViewportScroll;
-exports.motion = exports.createMotionComponent = exports.animationControls = exports.UnstableSyncLayout = exports.Point = exports.MotionValue = exports.MotionPluginContext = exports.MotionContext = exports.AnimationControls = exports.AnimatePresence = void 0;
+exports.motion = exports.createMotionComponent = exports.animationControls = exports.UnstableSyncLayout = exports.Point = exports.MotionValue = exports.MotionPluginContext = exports.MotionContext = exports.DragControls = exports.AnimationControls = exports.AnimatePresence = void 0;
 
 var _tslib = require("tslib");
 
@@ -43799,55 +44787,16 @@ var syncRenderSession = {
     session && session.push(styler);
   }
 };
-
-var isRefObject = function (ref) {
-  return typeof ref === "object" && ref.hasOwnProperty("current");
-};
-/**
- * Uses the ref that is passed in, or creates a new one
- * @param external - External ref
- * @internal
- */
-
-
-function useExternalRef(internalRef, externalRef) {
-  (0, _react.useEffect)(function () {
-    // If there's no external ref, we don't need to handle it in a special way
-    if (!externalRef) return;
-
-    if (typeof externalRef === "function") {
-      externalRef(internalRef.current);
-      return function () {
-        return externalRef(null);
-      };
-    } else if (isRefObject(externalRef)) {
-      var mutableExternal_1 = externalRef; // If we've been provided a RefObject, we need to assign its current with our
-      // current on mount
-
-      mutableExternal_1.current = internalRef.current;
-      return function () {
-        // We only set our external ref value to null on unmount if it still contains the
-        // same element as our internal ref. This is because the component might be a child
-        // of `AnimatePresence` where we might be in a situation where a user is providing
-        // the same ref to multiple components.
-        if (externalRef.current === internalRef.current) {
-          mutableExternal_1.current = null;
-        }
-      };
-    }
-  }, []);
-}
 /**
  * `useEffect` gets resolved bottom-up. We defer some optional functionality to child
  * components, so to ensure everything runs correctly we export the ref-binding logic
  * to a new component rather than in `useMotionValues`.
  */
 
-
-var MountRefComponent = function (_a, ref) {
-  var values = _a.values,
-      isStatic = _a.isStatic,
-      externalRef = _a.externalRef;
+var MountComponent = function (_a) {
+  var ref = _a.innerRef,
+      values = _a.values,
+      isStatic = _a.isStatic;
   (0, _react.useEffect)(function () {
     (0, _heyListen.invariant)(ref.current instanceof Element, "No `ref` found. Ensure components created with `motion.custom` forward refs using `React.forwardRef`");
     var domStyler = (0, _stylefire.default)(ref.current, {
@@ -43865,11 +44814,10 @@ var MountRefComponent = function (_a, ref) {
       return values.unmount();
     };
   }, []);
-  useExternalRef(ref, externalRef);
   return null;
 };
 
-var MountRef = (0, _react.memo)((0, _react.forwardRef)(MountRefComponent));
+var Mount = (0, _react.memo)(MountComponent);
 
 var createValueResolver = function (resolver) {
   return function (values) {
@@ -43900,7 +44848,7 @@ var buildStyleAttr = function (values, styleProp, isStatic) {
     motionValueStyles.transform = styleProp.transform ? transformTemplate({}, styleProp.transform) : transformTemplate;
   }
 
-  return (0, _stylefire.buildStyleProperty)((0, _tslib.__assign)({}, styleProp, motionValueStyles), !isStatic);
+  return (0, _stylefire.buildStyleProperty)((0, _tslib.__assign)((0, _tslib.__assign)({}, styleProp), motionValueStyles), !isStatic);
 };
 
 var useMotionStyles = function (values, styleProp, isStatic, transformValues) {
@@ -43967,7 +44915,7 @@ var auto = {
   }
 };
 var dimensionTypes = [_styleValueTypes.number, _styleValueTypes.px, _styleValueTypes.percent, _styleValueTypes.degrees, _styleValueTypes.vw, _styleValueTypes.vh, auto];
-var valueTypes = dimensionTypes.concat([_styleValueTypes.color, _styleValueTypes.complex]);
+var valueTypes = (0, _tslib.__spreadArrays)(dimensionTypes, [_styleValueTypes.color, _styleValueTypes.complex]);
 
 var testValueType = function (v) {
   return function (type) {
@@ -44166,7 +45114,7 @@ var transitionOptionParser = {
         opts = (0, _tslib.__rest)(_a, ["from", "to", "velocity"]);
 
     if (opts.values && opts.values[0] === null) {
-      var values = opts.values.slice();
+      var values = (0, _tslib.__spreadArrays)(opts.values);
       values[0] = from;
       opts.values = values;
     }
@@ -44210,12 +45158,12 @@ var getTransitionDefinition = function (key, to, transitionDefinition) {
       type: "just"
     };
   } else if (isKeyframesTarget(to)) {
-    return (0, _tslib.__assign)({
+    return (0, _tslib.__assign)((0, _tslib.__assign)({
       values: to,
       duration: 0.8,
       delay: delay,
       ease: "linear"
-    }, valueTransitionDefinition, {
+    }, valueTransitionDefinition), {
       // This animation must be keyframes if we're animating through an array
       type: "keyframes"
     });
@@ -44369,6 +45317,7 @@ var isNumericalString = function (v) {
 };
 /**
  * Control animations for a single component
+ *
  * @internal
  */
 
@@ -44465,37 +45414,41 @@ function () {
   /**
    * Set motion values without animation.
    *
-   * @param target -
+   * @param definition -
    * @param isActive -
    */
 
 
-  ValueAnimationControls.prototype.setValues = function (_a, _b) {
+  ValueAnimationControls.prototype.setValues = function (definition, _a) {
     var _this = this;
 
-    var _c = _b === void 0 ? {} : _b,
-        _d = _c.isActive,
-        isActive = _d === void 0 ? new Set() : _d,
-        priority = _c.priority;
+    var _b = _a === void 0 ? {} : _a,
+        _c = _b.isActive,
+        isActive = _c === void 0 ? new Set() : _c,
+        priority = _b.priority;
 
-    var transition = _a.transition,
-        transitionEnd = _a.transitionEnd,
-        target = (0, _tslib.__rest)(_a, ["transition", "transitionEnd"]);
-    target = this.transformValues((0, _tslib.__assign)({}, target, transitionEnd));
+    var _d = this.resolveVariant(definition),
+        target = _d.target,
+        transitionEnd = _d.transitionEnd;
+
+    target = this.transformValues((0, _tslib.__assign)((0, _tslib.__assign)({}, target), transitionEnd));
     return Object.keys(target).forEach(function (key) {
       if (isActive.has(key)) return;
       isActive.add(key);
-      var targetValue = resolveFinalValueInKeyframes(target[key]);
 
-      if (_this.values.has(key)) {
-        var value = _this.values.get(key);
+      if (target) {
+        var targetValue = resolveFinalValueInKeyframes(target[key]);
 
-        value && value.set(targetValue);
-      } else {
-        _this.values.set(key, motionValue(targetValue));
+        if (_this.values.has(key)) {
+          var value = _this.values.get(key);
+
+          value && value.set(targetValue);
+        } else {
+          _this.values.set(key, motionValue(targetValue));
+        }
+
+        if (!priority) _this.baseTarget[key] = targetValue;
       }
-
-      if (!priority) _this.baseTarget[key] = targetValue;
     });
   };
   /**
@@ -44699,7 +45652,7 @@ function () {
     var _this = this;
 
     var isActive = new Set();
-    var reversedList = variantLabelList.slice().reverse();
+    var reversedList = (0, _tslib.__spreadArrays)(variantLabelList).reverse();
     reversedList.forEach(function (key) {
       var _a = _this.resolveVariant(_this.variants[key]),
           target = _a.target,
@@ -44821,7 +45774,7 @@ function () {
   ValueAnimationControls.prototype.animateVariantLabels = function (variantLabels, opts) {
     var _this = this;
 
-    var animations = variantLabels.slice().reverse().map(function (label) {
+    var animations = (0, _tslib.__spreadArrays)(variantLabels).reverse().map(function (label) {
       return _this.animateVariant(label, opts);
     });
     return Promise.all(animations);
@@ -44989,21 +45942,28 @@ function () {
   return ValueAnimationControls;
 }();
 /**
- * Use a callback a maximum number of times
+ * Use callback either only on the initial render or on all renders. In concurrent mode
+ * the "initial" render might run multiple times
+ *
  * @param callback - Callback to run
- * @param times - Maximum number of times to run the callback. Defaults to `1`
+ * @param isInitialOnly - Set to `true` to only run on initial render, or `false` for all renders. Defaults to `false`.
  *
  * @public
  */
 
 
-function useMaxTimes(callback, times) {
-  if (times === void 0) {
-    times = 1;
+function useInitialOrEveryRender(callback, isInitialOnly) {
+  if (isInitialOnly === void 0) {
+    isInitialOnly = false;
   }
 
-  var count = (0, _react.useRef)(0);
-  if (count.current++ < times) callback();
+  var isInitialRender = (0, _react.useRef)(true);
+
+  if (!isInitialOnly || isInitialOnly && isInitialRender.current) {
+    callback();
+  }
+
+  isInitialRender.current = false;
 }
 /**
  * Control animations on one or more components.
@@ -45293,17 +46253,18 @@ var useMotionContext = function (parentContext, controls, values, isStatic, _a) 
       initial: targetInitial,
       animate: targetAnimate,
       values: values,
-      hasMounted: hasMounted
+      hasMounted: hasMounted,
+      isReducedMotion: parentContext.isReducedMotion
     };
-  }, [initialDependency, animateDependency]); // Update the `static` property every render. This is unlikely to change but also essentially free.
+  }, [initialDependency, animateDependency, parentContext.isReducedMotion]); // Update the `static` property every render. This is unlikely to change but also essentially free.
 
   context.static = isStatic; // Set initial state. If this is a static component (ie in Framer canvas), respond to updates
   // in `initial`.
 
-  useMaxTimes(function () {
+  useInitialOrEveryRender(function () {
     var initialToApply = initialState || parentContext.initial;
     initialToApply && controls.apply(initialToApply);
-  }, isStatic ? Infinity : 1);
+  }, !isStatic);
   (0, _react.useEffect)(function () {
     hasMounted.current = true;
   }, []);
@@ -45336,12 +46297,15 @@ function useValueAnimationControls(config, props, subscribeToParentControls, par
     controls.setProps(props);
     controls.setVariants(variants);
     controls.setDefaultTransition(transition);
+  } // We have to subscribe to the parent controls within a useEffect rather than during render,
+  // as
 
+
+  (0, _react.useEffect)(function () {
     if (subscribeToParentControls && parentControls) {
       parentControls.addChild(controls);
     }
-  }
-
+  });
   (0, _react.useEffect)(function () {
     return function () {
       // Remove reference to onAnimationComplete from controls. All the MotionValues
@@ -45364,6 +46328,35 @@ var checkShouldInheritVariant = function (_a) {
   return inherit && !!variants && (!animate || animate instanceof AnimationControls);
 };
 /**
+ * Uses the ref that is passed in, or creates a new one
+ * @param external - External ref
+ * @internal
+ */
+
+
+function useExternalRef(externalRef) {
+  // We're conditionally calling `useRef` here which is sort of naughty as hooks
+  // shouldn't be called conditionally. However, Framer Motion will break if this
+  // condition changes anyway. It might be possible to use an invariant here to
+  // make it explicit, but I expect changing `ref` is not normal behaviour.
+  var ref = !externalRef || typeof externalRef === "function" ? (0, _react.useRef)(null) : externalRef; // Handle `ref` functions. Again, calling the hook conditionally is kind of naughty
+  // but `ref` types changing between renders would break Motion anyway. If we receive
+  // bug reports about this, we should track the provided ref and throw an invariant
+  // rather than move the conditional to inside the useEffect as this will be fired
+  // for every Frame component within Framer.
+
+  if (externalRef && typeof externalRef === "function") {
+    (0, _react.useEffect)(function () {
+      externalRef(ref.current);
+      return function () {
+        return externalRef(null);
+      };
+    }, []);
+  }
+
+  return ref;
+}
+/**
  * @internal
  */
 
@@ -45374,7 +46367,7 @@ var createMotionComponent = function (_a) {
       renderComponent = _a.renderComponent;
 
   function MotionComponent(props, externalRef) {
-    var ref = (0, _react.useRef)(null);
+    var ref = useExternalRef(externalRef);
     var parentContext = (0, _react.useContext)(MotionContext);
     var isStatic = parentContext.static || props.static || false;
     var values = useMotionValues(props);
@@ -45387,14 +46380,13 @@ var createMotionComponent = function (_a) {
     var context = useMotionContext(parentContext, controls, values, isStatic, props);
     var functionality = isStatic ? null : loadFunctionalityComponents(ref, values, props, parentContext, controls, shouldInheritVariant);
     var renderedComponent = renderComponent(ref, style, values, props, isStatic);
-    return (0, _react.createElement)(_react.Fragment, null, (0, _react.createElement)(MountRef, {
-      ref: ref,
-      externalRef: externalRef,
+    return (0, _react.createElement)(_react.Fragment, null, (0, _react.createElement)(MotionContext.Provider, {
+      value: context
+    }, renderedComponent), (0, _react.createElement)(_react.Fragment, null, (0, _react.createElement)(Mount, {
+      innerRef: ref,
       values: values,
       isStatic: isStatic
-    }), functionality, (0, _react.createElement)(MotionContext.Provider, {
-      value: context
-    }, renderedComponent));
+    }), functionality));
   }
 
   return (0, _react.forwardRef)(MotionComponent);
@@ -45411,55 +46403,9 @@ var htmlElements = ["a", "abbr", "address", "area", "article", "aside", "audio",
  */
 
 var svgElements = ["animate", "circle", "clipPath", "defs", "desc", "ellipse", "feBlend", "feColorMatrix", "feComponentTransfer", "feComposite", "feConvolveMatrix", "feDiffuseLighting", "feDisplacementMap", "feDistantLight", "feDropShadow", "feFlood", "feFuncA", "feFuncB", "feFuncG", "feFuncR", "feGaussianBlur", "feImage", "feMerge", "feMergeNode", "feMorphology", "feOffset", "fePointLight", "feSpecularLighting", "feSpotLight", "feTile", "feTurbulence", "filter", "foreignObject", "g", "image", "line", "linearGradient", "marker", "mask", "metadata", "path", "pattern", "polygon", "polyline", "radialGradient", "rect", "stop", "svg", "switch", "symbol", "text", "textPath", "tspan", "use", "view"];
-/** @public */
-
-var Point;
-exports.Point = Point;
-
-(function (Point) {
-  /** @beta */
-  Point.subtract = function (a, b) {
-    return {
-      x: a.x - b.x,
-      y: a.y - b.y
-    };
-  };
-  /** @beta */
-
-
-  Point.relativeTo = function (idOrElem) {
-    var elem;
-
-    var getElem = function () {
-      // Caching element here could be leaky because of React lifecycle
-      if (elem !== undefined) return elem;
-
-      if (typeof idOrElem === "string") {
-        elem = document.getElementById(idOrElem);
-      } else {
-        elem = idOrElem;
-      }
-
-      return elem;
-    };
-
-    return function (_a) {
-      var x = _a.x,
-          y = _a.y;
-      var localElem = getElem();
-      if (!localElem) return undefined;
-      var rect = localElem.getBoundingClientRect();
-      return {
-        x: x - rect.left - window.scrollX,
-        y: y - rect.top - window.scrollY
-      };
-    };
-  };
-})(Point || (exports.Point = Point = {}));
 /**
  * @internal
  */
-
 
 var MotionPluginContext = (0, _react.createContext)({
   transformPagePoint: function (p) {
@@ -45467,9 +46413,10 @@ var MotionPluginContext = (0, _react.createContext)({
   }
 });
 /**
- * @internal
- * @internalremarks For now I think this should remain a private API for our own use
+ * @remarks For now I think this should remain a private API for our own use
  * until we can figure out a nicer way of allowing people to add these
+ *
+ * @internal
  */
 
 exports.MotionPluginContext = MotionPluginContext;
@@ -45488,41 +46435,6 @@ function MotionPlugins(_a) {
   return (0, _react.createElement)(MotionPluginContext.Provider, {
     value: value
   }, children);
-}
-
-var isViewportScrollBlocked = false;
-var isBrowser = typeof window !== "undefined";
-
-if (isBrowser) {
-  document.addEventListener("touchmove", function (event) {
-    if (isViewportScrollBlocked) {
-      event.preventDefault();
-    }
-  }, {
-    passive: false
-  });
-}
-
-var blockViewportScroll = function () {
-  return isViewportScrollBlocked = true;
-};
-
-var unblockViewportScroll = function () {
-  return isViewportScrollBlocked = false;
-};
-
-function isMouseEvent(event) {
-  // PointerEvent inherits from MouseEvent so we can't use a straight instanceof check.
-  if (typeof PointerEvent !== "undefined" && event instanceof PointerEvent) {
-    return !!(event.pointerType === "mouse");
-  }
-
-  return event instanceof MouseEvent;
-}
-
-function isTouchEvent(event) {
-  var hasTouches = !!event.touches;
-  return hasTouches;
 }
 
 function useUnmountEffect(callback) {
@@ -45571,6 +46483,20 @@ function useDomEvent(ref, eventName, handler, options) {
       return addDomEvent(element, eventName, handler, options);
     }
   }, [ref, eventName, handler, options]);
+}
+
+function isMouseEvent(event) {
+  // PointerEvent inherits from MouseEvent so we can't use a straight instanceof check.
+  if (typeof PointerEvent !== "undefined" && event instanceof PointerEvent) {
+    return !!(event.pointerType === "mouse");
+  }
+
+  return event instanceof MouseEvent;
+}
+
+function isTouchEvent(event) {
+  var hasTouches = !!event.touches;
+  return hasTouches;
 }
 /**
  * Filters out events not attached to the primary pointer (currently left mouse button)
@@ -45639,18 +46565,18 @@ var wrapHandler = function (handler, shouldFilterPrimaryPointer) {
   return shouldFilterPrimaryPointer ? filterPrimaryPointer(listener) : listener;
 };
 
-var isBrowser$1 = typeof window !== "undefined"; // We check for event support via functions in case they've been mocked by a testing suite.
+var isBrowser = typeof window !== "undefined"; // We check for event support via functions in case they've been mocked by a testing suite.
 
 var supportsPointerEvents = function () {
-  return isBrowser$1 && window.onpointerdown === null;
+  return isBrowser && window.onpointerdown === null;
 };
 
 var supportsTouchEvents = function () {
-  return isBrowser$1 && window.ontouchstart === null;
+  return isBrowser && window.ontouchstart === null;
 };
 
 var supportsMouseEvents = function () {
-  return isBrowser$1 && window.onmousedown === null;
+  return isBrowser && window.onmousedown === null;
 };
 
 var mouseEventNames = {
@@ -45689,31 +46615,237 @@ function addPointerEvent(target, eventName, handler, options) {
 function usePointerEvent(ref, eventName, handler, options) {
   return useDomEvent(ref, getPointerEventName(eventName), wrapHandler(handler, eventName === "pointerdown"), options);
 }
+/** @public */
 
-function startDevicePoint(session) {
-  return session.pointHistory[0];
+
+var Point;
+exports.Point = Point;
+
+(function (Point) {
+  /** @beta */
+  Point.subtract = function (a, b) {
+    return {
+      x: a.x - b.x,
+      y: a.y - b.y
+    };
+  };
+  /** @beta */
+
+
+  Point.relativeTo = function (idOrElem) {
+    var elem;
+
+    var getElem = function () {
+      // Caching element here could be leaky because of React lifecycle
+      if (elem !== undefined) return elem;
+
+      if (typeof idOrElem === "string") {
+        elem = document.getElementById(idOrElem);
+      } else {
+        elem = idOrElem;
+      }
+
+      return elem;
+    };
+
+    return function (_a) {
+      var x = _a.x,
+          y = _a.y;
+      var localElem = getElem();
+      if (!localElem) return undefined;
+      var rect = localElem.getBoundingClientRect();
+      return {
+        x: x - rect.left - window.scrollX,
+        y: y - rect.top - window.scrollY
+      };
+    };
+  };
+})(Point || (exports.Point = Point = {}));
+
+var isViewportScrollBlocked = false;
+var isBrowser$1 = typeof window !== "undefined";
+
+if (isBrowser$1) {
+  document.addEventListener("touchmove", function (event) {
+    if (isViewportScrollBlocked) {
+      event.preventDefault();
+    }
+  }, {
+    passive: false
+  });
 }
 
-function lastDevicePoint(session) {
-  return session.pointHistory[session.pointHistory.length - 1];
+var blockViewportScroll = function () {
+  return isViewportScrollBlocked = true;
+};
+
+var unblockViewportScroll = function () {
+  return isViewportScrollBlocked = false;
+};
+/**
+ * @internal
+ */
+
+
+var PanSession =
+/** @class */
+function () {
+  function PanSession(event, handlers, _a) {
+    var _this = this;
+
+    var transformPagePoint = (_a === void 0 ? {} : _a).transformPagePoint;
+    /**
+     * @internal
+     */
+
+    this.startEvent = null;
+    /**
+     * @internal
+     */
+
+    this.lastMoveEvent = null;
+    /**
+     * @internal
+     */
+
+    this.lastMoveEventInfo = null;
+    /**
+     * @internal
+     */
+
+    this.handlers = {};
+
+    this.updatePoint = function () {
+      if (!(_this.lastMoveEvent && _this.lastMoveEventInfo)) return;
+      var info = getPanInfo(_this.lastMoveEventInfo, _this.history);
+      var isPanStarted = _this.startEvent !== null; // Only start panning if the offset is larger than 3 pixels. If we make it
+      // any larger than this we'll want to reset the pointer history
+      // on the first update to avoid visual snapping to the cursoe.
+
+      var isDistancePastThreshold = (0, _popcorn.distance)(info.offset, {
+        x: 0,
+        y: 0
+      }) >= 3;
+      if (!isPanStarted && !isDistancePastThreshold) return;
+      var point = info.point;
+      var timestamp = (0, _framesync.getFrameData)().timestamp;
+
+      _this.history.push((0, _tslib.__assign)((0, _tslib.__assign)({}, point), {
+        timestamp: timestamp
+      }));
+
+      var _a = _this.handlers,
+          onStart = _a.onStart,
+          onMove = _a.onMove;
+
+      if (!isPanStarted) {
+        onStart && onStart(_this.lastMoveEvent, info);
+        _this.startEvent = _this.lastMoveEvent;
+      }
+
+      onMove && onMove(_this.lastMoveEvent, info);
+    }; // If we have more than one touch, don't start detecting this gesture
+
+
+    if (isTouchEvent(event) && event.touches.length > 1) return;
+    this.handlers = handlers;
+    this.transformPagePoint = transformPagePoint;
+    var info = extractEventInfo(event);
+    var initialInfo = transformPoint(info, this.transformPagePoint);
+    var point = initialInfo.point;
+    var timestamp = (0, _framesync.getFrameData)().timestamp;
+    this.history = [(0, _tslib.__assign)((0, _tslib.__assign)({}, point), {
+      timestamp: timestamp
+    })];
+    var onSessionStart = handlers.onSessionStart;
+    onSessionStart && onSessionStart(event, getPanInfo(initialInfo, this.history));
+    var removeOnPointerMove = addPointerEvent(window, "pointermove", function (event, info) {
+      return _this.handlePointerMove(event, info);
+    });
+    var removeOnPointerUp = addPointerEvent(window, "pointerup", function (event, info) {
+      return _this.handlePointerUp(event, info);
+    });
+
+    this.removeListeners = function () {
+      removeOnPointerMove && removeOnPointerMove();
+      removeOnPointerUp && removeOnPointerUp();
+    };
+  }
+
+  PanSession.prototype.handlePointerMove = function (event, info) {
+    this.lastMoveEvent = event;
+    this.lastMoveEventInfo = transformPoint(info, this.transformPagePoint); // Because Safari doesn't trigger mouseup events when it's above a `<select>`
+
+    if (isMouseEvent(event) && event.buttons === 0) {
+      this.handlePointerUp(event, info);
+      return;
+    } // Throttle mouse move event to once per frame
+
+
+    _framesync.default.update(this.updatePoint, true);
+  };
+
+  PanSession.prototype.handlePointerUp = function (event, info) {
+    this.end();
+    var onEnd = this.handlers.onEnd;
+    if (!onEnd) return;
+    var panInfo = getPanInfo(transformPoint(info, this.transformPagePoint), this.history);
+    onEnd && onEnd(event, panInfo);
+  };
+
+  PanSession.prototype.updateHandlers = function (handlers) {
+    this.handlers = handlers;
+  };
+
+  PanSession.prototype.end = function () {
+    this.removeListeners && this.removeListeners();
+
+    _framesync.cancelSync.update(this.updatePoint);
+
+    unblockViewportScroll();
+  };
+
+  return PanSession;
+}();
+
+function transformPoint(info, transformPagePoint) {
+  return transformPagePoint ? {
+    point: transformPagePoint(info.point)
+  } : info;
 }
 
-function getVelocity$1(session, timeDelta) {
-  var pointHistory = session.pointHistory;
+function getPanInfo(_a, history) {
+  var point = _a.point;
+  return {
+    point: point,
+    delta: Point.subtract(point, lastDevicePoint(history)),
+    offset: Point.subtract(point, startDevicePoint(history)),
+    velocity: getVelocity$1(history, 0.1)
+  };
+}
 
-  if (pointHistory.length < 2) {
+function startDevicePoint(history) {
+  return history[0];
+}
+
+function lastDevicePoint(history) {
+  return history[history.length - 1];
+}
+
+function getVelocity$1(history, timeDelta) {
+  if (history.length < 2) {
     return {
       x: 0,
       y: 0
     };
   }
 
-  var i = pointHistory.length - 1;
+  var i = history.length - 1;
   var timestampedPoint = null;
-  var lastPoint = lastDevicePoint(session);
+  var lastPoint = lastDevicePoint(history);
 
   while (i >= 0) {
-    timestampedPoint = pointHistory[i];
+    timestampedPoint = history[i];
 
     if (lastPoint.timestamp - timestampedPoint.timestamp > secondsToMilliseconds(timeDelta)) {
       break;
@@ -45773,132 +46905,32 @@ function usePanGesture(_a, ref) {
       onPanEnd = _a.onPanEnd,
       onPanSessionStart = _a.onPanSessionStart;
   var hasPanEvents = onPan || onPanStart || onPanEnd || onPanSessionStart;
-  var session = (0, _react.useRef)(null);
-  var lastMoveEvent = (0, _react.useRef)(null);
-  var lastMoveEventInfo = (0, _react.useRef)(null);
+  var panSession = (0, _react.useRef)(null);
   var transformPagePoint = (0, _react.useContext)(MotionPluginContext).transformPagePoint;
-  var pointerEventSubscription = (0, _react.useRef)(null); // Load the callbacks into mutable state to ensure that even if we don't create a new
-  // gesture handler every render, we still reference the latest callbacks (which are almost certain to change per render)
-
-  var handlers = (0, _react.useRef)({}).current;
-  handlers.onPanSessionStart = onPanSessionStart;
-  handlers.onPanStart = onPanStart;
-  handlers.onPan = onPan;
-  handlers.onPanEnd = onPanEnd;
-
-  function removePointerEvents() {
-    pointerEventSubscription.current && pointerEventSubscription.current();
-    pointerEventSubscription.current = null;
-  }
-
-  function getPanInfo(_a) {
-    var point = _a.point;
-    var currentPoint = session.current; // TODO: A potential optimisation here that might be a breaking change would be
-    // to keep one mutable ref to a point that we update
-
-    return {
-      point: point,
-      delta: Point.subtract(point, lastDevicePoint(currentPoint)),
-      offset: Point.subtract(point, startDevicePoint(currentPoint)),
-      velocity: getVelocity$1(currentPoint, 0.1)
-    };
-  }
-
-  function transformPoint(info) {
-    return {
-      point: transformPagePoint(info.point)
-    };
-  }
-
-  function cancelPan() {
-    removePointerEvents();
-
-    _framesync.cancelSync.update(updatePoint);
-
-    unblockViewportScroll();
-  }
-
-  function updatePoint() {
-    if (!session.current || !lastMoveEvent.current || !lastMoveEventInfo.current) {
-      (0, _heyListen.warning)(false, "onPointerMove fired without pointer session");
-      cancelPan();
-      return;
+  var handlers = {
+    onSessionStart: onPanSessionStart,
+    onStart: onPanStart,
+    onMove: onPan,
+    onEnd: function (event, info) {
+      panSession.current = null;
+      onPanEnd && onPanEnd(event, info);
     }
+  };
 
-    var info = getPanInfo(lastMoveEventInfo.current);
-    var panStarted = session.current.startEvent !== undefined; // Only start panning if the offset is larger than 3 pixels. If we make it
-    // any larger than this we'll want to reset the pointer history
-    // on the first update to avoid visual snapping to the cursoe.
-
-    var distancePastThreshold = (0, _popcorn.distance)(info.offset, {
-      x: 0,
-      y: 0
-    }) >= 3;
-    if (!panStarted && !distancePastThreshold) return;
-    var point = info.point;
-    var timestamp = (0, _framesync.getFrameData)().timestamp;
-    session.current.pointHistory.push((0, _tslib.__assign)({}, point, {
-      timestamp: timestamp
-    }));
-
-    if (!panStarted) {
-      handlers.onPanStart && handlers.onPanStart(lastMoveEvent.current, info);
-      session.current.startEvent = lastMoveEvent.current;
-    }
-
-    handlers.onPan && handlers.onPan(lastMoveEvent.current, info);
+  if (panSession.current !== null) {
+    panSession.current.updateHandlers(handlers);
   }
 
-  function onPointerMove(event, info) {
-    lastMoveEvent.current = event;
-    lastMoveEventInfo.current = transformPoint(info); // Because Safari doesn't trigger mouseup events when it's above a `<select>`
-
-    if (isMouseEvent(event) && event.buttons === 0) {
-      onPointerUp(event, info);
-      return;
-    } // Throttle mouse move event to once per frame
-
-
-    _framesync.default.update(updatePoint, true);
-  }
-
-  function onPointerUp(event, info) {
-    cancelPan();
-
-    if (!session.current) {
-      (0, _heyListen.warning)(false, "onPointerUp fired without pointer session");
-      return;
-    }
-
-    handlers.onPanEnd && handlers.onPanEnd(event, getPanInfo(transformPoint(info)));
-    session.current = null;
-  }
-
-  function onPointerDown(event, info) {
-    // If we have more than one touch, don't start detecting this gesture
-    if (isTouchEvent(event) && event.touches.length > 1) return;
-    var initialInfo = transformPoint(info);
-    var point = initialInfo.point;
-    var timestamp = (0, _framesync.getFrameData)().timestamp;
-    session.current = {
-      target: event.target,
-      pointHistory: [(0, _tslib.__assign)({}, point, {
-        timestamp: timestamp
-      })]
-    };
-    handlers.onPanSessionStart && handlers.onPanSessionStart(event, getPanInfo(initialInfo));
-    removePointerEvents();
-    var removeOnPointerMove = addPointerEvent(window, "pointermove", onPointerMove);
-    var removeOnPointerUp = addPointerEvent(window, "pointerup", onPointerUp);
-
-    pointerEventSubscription.current = function () {
-      removeOnPointerMove && removeOnPointerMove();
-      removeOnPointerUp && removeOnPointerUp();
-    };
+  function onPointerDown(event) {
+    panSession.current = new PanSession(event, handlers, {
+      transformPagePoint: transformPagePoint
+    });
   }
 
   usePointerEvent(ref, "pointerdown", hasPanEvents && onPointerDown);
-  useUnmountEffect(cancelPan);
+  useUnmountEffect(function () {
+    return panSession.current && panSession.current.end();
+  });
 }
 /**
  * Recursively traverse up the tree to check whether the provided child node
@@ -46103,7 +47135,7 @@ var makeRenderlessComponent = function (hook) {
   };
 };
 
-var gestureProps = ["drag", "onPan", "onPanStart", "onPanEnd", "onPanSessionStart", "onTap", "onTapStart", "onTapCancel", "whileTap", "whileHover", "onHoverStart", "onHoverEnd"];
+var gestureProps = ["onPan", "onPanStart", "onPanEnd", "onPanSessionStart", "onTap", "onTapStart", "onTapCancel", "whileTap", "whileHover", "onHoverStart", "onHoverEnd"];
 var Gestures = {
   key: "gestures",
   shouldRender: function (props) {
@@ -46117,60 +47149,14 @@ var Gestures = {
     useGestures(props, innerRef);
   })
 };
-/**
- * A hook to use the window resize listener. In future it might be cool to use `ResizeObserver`
- * but it currently needs to be polyfilled and the size trade-off isn't there for this use-case.
- *
- * TODO: Debounce this bad boy
- *
- * @param onResize
- */
 
-function useResize(element, onResize) {
-  (0, _react.useEffect)(function () {
-    if (!element || !isRefObject(element)) return;
-    window.addEventListener("resize", onResize);
-    return function () {
-      return window.removeEventListener("resize", onResize);
-    };
-  }, [element, onResize]);
-}
-/**
- * Creates a `MotionValue` to track the state and velocity of a value.
- *
- * Usually, these are created automatically. For advanced use-cases, like use with `useTransform`, you can create `MotionValue`s externally and pass them into the animated component via the `style` prop.
- *
- * @library
- *
- * ```jsx
- * export function MyComponent() {
- *   const scale = useMotionValue(1)
- *
- *   return <Frame scale={scale} />
- * }
- * ```
- *
- * @motion
- *
- * ```jsx
- * export const MyComponent = () => {
- *   const scale = useMotionValue(1)
- *
- *   return <motion.div style={{ scale }} />
- * }
- * ```
- *
- * @param initial - The initial state.
- *
- * @public
- */
+var isRefObject = function (ref) {
+  return typeof ref === "object" && ref.hasOwnProperty("current");
+};
 
-
-function useMotionValue(initial) {
-  return useConstant(function () {
-    return motionValue(initial);
-  });
-}
+var noop = function (v) {
+  return v;
+};
 /**
  * Don't block the default pointerdown behaviour of these elements.
  */
@@ -46178,7 +47164,556 @@ function useMotionValue(initial) {
 
 var allowDefaultPointerDown = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
-var getBoundingBox = function (ref, transformPagePoint) {
+var ComponentDragControls =
+/** @class */
+function () {
+  function ComponentDragControls(_a) {
+    var ref = _a.ref,
+        values = _a.values,
+        controls = _a.controls;
+    /**
+     * Track whether we're currently dragging.
+     *
+     * @internal
+     */
+
+    this.isDragging = false;
+    /**
+     * The current direction of drag, or `null` if both.
+     *
+     * @internal
+     */
+
+    this.currentDirection = null;
+    /**
+     * The permitted t/r/b/l boundaries of travel, in pixels.
+     *
+     * @internal
+     */
+
+    this.constraints = false;
+    /**
+     * A reference to the host component's latest props.
+     *
+     * @internal
+     */
+
+    this.props = {
+      transformPagePoint: noop
+    };
+    /**
+     * References to the MotionValues used for tracking the current dragged point.
+     *
+     * @internal
+     */
+
+    this.point = {};
+    /**
+     * The origin point for the current drag gesture.
+     *
+     * @internal
+     */
+
+    this.origin = {
+      x: motionValue(0),
+      y: motionValue(0)
+    }; // This is a reference to the global drag gesture lock, ensuring only one component
+    // can "capture" the drag of one or both axes.
+    // TODO: Look into moving this into pansession?
+
+    this.openGlobalLock = null;
+    /**
+     * @internal
+     */
+
+    this.panSession = null;
+    /**
+     * A reference to the previous constraints bounding box
+     *
+     * @internal
+     */
+
+    this.prevConstraintsBox = {
+      width: 0,
+      height: 0,
+      x: 0,
+      y: 0
+    };
+    this.ref = ref;
+    this.values = values;
+    this.controls = controls;
+  }
+  /**
+   * Start dragging the host component.
+   *
+   * @param event - The originating pointer event.
+   * @param options -
+   *
+   * @public
+   */
+
+
+  ComponentDragControls.prototype.start = function (originEvent, _a) {
+    var _this = this;
+
+    var _b = (_a === void 0 ? {} : _a).snapToCursor,
+        snapToCursor = _b === void 0 ? false : _b;
+    snapToCursor && this.snapToCursor(originEvent);
+
+    var onSessionStart = function (event) {
+      // Prevent browser-specific behaviours like text selection or Chrome's image dragging.
+      if (event.target && !allowDefaultPointerDown.has(event.target.tagName)) {
+        // On iOS it's important to not `preventDefault` the `touchstart`
+        // event, as otherwise clicks won't fire inside the draggable element.
+        if (!supportsTouchEvents()) {
+          event.preventDefault(); // Make sure input elements loose focus when we prevent the default.
+
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
+        }
+      } // Initiate viewport scroll blocking on touch start. This is a very aggressive approach
+      // which has come out of the difficulty in us being able to do this once a scroll gesture
+      // has initiated in mobile browsers. This means if there's a horizontally-scrolling carousel
+      // on a page we can't let a user scroll the page itself from it. Ideally what we'd do is
+      // trigger this once we've got a scroll direction determined. This approach sort-of worked
+      // but if the component was dragged too far in a single frame page scrolling would initiate.
+
+
+      blockViewportScroll(); // Stop any animations on both axis values immediately. This allows the user to throw and catch
+      // the component.
+
+      bothAxis(function (axis) {
+        var axisPoint = _this.point[axis];
+        axisPoint && axisPoint.stop();
+      });
+    };
+
+    var onStart = function (event, info) {
+      // If constraints are an element, resolve them again in case they've updated.
+      if (_this.constraintsNeedResolution) {
+        var _a = _this.props,
+            dragConstraints = _a.dragConstraints,
+            transformPagePoint_1 = _a.transformPagePoint;
+        _this.constraints = calculateConstraintsFromDom(dragConstraints, _this.ref, _this.point, transformPagePoint_1);
+
+        _this.applyConstraintsToPoint();
+      } // Set point origin and stop any existing animations.
+
+
+      bothAxis(function (axis) {
+        var axisPoint = _this.point[axis];
+        if (!axisPoint) return;
+
+        _this.origin[axis].set(axisPoint.get());
+      }); // Attempt to grab the global drag gesture lock - maybe make this part of PanSession
+
+      var _b = _this.props,
+          drag = _b.drag,
+          dragPropagation = _b.dragPropagation;
+
+      if (drag && !dragPropagation) {
+        if (_this.openGlobalLock) _this.openGlobalLock();
+        _this.openGlobalLock = getGlobalLock(drag);
+        if (!_this.openGlobalLock) return;
+      }
+
+      _this.isDragging = true;
+      _this.currentDirection = null;
+      var onDragStart = _this.props.onDragStart;
+      onDragStart && onDragStart(event, convertPanToDrag(info, _this.point));
+    };
+
+    var onMove = function (event, info) {
+      var _a = _this.props,
+          dragPropagation = _a.dragPropagation,
+          dragDirectionLock = _a.dragDirectionLock; // If we didn't successfully receive the gesture lock, early return.
+
+      if (!dragPropagation && !_this.openGlobalLock) return;
+      var offset = info.offset; // Attempt to detect drag direction if directionLock is true
+
+      if (dragDirectionLock && _this.currentDirection === null) {
+        _this.currentDirection = getCurrentDirection(offset); // If we've successfully set a direction, notify listener
+
+        if (_this.currentDirection !== null) {
+          var onDirectionLock = _this.props.onDirectionLock;
+          onDirectionLock && onDirectionLock(_this.currentDirection);
+        }
+
+        return;
+      }
+
+      _this.updatePoint("x", offset);
+
+      _this.updatePoint("y", offset);
+
+      var onDrag = _this.props.onDrag;
+      onDrag && onDrag(event, convertPanToDrag(info, _this.point));
+    };
+
+    var onEnd = function (event, info) {
+      _this.stop(event, info);
+    };
+
+    var transformPagePoint = this.props.transformPagePoint;
+    this.panSession = new PanSession(originEvent, {
+      onSessionStart: onSessionStart,
+      onStart: onStart,
+      onMove: onMove,
+      onEnd: onEnd
+    }, {
+      transformPagePoint: transformPagePoint
+    });
+  };
+
+  ComponentDragControls.prototype.cancelDrag = function () {
+    unblockViewportScroll();
+    this.isDragging = false;
+    this.panSession && this.panSession.end();
+    this.panSession = null;
+
+    if (!this.props.dragPropagation && this.openGlobalLock) {
+      this.openGlobalLock();
+      this.openGlobalLock = null;
+    }
+  };
+
+  ComponentDragControls.prototype.stop = function (event, info) {
+    var _a;
+
+    (_a = this.panSession) === null || _a === void 0 ? void 0 : _a.end();
+    this.panSession = null;
+    var isDragging = this.isDragging;
+    this.cancelDrag();
+    if (!isDragging) return;
+    var _b = this.props,
+        dragMomentum = _b.dragMomentum,
+        dragElastic = _b.dragElastic,
+        onDragEnd = _b.onDragEnd;
+
+    if (dragMomentum || dragElastic) {
+      var velocity = info.velocity;
+      this.animateDragEnd(velocity);
+    } else {
+      this.recordBoxInfo(this.constraints);
+    }
+
+    onDragEnd && onDragEnd(event, convertPanToDrag(info, this.point));
+  };
+
+  ComponentDragControls.prototype.recordBoxInfo = function (constraints) {
+    if (constraints) {
+      var right = constraints.right,
+          left = constraints.left,
+          bottom = constraints.bottom,
+          top_1 = constraints.top;
+      this.prevConstraintsBox.width = (right || 0) - (left || 0);
+      this.prevConstraintsBox.height = (bottom || 0) - (top_1 || 0);
+    }
+
+    if (this.point.x) this.prevConstraintsBox.x = this.point.x.get();
+    if (this.point.y) this.prevConstraintsBox.y = this.point.y.get();
+  };
+
+  ComponentDragControls.prototype.snapToCursor = function (event) {
+    var _this = this;
+
+    var transformPagePoint = this.props.transformPagePoint;
+    var point = extractEventInfo(event).point;
+    var boundingBox = getBoundingBox(this.ref, transformPagePoint);
+    var center = {
+      x: boundingBox.width / 2 + boundingBox.left + window.scrollX,
+      y: boundingBox.height / 2 + boundingBox.top + window.scrollY
+    };
+    var offset = {
+      x: point.x - center.x,
+      y: point.y - center.y
+    };
+    bothAxis(function (axis) {
+      var point = _this.point[axis];
+      if (!point) return;
+
+      _this.origin[axis].set(point.get());
+    });
+    this.updatePoint("x", offset);
+    this.updatePoint("y", offset);
+  };
+
+  ComponentDragControls.prototype.setPoint = function (axis, value) {
+    this.point[axis] = value;
+  };
+
+  ComponentDragControls.prototype.updatePoint = function (axis, offset) {
+    var _a = this.props,
+        drag = _a.drag,
+        dragElastic = _a.dragElastic;
+    var axisPoint = this.point[axis]; // If we're not dragging this axis, do an early return.
+
+    if (!shouldDrag(axis, drag, this.currentDirection) || !axisPoint) return;
+    var current = applyConstraints(axis, this.origin[axis].get() + offset[axis], this.constraints, dragElastic);
+    axisPoint.set(current);
+  };
+
+  ComponentDragControls.prototype.updateProps = function (_a) {
+    var _this = this;
+
+    var _b = _a.drag,
+        drag = _b === void 0 ? false : _b,
+        _c = _a.dragDirectionLock,
+        dragDirectionLock = _c === void 0 ? false : _c,
+        _d = _a.dragPropagation,
+        dragPropagation = _d === void 0 ? false : _d,
+        _e = _a.dragConstraints,
+        dragConstraints = _e === void 0 ? false : _e,
+        _f = _a.dragElastic,
+        dragElastic = _f === void 0 ? true : _f,
+        _g = _a.dragMomentum,
+        dragMomentum = _g === void 0 ? true : _g,
+        remainingProps = (0, _tslib.__rest)(_a, ["drag", "dragDirectionLock", "dragPropagation", "dragConstraints", "dragElastic", "dragMomentum"]);
+    this.props = (0, _tslib.__assign)({
+      drag: drag,
+      dragDirectionLock: dragDirectionLock,
+      dragPropagation: dragPropagation,
+      dragConstraints: dragConstraints,
+      dragElastic: dragElastic,
+      dragMomentum: dragMomentum
+    }, remainingProps);
+    var _dragValueX = remainingProps._dragValueX,
+        _dragValueY = remainingProps._dragValueY,
+        dragOriginX = remainingProps.dragOriginX,
+        dragOriginY = remainingProps.dragOriginY;
+    if (dragOriginX) this.origin.x = dragOriginX;
+    if (dragOriginY) this.origin.y = dragOriginY; // Get the `MotionValue` for both draggable axes, or create them if they don't already
+    // exist on this component.
+
+    bothAxis(function (axis) {
+      if (!shouldDrag(axis, drag, _this.currentDirection)) return;
+      var defaultValue = axis === "x" ? _dragValueX : _dragValueY;
+
+      _this.setPoint(axis, defaultValue || _this.values.get(axis, 0));
+    }); // If `dragConstraints` is a React `ref`, we should resolve the constraints once the
+    // component has rendered.
+
+    this.constraintsNeedResolution = isRefObject(dragConstraints);
+    this.constraints = this.constraintsNeedResolution ? this.constraints || false : dragConstraints;
+  };
+
+  ComponentDragControls.prototype.applyConstraintsToPoint = function (constraints) {
+    var _this = this;
+
+    if (constraints === void 0) {
+      constraints = this.constraints;
+    }
+
+    return bothAxis(function (axis) {
+      var axisPoint = _this.point[axis];
+      axisPoint && !axisPoint.isAnimating() && applyConstraints(axis, axisPoint, constraints, 0);
+    });
+  };
+
+  ComponentDragControls.prototype.animateDragEnd = function (velocity) {
+    var _this = this;
+
+    var _a = this.props,
+        drag = _a.drag,
+        dragMomentum = _a.dragMomentum,
+        dragElastic = _a.dragElastic,
+        dragTransition = _a.dragTransition,
+        _dragTransitionControls = _a._dragTransitionControls;
+    var momentumAnimations = bothAxis(function (axis) {
+      var _a;
+
+      if (!shouldDrag(axis, drag, _this.currentDirection)) {
+        return;
+      }
+
+      var transition = _this.constraints ? getConstraints(axis, _this.constraints) : {};
+      /**
+       * Overdamp the boundary spring if `dragElastic` is disabled. There's still a frame
+       * of spring animations so we should look into adding a disable spring option to `inertia`.
+       * We could do something here where we affect the `bounceStiffness` and `bounceDamping`
+       * using the value of `dragElastic`.
+       */
+
+      var bounceStiffness = dragElastic ? 200 : 1000000;
+      var bounceDamping = dragElastic ? 40 : 10000000;
+      var animationControls = _dragTransitionControls || _this.controls;
+      return animationControls.start((_a = {}, _a[axis] = 0, // TODO: It might be possible to allow `type` animations to be set as
+      // Popmotion animations as well as strings. Then people could define their own
+      // and it'd open another route for us to code-split.
+      _a.transition = (0, _tslib.__assign)((0, _tslib.__assign)({
+        type: "inertia",
+        velocity: dragMomentum ? velocity[axis] : 0,
+        bounceStiffness: bounceStiffness,
+        bounceDamping: bounceDamping,
+        timeConstant: 750,
+        restDelta: 1
+      }, dragTransition), transition), _a));
+    }); // Run all animations and then resolve the new drag constraints.
+
+    return Promise.all(momentumAnimations).then(function () {
+      _this.recordBoxInfo(_this.constraints);
+
+      _this.scalePoint();
+
+      var onDragTransitionEnd = _this.props.onDragTransitionEnd;
+      onDragTransitionEnd && onDragTransitionEnd();
+    });
+  };
+
+  ComponentDragControls.prototype.scalePoint = function () {
+    var _this = this;
+
+    var _a = this.props,
+        dragConstraints = _a.dragConstraints,
+        transformPagePoint = _a.transformPagePoint;
+    if (!isRefObject(dragConstraints)) return;
+    var constraintsBox = getBoundingBox(dragConstraints, transformPagePoint);
+    var draggableBox = getBoundingBox(this.ref, transformPagePoint); // Scale a point relative to the transformation of a constraints-providing element.
+
+    var scaleAxisPoint = function (axis, dimension) {
+      var pointToScale = _this.point[axis];
+      if (!pointToScale) return; // Stop any current animations as they bug out if you resize during one
+
+      if (pointToScale.isAnimating()) {
+        pointToScale.stop();
+
+        _this.recordBoxInfo();
+
+        return;
+      } // If the previous dimension was `0` (default), set `scale` to `1` to prevent
+      // divide by zero errors.
+
+
+      var scale = _this.prevConstraintsBox[dimension] ? (constraintsBox[dimension] - draggableBox[dimension]) / _this.prevConstraintsBox[dimension] : 1;
+      pointToScale.set(_this.prevConstraintsBox[axis] * scale);
+    };
+
+    scaleAxisPoint("x", "width");
+    scaleAxisPoint("y", "height");
+  };
+
+  ComponentDragControls.prototype.mount = function (element) {
+    var _this = this;
+
+    var stopPointerListener = addPointerEvent(element, "pointerdown", function (event) {
+      var _a = _this.props,
+          drag = _a.drag,
+          _b = _a.dragListener,
+          dragListener = _b === void 0 ? true : _b;
+      drag && dragListener && _this.start(event);
+    });
+    var stopResizeListener = addDomEvent(window, "resize", function () {
+      return _this.scalePoint();
+    });
+
+    if (this.constraintsNeedResolution) {
+      var _a = this.props,
+          dragConstraints = _a.dragConstraints,
+          transformPagePoint = _a.transformPagePoint;
+      var constraints = calculateConstraintsFromDom(dragConstraints, this.ref, this.point, transformPagePoint);
+      this.applyConstraintsToPoint(constraints);
+      this.recordBoxInfo(constraints);
+    } else if (!this.isDragging && this.constraints) {
+      this.applyConstraintsToPoint();
+    }
+
+    return function () {
+      stopPointerListener && stopPointerListener();
+      stopResizeListener && stopResizeListener();
+
+      _this.cancelDrag();
+    };
+  };
+
+  return ComponentDragControls;
+}(); // Call a handler once for each axis
+
+
+function bothAxis(handler) {
+  return [handler("x"), handler("y")];
+}
+
+function convertPanToDrag(info, point) {
+  return (0, _tslib.__assign)((0, _tslib.__assign)({}, info), {
+    point: {
+      x: point.x ? point.x.get() : 0,
+      y: point.y ? point.y.get() : 0
+    }
+  });
+}
+
+function getConstraints(axis, _a) {
+  var top = _a.top,
+      right = _a.right,
+      bottom = _a.bottom,
+      left = _a.left;
+
+  if (axis === "x") {
+    return {
+      min: left,
+      max: right
+    };
+  } else {
+    return {
+      min: top,
+      max: bottom
+    };
+  }
+}
+
+function shouldDrag(direction, drag, currentDirection) {
+  return (drag === true || drag === direction) && (currentDirection === null || currentDirection === direction);
+}
+/**
+ * Based on an x/y offset determine the current drag direction. If both axis' offsets are lower
+ * than the provided threshold, return `null`.
+ *
+ * @param offset - The x/y offset from origin.
+ * @param lockThreshold - (Optional) - the minimum absolute offset before we can determine a drag direction.
+ */
+
+
+function getCurrentDirection(offset, lockThreshold) {
+  if (lockThreshold === void 0) {
+    lockThreshold = 10;
+  }
+
+  var direction = null;
+
+  if (Math.abs(offset.y) > lockThreshold) {
+    direction = "y";
+  } else if (Math.abs(offset.x) > lockThreshold) {
+    direction = "x";
+  }
+
+  return direction;
+}
+/**
+ * Takes a parent Element and a draggable Element and returns pixel-based drag constraints.
+ *
+ * @param constraintsRef
+ * @param draggableRef
+ */
+
+
+function calculateConstraintsFromDom(constraintsRef, draggableRef, point, transformPagePoint) {
+  (0, _heyListen.invariant)(constraintsRef.current !== null && draggableRef.current !== null, "If `dragConstraints` is set as a React ref, that ref must be passed to another component's `ref` prop.");
+  var parentBoundingBox = getBoundingBox(constraintsRef, transformPagePoint);
+  var draggableBoundingBox = getBoundingBox(draggableRef, transformPagePoint);
+  var left = parentBoundingBox.left - draggableBoundingBox.left + getCurrentOffset(point.x);
+  var top = parentBoundingBox.top - draggableBoundingBox.top + getCurrentOffset(point.y);
+  var right = parentBoundingBox.width - draggableBoundingBox.width + left;
+  var bottom = parentBoundingBox.height - draggableBoundingBox.height + top;
+  return {
+    top: top,
+    left: left,
+    right: right,
+    bottom: bottom
+  };
+}
+
+function getBoundingBox(ref, transformPagePoint) {
   var rect = ref.current.getBoundingClientRect();
 
   var _a = transformPagePoint({
@@ -46201,57 +47736,11 @@ var getBoundingBox = function (ref, transformPagePoint) {
     width: width,
     height: height
   };
-};
-
-var getCurrentOffset = function (point) {
-  return point ? point.get() : 0;
-};
-/**
- * Takes a parent Element and a draggable Element and returns pixel-based drag constraints.
- *
- * @param constraintsRef
- * @param draggableRef
- */
-
-
-var calculateConstraintsFromDom = function (constraintsRef, draggableRef, point, transformPagePoint) {
-  (0, _heyListen.invariant)(constraintsRef.current !== null && draggableRef.current !== null, "If `dragConstraints` is set as a React ref, that ref must be passed to another component's `ref` prop.");
-  var parentBoundingBox = getBoundingBox(constraintsRef, transformPagePoint);
-  var draggableBoundingBox = getBoundingBox(draggableRef, transformPagePoint);
-  var left = parentBoundingBox.left - draggableBoundingBox.left + getCurrentOffset(point.x);
-  var top = parentBoundingBox.top - draggableBoundingBox.top + getCurrentOffset(point.y);
-  var right = parentBoundingBox.width - draggableBoundingBox.width + left;
-  var bottom = parentBoundingBox.height - draggableBoundingBox.height + top;
-  return {
-    top: top,
-    left: left,
-    right: right,
-    bottom: bottom
-  };
-};
-
-function shouldDrag(direction, drag, currentDirection) {
-  return (drag === true || drag === direction) && (currentDirection === null || currentDirection === direction);
 }
 
-var getConstraints = function (axis, _a) {
-  var top = _a.top,
-      right = _a.right,
-      bottom = _a.bottom,
-      left = _a.left;
-
-  if (axis === "x") {
-    return {
-      min: left,
-      max: right
-    };
-  } else {
-    return {
-      min: top,
-      max: bottom
-    };
-  }
-};
+function getCurrentOffset(point) {
+  return point ? point.get() : 0;
+}
 
 function applyConstraints(axis, value, constraints, dragElastic) {
   var constrainedValue = value instanceof MotionValue ? value.get() : value;
@@ -46281,10 +47770,6 @@ function applyOverdrag(origin, current, dragElastic) {
   var dragFactor = typeof dragElastic === "number" ? dragElastic : 0.35;
   return (0, _popcorn.mix)(origin, current, dragFactor);
 }
-
-function bothAxis(handler) {
-  return [handler("x"), handler("y")];
-}
 /**
  * A hook that allows an element to be dragged.
  *
@@ -46297,347 +47782,25 @@ function bothAxis(handler) {
  */
 
 
-function useDrag(_a, ref, values, controls) {
-  var _b = _a.drag,
-      drag = _b === void 0 ? false : _b,
-      _c = _a.dragDirectionLock,
-      dragDirectionLock = _c === void 0 ? false : _c,
-      _d = _a.dragPropagation,
-      dragPropagation = _d === void 0 ? false : _d,
-      _e = _a.dragConstraints,
-      dragConstraints = _e === void 0 ? false : _e,
-      _f = _a.dragElastic,
-      dragElastic = _f === void 0 ? true : _f,
-      _g = _a.dragMomentum,
-      dragMomentum = _g === void 0 ? true : _g,
-      _dragValueX = _a._dragValueX,
-      _dragValueY = _a._dragValueY,
-      _dragTransitionControls = _a._dragTransitionControls,
-      dragOriginX = _a.dragOriginX,
-      dragOriginY = _a.dragOriginY,
-      dragTransition = _a.dragTransition,
-      onDirectionLock = _a.onDirectionLock,
-      onDragStart = _a.onDragStart,
-      onDrag = _a.onDrag,
-      onDragEnd = _a.onDragEnd,
-      onDragTransitionEnd = _a.onDragTransitionEnd; // If `dragConstraints` is a React `ref`, we should resolve the constraints once the
-  // component has rendered.
-
-  var constraintsNeedResolution = isRefObject(dragConstraints); // We create a mutable state using a ref as we want to keep track of certain data, even across renders,
-  // but we don't want to re-render as a result of them.
-
-  var dragStatus = (0, _react.useRef)({
-    isDragging: false,
-    currentDirection: null,
-    constraints: false,
-    handlers: {}
-  }).current; // Load the callbacks into mutable state to ensure that even if we don't create a new
-  // gesture handler every render, we still reference the latest callbacks (which are almost certain to change per render)
-
-  var handlers = dragStatus.handlers;
-  handlers.onDragStart = onDragStart;
-  handlers.onDrag = onDrag;
-  handlers.onDragEnd = onDragEnd;
-  handlers.onDirectionLock = onDirectionLock;
-  handlers.onDragTransitionEnd = onDragTransitionEnd;
-  var point = (0, _react.useRef)({}).current; // Track origin
-
-  var defaultOriginX = useMotionValue(0);
-  var defaultOriginY = useMotionValue(0);
-  var origin = {
-    x: dragOriginX || defaultOriginX,
-    y: dragOriginY || defaultOriginY
-  }; // This is a reference to the global drag gesture lock, ensuring only one component
-  // can "capture" the drag of one or both axes.
-
-  var openGlobalLock = (0, _react.useRef)(null);
-  var transformPagePoint = (0, _react.useContext)(MotionPluginContext).transformPagePoint; // If `dragConstraints` is a React `ref`, we need to track changes in its
-  // size and update the current draggable position relative to that.
-
-  var prevConstraintsBox = (0, _react.useRef)({
-    width: 0,
-    height: 0,
-    x: 0,
-    y: 0
-  }).current;
-
-  var scalePoint = function () {
-    if (!isRefObject(dragConstraints)) return;
-    var constraintsBox = getBoundingBox(dragConstraints, transformPagePoint);
-    var draggableBox = getBoundingBox(ref, transformPagePoint); // Scale a point relative to the transformation of a constraints-providing element.
-
-    var scaleAxisPoint = function (axis, dimension) {
-      var pointToScale = point[axis];
-      if (!pointToScale) return; // Stop any current animations as they bug out if you resize during one
-
-      if (pointToScale.isAnimating()) {
-        pointToScale.stop();
-        recordBoxInfo();
-        return;
-      } // If the previous dimension was `0` (default), set `scale` to `1` to prevent
-      // divide by zero errors.
-
-
-      var scale = prevConstraintsBox[dimension] ? (constraintsBox[dimension] - draggableBox[dimension]) / prevConstraintsBox[dimension] : 1;
-      pointToScale.set(prevConstraintsBox[axis] * scale);
-    };
-
-    scaleAxisPoint("x", "width");
-    scaleAxisPoint("y", "height");
-  };
-
-  useResize(dragConstraints, scalePoint); // If our drag constraints are a potentially live bounding box, record its previously-calculated
-  // dimensions and the current x/y
-
-  var recordBoxInfo = function (constraints) {
-    if (constraints) {
-      var right = constraints.right,
-          left = constraints.left,
-          bottom = constraints.bottom,
-          top_1 = constraints.top;
-      prevConstraintsBox.width = (right || 0) - (left || 0);
-      prevConstraintsBox.height = (bottom || 0) - (top_1 || 0);
-    }
-
-    if (point.x) prevConstraintsBox.x = point.x.get();
-    if (point.y) prevConstraintsBox.y = point.y.get();
-  };
-
-  var applyConstraintsToPoint = function (constraints) {
-    return bothAxis(function (axis) {
-      var axisPoint = point[axis];
-      axisPoint && !axisPoint.isAnimating() && applyConstraints(axis, axisPoint, constraints, 0);
+function useDrag(props, ref, values, controls) {
+  var groupDragControls = props.dragControls;
+  var transformPagePoint = (0, _react.useContext)(MotionPluginContext).transformPagePoint;
+  var dragControls = useConstant(function () {
+    return new ComponentDragControls({
+      ref: ref,
+      values: values,
+      controls: controls
     });
-  }; // On mount, if our bounding box is a ref, we need to resolve the constraints
-  // and immediately apply them to our point.
-
-
-  (0, _react.useEffect)(function () {
-    if (!constraintsNeedResolution) return;
-    var constraints = calculateConstraintsFromDom(dragConstraints, ref, point, transformPagePoint);
-    applyConstraintsToPoint(constraints);
-    recordBoxInfo(constraints);
-  }, []); // If `dragConstraints` is set to `false` or `Constraints`, set constraints immediately.
-  // Otherwise we'll resolve on mount.
-
-  dragStatus.constraints = constraintsNeedResolution ? dragStatus.constraints || false : dragConstraints; // Get the `MotionValue` for both draggable axes, or create them if they don't already
-  // exist on this component.
-
-  bothAxis(function (axis) {
-    if (!shouldDrag(axis, drag, dragStatus.currentDirection)) return;
-    var defaultValue = axis === "x" ? _dragValueX : _dragValueY;
-    point[axis] = defaultValue || values.get(axis, 0);
-  }); // Apply constraints immediately, even before render, if our constraints are a plain object.
-
-  if (!dragStatus.isDragging && dragStatus.constraints && !constraintsNeedResolution) {
-    applyConstraintsToPoint(dragStatus.constraints);
-  } // Add additional information to the `PanInfo` object before passing it to drag listeners.
-
-
-  function convertPanToDrag(info) {
-    return (0, _tslib.__assign)({}, info, {
-      point: {
-        x: point.x ? point.x.get() : 0,
-        y: point.y ? point.y.get() : 0
-      }
-    });
-  } // This function will be used to update each axis point every frame.
-
-
-  function updatePoint(axis, offset) {
-    var axisPoint = point[axis]; // If we're not dragging this axis, do an early return.
-
-    if (!shouldDrag(axis, drag, dragStatus.currentDirection) || !axisPoint) {
-      return;
-    }
-
-    var current = applyConstraints(axis, origin[axis].get() + offset[axis], dragStatus.constraints, dragElastic);
-    axisPoint.set(current);
-  }
-
-  function onPanSessionStart(event) {
-    if (event.target && !allowDefaultPointerDown.has(event.target.tagName)) {
-      // On iOS it's important to not `preventDefault` the `touchstart`
-      // event, as otherwise clicks won't fire inside the draggable element.
-      if (!supportsTouchEvents()) {
-        // Prevent browser-specific behaviours like text selection or Chrome's image dragging.
-        event.preventDefault(); // Make sure input elements loose focus when we prevent the default.
-
-        if (document.activeElement instanceof HTMLElement) {
-          document.activeElement.blur();
-        }
-      }
-    } // Initiate viewport scroll blocking on touch start. This is a very aggressive approach
-    // which has come out of the difficulty in us being able to do this once a scroll gesture
-    // has initiated in mobile browsers. This means if there's a horizontally-scrolling carousel
-    // on a page we can't let a user scroll the page itself from it. Ideally what we'd do is
-    // trigger this once we've got a scroll direction determined. This approach sort-of worked
-    // but if the component was dragged too far in a single frame page scrolling would initiate.
-
-
-    blockViewportScroll(); // Stop any animations on both axis values immediately. This allows the user to throw and catch
-    // the component.
-
-    bothAxis(function (axis) {
-      var axisPoint = point[axis];
-      axisPoint && axisPoint.stop();
-    });
-  }
-
-  function onPanStart(event, info) {
-    dragStatus.isDragging = true; // Resolve the constraints again in case anything has changed in the meantime.
-
-    if (constraintsNeedResolution) {
-      dragStatus.constraints = calculateConstraintsFromDom(dragConstraints, ref, point, transformPagePoint);
-      applyConstraintsToPoint(dragStatus.constraints);
-    } // Set point origin and stop any existing animations.
-
-
-    bothAxis(function (axis) {
-      var axisPoint = point[axis];
-      if (!axisPoint) return;
-      origin[axis].set(axisPoint.get());
-      axisPoint.stop();
-    }); // Attempt to grab the global drag gesture lock.
-
-    if (!dragPropagation) {
-      if (openGlobalLock.current) openGlobalLock.current();
-      openGlobalLock.current = getGlobalLock(drag);
-
-      if (!openGlobalLock.current) {
-        return;
-      }
-    }
-
-    dragStatus.currentDirection = null;
-    var onDragStart = handlers.onDragStart;
-    onDragStart && onDragStart(event, convertPanToDrag(info));
-  }
-
-  function onPan(event, info) {
-    // If we didn't successfully receive the gesture lock, early return.
-    if (!dragPropagation && !openGlobalLock.current) {
-      return;
-    }
-
-    var offset = info.offset; // Attempt to detect drag direction if directionLock is true
-
-    if (dragDirectionLock && dragStatus.currentDirection === null) {
-      dragStatus.currentDirection = getCurrentDirection(offset); // If we've successfully set a direction, notify listener
-
-      if (dragStatus.currentDirection !== null) {
-        var onDirectionLock_1 = handlers.onDirectionLock;
-        onDirectionLock_1 && onDirectionLock_1(dragStatus.currentDirection);
-      }
-
-      return;
-    }
-
-    updatePoint("x", offset);
-    updatePoint("y", offset);
-    var onDrag = handlers.onDrag;
-    onDrag && onDrag(event, convertPanToDrag(info));
-  }
-
-  function cancelDrag() {
-    unblockViewportScroll();
-    dragStatus.isDragging = false;
-
-    if (!dragPropagation && openGlobalLock.current) {
-      openGlobalLock.current();
-      openGlobalLock.current = null;
-    }
-  }
-
-  function animateDragEnd(velocity) {
-    var momentumAnimations = bothAxis(function (axis) {
-      var _a;
-
-      if (!shouldDrag(axis, drag, dragStatus.currentDirection)) {
-        return;
-      }
-
-      var transition = dragStatus.constraints ? getConstraints(axis, dragStatus.constraints) : {};
-      /**
-       * Overdamp the boundary spring if `dragElastic` is disabled. There's still a frame
-       * of spring animations so we should look into adding a disable spring option to `inertia`.
-       * We could do something here where we affect the `bounceStiffness` and `bounceDamping`
-       * using the value of `dragElastic`.
-       */
-
-      var bounceStiffness = dragElastic ? 200 : 1000000;
-      var bounceDamping = dragElastic ? 40 : 10000000;
-      var animationControls = _dragTransitionControls || controls;
-      return animationControls.start((_a = {}, _a[axis] = 0, // TODO: It might be possible to allow `type` animations to be set as
-      // Popmotion animations as well as strings. Then people could define their own
-      // and it'd open another route for us to code-split.
-      _a.transition = (0, _tslib.__assign)({
-        type: "inertia",
-        velocity: dragMomentum ? velocity[axis] : 0,
-        bounceStiffness: bounceStiffness,
-        bounceDamping: bounceDamping,
-        timeConstant: 750,
-        restDelta: 1
-      }, dragTransition, transition), _a));
-    }); // Run all animations and then resolve the new drag constraints.
-
-    Promise.all(momentumAnimations).then(function () {
-      recordBoxInfo(dragStatus.constraints);
-      scalePoint();
-      var onDragTransitionEnd = handlers.onDragTransitionEnd;
-      onDragTransitionEnd && onDragTransitionEnd();
-    });
-  }
-
-  function onPanEnd(event, info) {
-    var isDragging = dragStatus.isDragging;
-    cancelDrag();
-    if (!isDragging) return; // If we have either `dragMomentum` or `dragElastic`, initiate momentum and boundary spring animation for both axes.
-
-    if (dragMomentum || dragElastic) {
-      var velocity = info.velocity;
-      animateDragEnd(velocity);
-    } else {
-      recordBoxInfo(dragStatus.constraints);
-    }
-
-    var onDragEnd = handlers.onDragEnd;
-    onDragEnd && onDragEnd(event, convertPanToDrag(info));
-  }
-
-  usePanGesture(drag ? {
-    onPan: onPan,
-    onPanStart: onPanStart,
-    onPanEnd: onPanEnd,
-    onPanSessionStart: onPanSessionStart
-  } : {}, ref);
-  useUnmountEffect(function () {
-    return dragStatus.isDragging && cancelDrag();
   });
-}
-/**
- * Based on an x/y offset determine the current drag direction. If both axis' offsets are lower
- * than the provided threshold, return `null`.
- *
- * @param offset - The x/y offset from origin.
- * @param lockThreshold - (Optional) - the minimum absolute offset before we can determine a drag direction.
- */
-
-
-function getCurrentDirection(offset, lockThreshold) {
-  if (lockThreshold === void 0) {
-    lockThreshold = 10;
-  }
-
-  var direction = null;
-
-  if (Math.abs(offset.y) > lockThreshold) {
-    direction = "y";
-  } else if (Math.abs(offset.x) > lockThreshold) {
-    direction = "x";
-  }
-
-  return direction;
+  dragControls.updateProps((0, _tslib.__assign)((0, _tslib.__assign)({}, props), {
+    transformPagePoint: transformPagePoint
+  }));
+  (0, _react.useEffect)(function () {
+    return groupDragControls && groupDragControls.subscribe(dragControls);
+  }, [dragControls]);
+  (0, _react.useEffect)(function () {
+    return dragControls.mount(ref.current);
+  }, []);
 }
 
 var Drag = {
@@ -47120,13 +48283,7 @@ var createUseSyncEffect = function (stepName) {
   };
 };
 
-var layoutSync = (_a = {}, _a[StepName.Prepare] = createUseSyncEffect(StepName.Prepare), _a[StepName.Read] = createUseSyncEffect(StepName.Read), _a[StepName.Render] = createUseSyncEffect(StepName.Render), _a); // TODO: If we ever make this a public hook, add a check within `createUseSyncEffect` that, in development mode,
-// adds a useEffect to check if there's any remaining jobs and throw an error that we must add the `useLayoutSync`
-// hook to every component that schedules a job.
-
-function useLayoutSync() {
-  return (0, _react.useLayoutEffect)(flushAllJobs);
-}
+var layoutSync = (_a = {}, _a[StepName.Prepare] = createUseSyncEffect(StepName.Prepare), _a[StepName.Read] = createUseSyncEffect(StepName.Read), _a[StepName.Render] = createUseSyncEffect(StepName.Render), _a.flush = flushAllJobs, _a);
 
 function isHTMLElement(element) {
   return element instanceof HTMLElement;
@@ -47138,8 +48295,8 @@ var defaultLayoutTransition = {
 };
 var defaultPositionTransition = underDampedSpring();
 
-function getDefaultLayoutTransition(positionOnly) {
-  return positionOnly ? defaultPositionTransition : defaultLayoutTransition;
+function getDefaultLayoutTransition(isPositionOnly) {
+  return isPositionOnly ? defaultPositionTransition : defaultLayoutTransition;
 }
 
 function isResolver(transition) {
@@ -47189,7 +48346,7 @@ function calcAxisDelta(prev, next, names) {
 }
 
 function calcDelta(prev, next) {
-  var delta = (0, _tslib.__assign)({}, calcAxisDelta(prev, next, axisLabels.x), calcAxisDelta(prev, next, axisLabels.y));
+  var delta = (0, _tslib.__assign)((0, _tslib.__assign)({}, calcAxisDelta(prev, next, axisLabels.x)), calcAxisDelta(prev, next, axisLabels.y));
   return delta;
 }
 
@@ -47242,117 +48399,141 @@ function readPositionStyle(element) {
   return window.getComputedStyle(element).position;
 }
 
-function getLayoutType(prev, next, positionOnly) {
-  return positionOnly && prev === next ? offset : boundingBox;
+function getLayoutType(prev, next, isPositionOnly) {
+  return isPositionOnly && prev === next ? offset : boundingBox;
 }
 
 function isSizeKey(key) {
   return key === "width" || key === "height";
 }
 
-function useLayoutAnimation(ref, values, controls, layoutTransition, positionOnly) {
-  if (positionOnly === void 0) {
-    positionOnly = false;
-  } // Allow any parent SyncLayoutContext components to force-update this component
+function getTransition(_a) {
+  var layoutTransition = _a.layoutTransition,
+      positionTransition = _a.positionTransition;
+  return layoutTransition || positionTransition;
+}
+
+var LayoutAnimation =
+/** @class */
+function (_super) {
+  (0, _tslib.__extends)(LayoutAnimation, _super);
+
+  function LayoutAnimation() {
+    return _super !== null && _super.apply(this, arguments) || this;
+  } // Measure the current state of the DOM before it's updated, and schedule checks to see
+  // if it's changed as a result of a React render.
 
 
-  (0, _react.useContext)(SyncLayoutContext);
-  var element = ref.current;
-  useLayoutSync(); // If we don't have a HTML element we can early return here. We've already called all the hooks.
-
-  if (!isHTMLElement(element)) return; // Keep track of the position style prop. Ideally we'd compare offset as this is uneffected by
-  // the same transforms that we want to use to performantly animate the layout. But if position changes,
-  // for example between "static" and "fixed", we can no longer rely on the offset and need
-  // to use the visual bounding box.
-
-  var prevPosition = readPositionStyle(element);
-  var prev = {
-    offset: offset.measure(element),
-    boundingBox: boundingBox.measure(element)
-  }; // Keep track of any existing transforms so we can reapply them after measuring the target bounding box.
-
-  var transform = "";
-  var next;
-  var compare; // We split the unsetting, read and reapplication of the `transform` style prop into
-  // different steps via useSyncEffect. Multiple components might all be doing the same
-  // thing and by splitting these jobs and flushing them in batches we prevent layout thrashing.
-
-  layoutSync.prepare(function () {
-    // Unset the transform of all layoutTransition components so we can accurately measure
-    // the target bounding box
-    transform = element.style.transform;
-    element.style.transform = "";
-  });
-  layoutSync.read(function () {
-    // Read the target VisualInfo of all layoutTransition components
-    next = {
+  LayoutAnimation.prototype.getSnapshotBeforeUpdate = function () {
+    var _a = this.props,
+        innerRef = _a.innerRef,
+        positionTransition = _a.positionTransition,
+        values = _a.values,
+        controls = _a.controls;
+    var element = innerRef.current;
+    if (!isHTMLElement(element)) return;
+    var layoutTransition = getTransition(this.props);
+    var isPositionOnly = !!positionTransition;
+    var positionStyle = readPositionStyle(element);
+    var prev = {
       offset: offset.measure(element),
       boundingBox: boundingBox.measure(element)
     };
-    var nextPosition = readPositionStyle(element);
-    compare = getLayoutType(prevPosition, nextPosition, positionOnly);
-  });
-  layoutSync.render(function () {
-    // Reverse the layout delta of all newly laid-out layoutTransition components into their
-    // prev visual state and then animate them into their new one using transforms.
-    var prevLayout = compare.getLayout(prev);
-    var nextLayout = compare.getLayout(next);
-    var delta = calcDelta(prevLayout, nextLayout);
-    var hasAnyChanged = delta.x || delta.y || delta.width || delta.height;
+    var transform;
+    var next;
+    var compare; // We split the unsetting, read and reapplication of the `transform` style prop into
+    // different steps via useSyncEffect. Multiple components might all be doing the same
+    // thing and by splitting these jobs and flushing them in batches we prevent layout thrashing.
 
-    if (!hasAnyChanged) {
-      // If layout hasn't changed, reapply the transform and get out of here.
-      transform && (element.style.transform = transform);
-      return;
-    }
-
-    (0, _stylefire.default)(element).set({
-      originX: delta.originX,
-      originY: delta.originY
+    layoutSync.prepare(function () {
+      // Unset the transform of all layoutTransition components so we can accurately measure
+      // the target bounding box
+      transform = element.style.transform;
+      element.style.transform = "";
     });
-    syncRenderSession.open();
-    var target = {};
-    var transition = {};
-    var transitionDefinition = isResolver(layoutTransition) ? layoutTransition({
-      delta: delta
-    }) : layoutTransition;
+    layoutSync.read(function () {
+      // Read the target VisualInfo of all layoutTransition components
+      next = {
+        offset: offset.measure(element),
+        boundingBox: boundingBox.measure(element)
+      };
+      var nextPosition = readPositionStyle(element);
+      compare = getLayoutType(positionStyle, nextPosition, isPositionOnly);
+    });
+    layoutSync.render(function () {
+      // Reverse the layout delta of all newly laid-out layoutTransition components into their
+      // prev visual state and then animate them into their new one using transforms.
+      var prevLayout = compare.getLayout(prev);
+      var nextLayout = compare.getLayout(next);
+      var delta = calcDelta(prevLayout, nextLayout);
+      var hasAnyChanged = delta.x || delta.y || delta.width || delta.height;
 
-    function makeTransition(layoutKey, transformKey, targetValue, visualOrigin) {
-      // If this dimension hasn't changed, early return
-      var deltaKey = isSizeKey(layoutKey) ? layoutKey : transformKey;
-      if (!delta[deltaKey]) return;
-      var baseTransition = typeof transitionDefinition === "boolean" ? (0, _tslib.__assign)({}, getDefaultLayoutTransition(positionOnly)) : transitionDefinition;
-      var value = values.get(transformKey, targetValue);
-      var velocity = value.getVelocity();
-      transition[transformKey] = baseTransition[transformKey] ? (0, _tslib.__assign)({}, baseTransition[transformKey]) : (0, _tslib.__assign)({}, baseTransition);
+      if (!hasAnyChanged) {
+        // If layout hasn't changed, reapply the transform and get out of here.
+        transform && (element.style.transform = transform);
+        return;
+      }
 
-      if (transition[transformKey].velocity === undefined) {
-        transition[transformKey].velocity = velocity || 0;
-      } // The target value of all transforms is the default value of that prop (ie x = 0, scaleX = 1)
-      // This is because we're inverting the layout change with `transform` and then animating to `transform: none`
+      (0, _stylefire.default)(element).set({
+        originX: delta.originX,
+        originY: delta.originY
+      });
+      syncRenderSession.open();
+      var target = {};
+      var transition = {};
+      var transitionDefinition = isResolver(layoutTransition) ? layoutTransition({
+        delta: delta
+      }) : layoutTransition;
+
+      function makeTransition(layoutKey, transformKey, targetValue, visualOrigin) {
+        // If this dimension hasn't changed, early return
+        var deltaKey = isSizeKey(layoutKey) ? layoutKey : transformKey;
+        if (!delta[deltaKey]) return;
+        var baseTransition = typeof transitionDefinition === "boolean" ? (0, _tslib.__assign)({}, getDefaultLayoutTransition(isPositionOnly)) : transitionDefinition;
+        var value = values.get(transformKey, targetValue);
+        var velocity = value.getVelocity();
+        transition[transformKey] = baseTransition[transformKey] ? (0, _tslib.__assign)({}, baseTransition[transformKey]) : (0, _tslib.__assign)({}, baseTransition);
+
+        if (transition[transformKey].velocity === undefined) {
+          transition[transformKey].velocity = velocity || 0;
+        } // The target value of all transforms is the default value of that prop (ie x = 0, scaleX = 1)
+        // This is because we're inverting the layout change with `transform` and then animating to `transform: none`
 
 
-      target[transformKey] = targetValue;
-      var offsetToApply = !isSizeKey(layoutKey) && compare === offset ? value.get() : 0;
-      value.set(visualOrigin + offsetToApply);
-    }
+        target[transformKey] = targetValue;
+        var offsetToApply = !isSizeKey(layoutKey) && compare === offset ? value.get() : 0;
+        value.set(visualOrigin + offsetToApply);
+      }
 
-    makeTransition("left", "x", 0, delta.x);
-    makeTransition("top", "y", 0, delta.y);
+      makeTransition("left", "x", 0, delta.x);
+      makeTransition("top", "y", 0, delta.y);
 
-    if (!positionOnly) {
-      makeTransition("width", "scaleX", 1, prev.boundingBox.width / next.boundingBox.width);
-      makeTransition("height", "scaleY", 1, prev.boundingBox.height / next.boundingBox.height);
-    }
+      if (!isPositionOnly) {
+        makeTransition("width", "scaleX", 1, prev.boundingBox.width / next.boundingBox.width);
+        makeTransition("height", "scaleY", 1, prev.boundingBox.height / next.boundingBox.height);
+      }
 
-    target.transition = transition; // Only start the transition if `transitionDefinition` isn't `false`. Otherwise we want
-    // to leave the values in their newly-inverted state and let the user cope with the rest.
+      target.transition = transition; // Only start the transition if `transitionDefinition` isn't `false`. Otherwise we want
+      // to leave the values in their newly-inverted state and let the user cope with the rest.
 
-    transitionDefinition && controls.start(target); // Force a render to ensure there's no visual flickering
+      transitionDefinition && controls.start(target); // Force a render to ensure there's no visual flickering
 
-    syncRenderSession.flush();
-  });
-}
+      syncRenderSession.flush();
+    });
+    return null;
+  };
+
+  LayoutAnimation.prototype.componentDidUpdate = function () {
+    layoutSync.flush();
+  };
+
+  LayoutAnimation.prototype.render = function () {
+    return null;
+  };
+
+  LayoutAnimation.contextType = SyncLayoutContext;
+  return LayoutAnimation;
+}(_react.Component);
 
 var Layout = {
   key: "layout",
@@ -47362,14 +48543,7 @@ var Layout = {
     (0, _heyListen.invariant)(!(positionTransition && layoutTransition), "Don't set both positionTransition and layoutTransition on the same component");
     return typeof window !== "undefined" && !!(positionTransition || layoutTransition);
   },
-  Component: makeRenderlessComponent(function (_a) {
-    var innerRef = _a.innerRef,
-        controls = _a.controls,
-        values = _a.values,
-        positionTransition = _a.positionTransition,
-        layoutTransition = _a.layoutTransition;
-    useLayoutAnimation(innerRef, values, controls, layoutTransition || positionTransition, !!positionTransition);
-  })
+  Component: LayoutAnimation
 };
 /**
  * A list of all valid MotionProps
@@ -47378,7 +48552,7 @@ var Layout = {
  * This doesn't throw if a `MotionProp` name is missing - it should.
  */
 
-var validMotionProps = new Set(["initial", "animate", "exit", "style", "variants", "transition", "transformTemplate", "transformValues", "custom", "inherit", "static", "positionTransition", "layoutTransition", "onAnimationComplete", "onUpdate", "onDragStart", "onDrag", "onDragEnd", "onDirectionLock", "onDragTransitionEnd", "drag", "dragConstraints", "dragDirectionLock", "dragElastic", "dragMomentum", "dragPropagation", "dragTransition", "_dragValueX", "_dragValueY", "_dragTransitionControls", "dragOriginX", "dragOriginY", "onPan", "onPanStart", "onPanEnd", "onPanSessionStart", "onTap", "onTapStart", "onTapCancel", "whileHover", "whileTap", "onHoverEnd", "onHoverStart"]);
+var validMotionProps = new Set(["initial", "animate", "exit", "style", "variants", "transition", "transformTemplate", "transformValues", "custom", "inherit", "static", "positionTransition", "layoutTransition", "onAnimationStart", "onAnimationComplete", "onUpdate", "onDragStart", "onDrag", "onDragEnd", "onDirectionLock", "onDragTransitionEnd", "drag", "dragControls", "dragListener", "dragConstraints", "dragDirectionLock", "dragElastic", "dragMomentum", "dragPropagation", "dragTransition", "_dragValueX", "_dragValueY", "_dragTransitionControls", "dragOriginX", "dragOriginY", "onPan", "onPanStart", "onPanEnd", "onPanSessionStart", "onTap", "onTapStart", "onTapCancel", "whileHover", "whileTap", "onHoverEnd", "onHoverStart"]);
 /**
  * Check whether a prop name is a valid `MotionProp` key.
  *
@@ -47424,7 +48598,7 @@ function targetWithoutTransition(_a, mergeTransitionEnd) {
   var transition = _a.transition,
       transitionEnd = _a.transitionEnd,
       target = (0, _tslib.__rest)(_a, ["transition", "transitionEnd"]);
-  return mergeTransitionEnd ? (0, _tslib.__assign)({}, target, transitionEnd) : target;
+  return mergeTransitionEnd ? (0, _tslib.__assign)((0, _tslib.__assign)({}, target), transitionEnd) : target;
 }
 /**
  * Handle the `animate` prop when its an object of values, ie:
@@ -47479,10 +48653,10 @@ function useAnimateProp(targetAndTransition, controls, values, defaultTransition
     }
 
     isInitialRender.current = false;
-    prevValues.current = (0, _tslib.__assign)({}, prevValues.current, finalTarget);
+    prevValues.current = (0, _tslib.__assign)((0, _tslib.__assign)({}, prevValues.current), finalTarget);
 
     if (Object.keys(targetToAnimate).length) {
-      controls.start((0, _tslib.__assign)({}, targetToAnimate, {
+      controls.start((0, _tslib.__assign)((0, _tslib.__assign)({}, targetToAnimate), {
         transition: targetAndTransition.transition || defaultTransition,
         transitionEnd: targetAndTransition.transitionEnd
       }));
@@ -47652,7 +48826,7 @@ var Exit = {
     (0, _react.useEffect)(function () {
       if (isExiting) {
         if (!isPlayingExitAnimation.current && exit) {
-          controls.setProps((0, _tslib.__assign)({}, props, {
+          controls.setProps((0, _tslib.__assign)((0, _tslib.__assign)({}, props), {
             custom: custom !== undefined ? custom : props.custom
           }));
           controls.start(exit).then(onExitComplete);
@@ -47717,7 +48891,7 @@ function filterValidProps(props) {
 var buildSVGProps = function (values, style) {
   var motionValueStyles = resolveCurrent(values);
   var props = (0, _stylefire.buildSVGAttrs)(motionValueStyles, undefined, undefined, undefined, undefined, false);
-  props.style = (0, _tslib.__assign)({}, style, props.style);
+  props.style = (0, _tslib.__assign)((0, _tslib.__assign)({}, style), props.style);
   return props;
 };
 
@@ -47738,9 +48912,9 @@ function createDomMotionConfig(Component) {
       var staticVisualStyles = isSVG ? buildSVGProps(values, style) : {
         style: buildStyleAttr(values, style, isStatic)
       };
-      return (0, _react.createElement)(Component, (0, _tslib.__assign)({}, forwardedProps, {
+      return (0, _react.createElement)(Component, (0, _tslib.__assign)((0, _tslib.__assign)((0, _tslib.__assign)({}, forwardedProps), {
         ref: ref
-      }, staticVisualStyles));
+      }), staticVisualStyles));
     },
 
     /**
@@ -47848,7 +49022,7 @@ var svgMotionComponents = svgElements.reduce(function (acc, Component) {
  * @public
  */
 
-var motion = (0, _tslib.__assign)({
+var motion = (0, _tslib.__assign)((0, _tslib.__assign)({
   /**
    * Convert a custom React component into a `motion` component.
    *
@@ -47862,12 +49036,49 @@ var motion = (0, _tslib.__assign)({
    * const MotionComponent = motion.custom<Props>(Component)
    * ```
    *
-   * @param Component
+   * @param Component -
    */
   custom: function custom(Component) {
     return createMotionComponent(createDomMotionConfig(Component));
   }
-}, htmlMotionComponents, svgMotionComponents);
+}, htmlMotionComponents), svgMotionComponents);
+/**
+ * Creates a `MotionValue` to track the state and velocity of a value.
+ *
+ * Usually, these are created automatically. For advanced use-cases, like use with `useTransform`, you can create `MotionValue`s externally and pass them into the animated component via the `style` prop.
+ *
+ * @library
+ *
+ * ```jsx
+ * export function MyComponent() {
+ *   const scale = useMotionValue(1)
+ *
+ *   return <Frame scale={scale} />
+ * }
+ * ```
+ *
+ * @motion
+ *
+ * ```jsx
+ * export const MyComponent = () => {
+ *   const scale = useMotionValue(1)
+ *
+ *   return <motion.div style={{ scale }} />
+ * }
+ * ```
+ *
+ * @param initial - The initial state.
+ *
+ * @public
+ */
+
+exports.motion = motion;
+
+function useMotionValue(initial) {
+  return useConstant(function () {
+    return motionValue(initial);
+  });
+}
 /**
  * If the provided value is a MotionValue, this returns the actual value, otherwise just the value itself
  *
@@ -47876,7 +49087,6 @@ var motion = (0, _tslib.__assign)({
  * @internal
  */
 
-exports.motion = motion;
 
 function unwrapMotionValue(value) {
   var unwrappedValue = value instanceof MotionValue ? value.get() : value;
@@ -47914,14 +49124,14 @@ var isTransformer = function (v) {
   return typeof v === "function";
 };
 
-var noop = function (v) {
+var noop$1 = function (v) {
   return v;
 };
 
 function useTransform(parent, customTransform, to, options) {
   var value = (0, _react.useRef)(null);
   var comparitor = [parent];
-  var transformer = noop;
+  var transformer = noop$1;
 
   if (isTransformer(customTransform)) {
     transformer = customTransform;
@@ -48344,6 +49554,149 @@ function useCycle() {
     setItem(items[index.current]);
   }];
 }
+/**
+ * Can manually trigger a drag gesture on one or more `drag`-enabled `motion` components.
+ *
+ * @library
+ *
+ * ```jsx
+ * const dragControls = useDragControls()
+ *
+ * function startDrag(event) {
+ *   dragControls.start(event, { snapToCursor: true })
+ * }
+ *
+ * return (
+ *   <>
+ *     <Frame onTapStart={startDrag} />
+ *     <Frame drag="x" dragControls={dragControls} />
+ *   </>
+ * )
+ * ```
+ *
+ * @motion
+ *
+ * ```jsx
+ * const dragControls = useDragControls()
+ *
+ * function startDrag(event) {
+ *   dragControls.start(event, { snapToCursor: true })
+ * }
+ *
+ * return (
+ *   <>
+ *     <div onMouseDown={startDrag} />
+ *     <motion.div drag="x" dragControls={dragControls} />
+ *   </>
+ * )
+ * ```
+ *
+ * @public
+ */
+
+
+var DragControls =
+/** @class */
+function () {
+  function DragControls() {
+    this.componentControls = new Set();
+  }
+  /**
+   * Subscribe a component's internal `ComponentDragControls` to the user-facing API.
+   *
+   * @internal
+   */
+
+
+  DragControls.prototype.subscribe = function (controls) {
+    var _this = this;
+
+    this.componentControls.add(controls);
+    return function () {
+      return _this.componentControls.delete(controls);
+    };
+  };
+  /**
+   * Start a drag gesture on every `motion` component that has this set of drag controls
+   * passed into it via the `dragControls` prop.
+   *
+   * ```jsx
+   * dragControls.start(e, {
+   *   snapToCursor: true
+   * })
+   * ```
+   *
+   * @param event - A mouse/touch/pointer event.
+   * @param options - Options
+   *
+   * @public
+   */
+
+
+  DragControls.prototype.start = function (event, options) {
+    this.componentControls.forEach(function (controls) {
+      controls.start(event.nativeEvent || event, options);
+    });
+  };
+
+  return DragControls;
+}();
+
+exports.DragControls = DragControls;
+
+var createDragControls = function () {
+  return new DragControls();
+};
+/**
+ * Usually, dragging is initiated by pressing down on a `motion` component with a `drag` prop
+ * and moving it. For some use-cases, for instance clicking at an arbitrary point on a video scrubber, we
+ * might want to initiate that dragging from a different component than the draggable one.
+ *
+ * By creating a `dragControls` using the `useDragControls` hook, we can pass this into
+ * the draggable component's `dragControls` prop. It exposes a `start` method
+ * that can start dragging from pointer events on other components.
+ *
+ * @library
+ *
+ * ```jsx
+ * const dragControls = useDragControls()
+ *
+ * function startDrag(event) {
+ *   dragControls.start(event, { snapToCursor: true })
+ * }
+ *
+ * return (
+ *   <>
+ *     <Frame onTapStart={startDrag} />
+ *     <Frame drag="x" dragControls={dragControls} />
+ *   </>
+ * )
+ * ```
+ *
+ * @motion
+ *
+ * ```jsx
+ * const dragControls = useDragControls()
+ *
+ * function startDrag(event) {
+ *   dragControls.start(event, { snapToCursor: true })
+ * }
+ *
+ * return (
+ *   <>
+ *     <div onMouseDown={startDrag} />
+ *     <motion.div drag="x" dragControls={dragControls} />
+ *   </>
+ * )
+ * ```
+ *
+ * @public
+ */
+
+
+function useDragControls() {
+  return useConstant(createDragControls);
+}
 
 var PresenceChild = function (_a) {
   var children = _a.children,
@@ -48351,7 +49704,7 @@ var PresenceChild = function (_a) {
   var context = (0, _react.useContext)(MotionContext); // Create a new `value` in all instances to ensure `motion` children re-render
   // and detect any layout changes that might have occurred.
 
-  context = (0, _tslib.__assign)({}, context, {
+  context = (0, _tslib.__assign)((0, _tslib.__assign)({}, context), {
     exitProps: exitProps || {}
   });
   return (0, _react.createElement)(MotionContext.Provider, {
@@ -48487,7 +49840,7 @@ var AnimatePresence = function (_a) {
   } // If this is a subsequent render, deal with entering and exiting children
 
 
-  var childrenToRender = filteredChildren.slice(); // Diff the keys of the currently-present and target children to update our
+  var childrenToRender = (0, _tslib.__spreadArrays)(filteredChildren); // Diff the keys of the currently-present and target children to update our
   // exiting list.
 
   var presentKeys = presentChildren.current.map(getChildKey);
@@ -48563,9 +49916,93 @@ var AnimatePresence = function (_a) {
   return (0, _react.createElement)(_react.Fragment, null, exiting.size ? childrenToRender : childrenToRender.map(function (child) {
     return (0, _react.cloneElement)(child);
   }));
-};
+}; // Does this device prefer reduced motion? Returns `null` server-side.
+
 
 exports.AnimatePresence = AnimatePresence;
+var prefersReducedMotion = motionValue(null);
+
+if (typeof window !== "undefined") {
+  if (window.matchMedia) {
+    var motionMediaQuery_1 = window.matchMedia("(prefers-reduced-motion)");
+
+    var setReducedMotionPreferences = function () {
+      return prefersReducedMotion.set(motionMediaQuery_1.matches);
+    };
+
+    motionMediaQuery_1.addListener(setReducedMotionPreferences);
+    setReducedMotionPreferences();
+  } else {
+    prefersReducedMotion.set(false);
+  }
+}
+
+function determineShouldReduceMotion(prefersReduced, isReducedMotion) {
+  return typeof isReducedMotion === "boolean" ? isReducedMotion : Boolean(prefersReduced);
+}
+/**
+ * A hook that returns `true` if we should be using reduced motion based on the current device's Reduced Motion setting.
+ *
+ * This can be used to implement changes to your UI based on Reduced Motion. For instance, replacing motion-sickness inducing
+ * `x`/`y` animations with `opacity`, disabling the autoplay of background videos, or turning off parallax motion.
+ *
+ * It will actively respond to changes and re-render your components with the latest setting.
+ *
+ * ```jsx
+ * export function Sidebar({ isOpem }) {
+ *   const shouldReduceMotion = useReducedMotion()
+ *   const closedX = shouldReduceMotion ? 0 : "-100%"
+ *
+ *   return (
+ *     <motion.div animate={{
+ *       opacity: isOpen ? 1 : 0,
+ *       x: isOpen ? 0 : closedX
+ *     }} />
+ *   )
+ * }
+ * ```
+ *
+ * @return boolean
+ *
+ * @public
+ */
+
+
+function useReducedMotion() {
+  var isReducedMotion = (0, _react.useContext)(MotionContext).isReducedMotion;
+
+  var _a = (0, _react.useState)(determineShouldReduceMotion(prefersReducedMotion.get(), isReducedMotion)),
+      shouldReduceMotion = _a[0],
+      setShouldReduceMotion = _a[1];
+
+  (0, _react.useEffect)(function () {
+    return prefersReducedMotion.onChange(function (v) {
+      setShouldReduceMotion(determineShouldReduceMotion(v, isReducedMotion));
+    });
+  }, [setShouldReduceMotion, isReducedMotion]);
+  return shouldReduceMotion;
+}
+/**
+ * Define accessibility options for a tree. Can be used to force the tree into Reduced Motion mode,
+ * or disable device detection.
+ *
+ * @internal
+ */
+
+
+function ReducedMotion(_a) {
+  var children = _a.children,
+      enabled = _a.enabled;
+  var context = (0, _react.useContext)(MotionContext);
+  context = (0, _react.useMemo)(function () {
+    return (0, _tslib.__assign)((0, _tslib.__assign)({}, context), {
+      isReducedMotion: enabled
+    });
+  }, [enabled]);
+  return (0, _react.createElement)(MotionContext.Provider, {
+    value: context
+  }, children);
+}
 },{"tslib":"node_modules/tslib/tslib.es6.js","react":"node_modules/react/index.js","framesync":"node_modules/framesync/dist/framesync.es.js","@popmotion/popcorn":"node_modules/@popmotion/popcorn/dist/popcorn.es.js","stylefire":"node_modules/stylefire/dist/stylefire.es.js","hey-listen":"node_modules/hey-listen/dist/hey-listen.es.js","style-value-types":"node_modules/style-value-types/dist/style-value-types.es.js","popmotion":"node_modules/popmotion/dist/popmotion.es.js","@popmotion/easing":"node_modules/@popmotion/easing/dist/easing.es.js","@emotion/is-prop-valid":"node_modules/@emotion/is-prop-valid/dist/is-prop-valid.browser.esm.js"}],"scripts/components/hero/logos-scroll.tsx":[function(require,module,exports) {
 "use strict";
 
@@ -48863,7 +50300,7 @@ window.addEventListener('DOMContentLoaded', function (event) {
   console.log("inserting hero into the dom");
   ReactDOM.render(React.createElement(hero_1.default, null), document.getElementById("hero_app"));
 });
-},{"./lib/scroll":"scripts/lib/scroll.ts","react":"node_modules/react/index.js","react-dom":"node_modules/react-dom/index.js","./components/news-outline":"scripts/components/news-outline/index.tsx","./components/hero":"scripts/components/hero/index.tsx"}],"../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"./lib/scroll":"scripts/lib/scroll.ts","react":"node_modules/react/index.js","react-dom":"node_modules/react-dom/index.js","./components/news-outline":"scripts/components/news-outline/index.tsx","./components/hero":"scripts/components/hero/index.tsx"}],"../../../../.nvm/versions/node/v13.7.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -48891,7 +50328,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "46015" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "33343" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
@@ -49067,5 +50504,5 @@ function hmrAcceptRun(bundle, id) {
     return true;
   }
 }
-},{}]},{},["../../../../.nvm/versions/node/v13.5.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js","scripts/index.tsx"], null)
+},{}]},{},["../../../../.nvm/versions/node/v13.7.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js","scripts/index.tsx"], null)
 //# sourceMappingURL=/scripts.9da17dbf.js.map
